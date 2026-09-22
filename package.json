@@ -1,0 +1,24 @@
+{
+  "name": "rehearsa-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Rehearsa — AI Interview Prep Kit Platform",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -n \"api,web\" -c \"blue,green\" \"npm run dev --workspace=apps/api\" \"npm run dev --workspace=apps/web\"",
+    "dev:api": "npm run dev --workspace=apps/api",
+    "dev:web": "npm run dev --workspace=apps/web",
+    "build": "npm run build --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "evaluate": "tsx scripts/evaluator.ts"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2"
+  }
+}
