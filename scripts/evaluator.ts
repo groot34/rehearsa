@@ -45,13 +45,17 @@ async function main() {
   console.log(`[Rehearsa Batch Evaluator] Processing ${casesData.length} evaluation case(s)...`);
 
   const results: BatchKitResult[] = [];
+  const startTime = Date.now();
 
   for (let index = 0; index < casesData.length; index++) {
+    const caseStartTime = Date.now();
     const rawCase = casesData[index];
     const parsed = BatchCaseInputSchema.safeParse(rawCase);
 
     if (!parsed.success) {
       const caseId = (rawCase && typeof rawCase === 'object' && 'id' in rawCase) ? String(rawCase.id) : `case-${index + 1}`;
+      const elapsed = Date.now() - caseStartTime;
+      console.warn(`[Rehearsa Batch Evaluator] Case ${caseId}: FAILED schema validation (${elapsed}ms)`);
       results.push({
         id: caseId,
         status: 'failed',
@@ -67,7 +71,7 @@ async function main() {
     const { id, jd, company_url, days } = parsed.data;
 
     try {
-      console.log(`[Rehearsa Batch Evaluator] Executing pipeline for case: ${id} (${company_url}, ${days} days)...`);
+      console.log(`[Rehearsa Batch Evaluator] Case ${id}: Executing pipeline (${company_url}, ${days} days)...`);
 
       const pipelineRes = await executeGenerationPipeline({
         jobDescription: jd,
@@ -76,7 +80,10 @@ async function main() {
         allowLoopbackInDev: true,
       });
 
+      const elapsed = Date.now() - caseStartTime;
+
       if (pipelineRes.success && pipelineRes.kit) {
+        console.log(`[Rehearsa Batch Evaluator] Case ${id}: OK (${elapsed}ms)`);
         results.push({
           id,
           status: 'ok',
@@ -84,6 +91,8 @@ async function main() {
           error: null,
         });
       } else {
+        const errCode = pipelineRes.error?.code || 'GENERATION_FAILED';
+        console.warn(`[Rehearsa Batch Evaluator] Case ${id}: FAILED - ${errCode} (${elapsed}ms)`);
         results.push({
           id,
           status: 'failed',
@@ -95,6 +104,8 @@ async function main() {
         });
       }
     } catch (err: any) {
+      const elapsed = Date.now() - caseStartTime;
+      console.error(`[Rehearsa Batch Evaluator] Case ${id}: EXCEPTION - ${err.message} (${elapsed}ms)`);
       results.push({
         id,
         status: 'failed',
@@ -106,6 +117,10 @@ async function main() {
       });
     }
   }
+
+  const totalElapsed = Date.now() - startTime;
+  const okCount = results.filter((r) => r.status === 'ok').length;
+  const failedCount = results.filter((r) => r.status === 'failed').length;
 
   const envelope: BatchOutputEnvelope = {
     version: '1.0',
@@ -119,7 +134,14 @@ async function main() {
   }
 
   fs.writeFileSync(outputPath, JSON.stringify(envelope, null, 2), 'utf-8');
-  console.log(`[Rehearsa Batch Evaluator] Complete! Batch envelope written to ${outputPath}`);
+  console.log(`\n==================================================`);
+  console.log(`[Rehearsa Batch Evaluator] Execution Summary:`);
+  console.log(`Total Cases : ${results.length}`);
+  console.log(`Successful  : ${okCount}`);
+  console.log(`Failed      : ${failedCount}`);
+  console.log(`Total Time  : ${totalElapsed}ms`);
+  console.log(`Envelope written to: ${outputPath}`);
+  console.log(`==================================================\n`);
 }
 
 main().catch((err) => {

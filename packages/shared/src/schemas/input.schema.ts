@@ -2,7 +2,12 @@ import { z } from 'zod';
 
 export const CreateKitInputSchema = z.object({
   jobDescription: z.string().min(20, 'Job description must be at least 20 characters'),
-  companyUrl: z.string().url('A valid company URL is required'),
+  companyUrl: z
+    .string()
+    .url('A valid company URL is required')
+    .refine((url) => /^https?:\/\//i.test(url), {
+      message: 'Company URL must use http or https protocol',
+    }),
   daysAvailable: z.number().int().min(1).max(60, 'Days available must be between 1 and 60'),
 });
 

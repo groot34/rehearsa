@@ -56,10 +56,10 @@ export async function executeGenerationPipeline(
     };
   }
 
-  if (!companyUrl || typeof companyUrl !== 'string') {
+  if (!companyUrl || typeof companyUrl !== 'string' || !/^https?:\/\//i.test(companyUrl)) {
     return {
       success: false,
-      error: { code: 'INVALID_INPUT', message: 'A valid company URL is required.' },
+      error: { code: 'INVALID_INPUT', message: 'A valid HTTP or HTTPS company URL is required.' },
     };
   }
 

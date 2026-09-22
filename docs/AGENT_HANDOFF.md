@@ -8,17 +8,17 @@
 
 * **Project**: Rehearsa — Full-Stack AI-Powered Interview Preparation Platform
 * **Assessment ID**: `FS-AI-INTERVIEW-01` (Trao Assessment)
-* **Active Milestone**: `Milestone 4 — Web Frontend Interface & Interactive Kit Builder` (Completed, Audited & Ready for Commit)
+* **Active Milestone**: `Milestone 5 — End-to-End Evaluation & Benchmarking` (Completed & Verified)
 
 ---
 
 ## 2. Latest Known Repository State
 
 * **Branch**: `main`
-* **Latest Committed Baseline**: `754a534` (`feat: implement research and AI generation pipeline`)
-* **Working Tree**: Milestone 4 changes are in working tree (uncommitted — awaiting explicit commit instruction).
-  - Modified: `apps/web/next.config.js`, `apps/web/src/app/page.tsx`, `vitest.config.mts`, `docs/AGENT_HANDOFF.md`, `docs/ASSESSMENT.md`, `docs/CHANGELOG.md`, `docs/PROGRESS.md`
-  - Untracked (new): `apps/web/src/components/` (9 components), `apps/web/src/lib/api.ts`, `apps/web/src/tests/kitGenerator.test.ts`
+* **Latest Committed Baseline**: `b0dca7b` (`feat: build interview prep frontend`)
+* **Working Tree**: Milestone 5 changes are in working tree (uncommitted — awaiting explicit instruction).
+  - Modified: `apps/api/src/modules/interview-prep/pipelineOrchestrator.ts`, `packages/shared/src/schemas/batch.schema.ts`, `packages/shared/src/schemas/input.schema.ts`, `scripts/evaluator.ts`, `scripts/tests/evaluator.test.ts`, `docs/AGENT_HANDOFF.md`, `docs/ASSESSMENT.md`, `docs/CHANGELOG.md`, `docs/PROGRESS.md`, `docs/TESTING.md`
+  - Synthetic benchmark artifacts stored in `scratch/` (ignored by Git): `scratch/synthetic-benchmark-cases.json`, `scratch/synthetic-benchmark-output.json`
 * **Workspace Structure**:
   - `packages/shared`: Zod schemas, types, `coverageChecker.ts`, `scheduleAllocator.ts`, `kitValidator.ts`, full test suite.
   - `apps/api/src/modules/research/`: SSRF-safe fetcher, HTML cleaner, robots parser, multi-page crawler.
@@ -33,10 +33,10 @@
 
 ## 3. Verification Evidence
 
-1. `npx vitest run`: Exit Code `0`. **50/50 tests passing** across 12 test files (4 shared + 4 research + 1 LLM + 1 pipeline + 1 routes + 1 evaluator + 1 web).
-2. `npm run build` (web workspace): Exit Code `0`. Next.js production build: `✓ Compiled successfully`, zero TypeScript errors.
+1. `npx vitest run`: Exit Code `0`. **51/51 tests passing** across 12 test files (4 shared + 4 research + 1 LLM + 1 pipeline + 1 routes + 1 evaluator CLI + 1 web).
+2. `npm run build`: Exit Code `0`. All three workspaces (`@rehearsa/shared`, `@rehearsa/api`, `@rehearsa/web`) compile with zero TypeScript errors.
 3. `npm run lint`: Exit Code `0`. All workspaces lint cleanly.
-4. `npm run evaluate`: Exit Code `0`. CLI batch evaluator verified against Appendix B envelope contract.
+4. `npm run evaluate`: Exit Code `0`. Full batch benchmark execution across 8 cases (5 valid, 3 invalid) completed in 782ms (< 1s), verified against Appendix A and Appendix B contracts.
 
 ---
 
@@ -62,19 +62,18 @@
 ## 5. Commands to Run Before Modifying Code
 
 ```bash
-# Verify unit tests and build
+# Verify unit tests, build, lint, and evaluator
 npx vitest run
 npm run build
 npm run lint
+npm run evaluate -- --input scratch/synthetic-benchmark-cases.json --output scratch/synthetic-benchmark-output.json
 ```
 
 ---
 
 ## 6. Exact Next Task / Milestone
 
-**Milestone 5: End-to-End System Evaluation & Benchmark Verification**
+**Project Final Review & User Acceptance**
 
-1. Execute full evaluation benchmark run (`npm run evaluate -- --input <benchmark-cases.json> --output <results.json>`).
-2. Verify system performance across multiple roles and preparation timeframes (1–60 days).
-3. Validate Appendix B envelope formatting and error isolation under stress test scenarios.
-4. Complete final project documentation review and user acceptance verification.
+1. Present final Milestone 5 evaluation report to the user.
+2. Await user review, audit confirmation, or explicit commit instruction.

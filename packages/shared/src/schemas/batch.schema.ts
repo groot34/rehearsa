@@ -3,8 +3,13 @@ import { KitSchema } from './kit.schema';
 
 export const BatchCaseInputSchema = z.object({
   id: z.string(),
-  jd: z.string().min(10, 'Job description must be provided'),
-  company_url: z.string().url('Must be a valid URL'),
+  jd: z.string().min(20, 'Job description must be at least 20 characters'),
+  company_url: z
+    .string()
+    .url('Must be a valid URL')
+    .refine((url) => /^https?:\/\//i.test(url), {
+      message: 'Company URL must use http or https protocol',
+    }),
   days: z.number().int().min(1).max(60),
 });
 

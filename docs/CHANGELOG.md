@@ -4,9 +4,24 @@ All notable changes to the Rehearsa project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.0.0-m5] - Milestone 5: End-to-End Evaluation & Benchmarking - 2026-09-22
+
+### Added
+- **Synthetic Benchmark Suite (`scratch/synthetic-benchmark-cases.json`)**:
+  - Comprehensive 8-case benchmark suite covering varied roles (Backend, Frontend, DevOps, ML, Fullstack), schedule boundaries (1 day min, 60 days max, 5d, 14d, 30d), and invalid inputs (short JD, days > 60, malformed URL).
+- **Batch Evaluator CLI Enhancements (`scripts/evaluator.ts`)**:
+  - Added high-resolution per-case latency tracking (`Date.now()`) and summary table output displaying total cases, successes, failures, and total runtime in milliseconds.
+- **Evaluator Integration Test Suite Expansion (`scripts/tests/evaluator.test.ts`)**:
+  - Added Appendix A kit schema validation for generated kits across 1d, 5d, 60d schedules.
+  - Added unreachable domain graceful fallback verification.
+  - Added error exit code `1` verification for missing files, invalid JSON, and missing CLI flags.
+
+### Fixed
+- **HTTP/HTTPS URL Protocol Validation (`batch.schema.ts`, `input.schema.ts`, `pipelineOrchestrator.ts`)**: Refined URL validation schemas and orchestrator input checks to enforce `http://` or `https://` protocol schemes, correctly rejecting unsupported protocols (e.g. `ftp://`) and malformed URL strings with `INVALID_CASE_INPUT` / `INVALID_INPUT` error codes.
+
 ---
 
-## [Unreleased] - Milestone 4: Web Frontend Interface & Interactive Kit Builder - 2026-09-22
+## [1.0.0-m4] - Milestone 4: Web Frontend Interface & Interactive Kit Builder - 2026-09-22
 
 ### Added
 - **API Client & Proxy Setup (`apps/web/src/lib/api.ts`, `apps/web/next.config.js`)**:
