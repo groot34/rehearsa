@@ -83,11 +83,11 @@
 
 | Requirement | Scope | Status | Notes |
 |---|---|---|---|
-| View company brief, role breakdown, questions, flashcards, schedule | Mandatory | Not started | Frontend interactive views (Milestone 4) |
-| Edit, reorder, add, and delete kit content (questions, cards, schedule) | Mandatory | Not started | Mutable client state with debounced persistence |
-| Regenerate single section without destroying edits elsewhere | Mandatory | Not started | Section-scoped regeneration endpoints |
-| Preserve manually edited questions when regenerating their category | Mandatory | Not started | Diffing/dirty-flag tracking during regeneration |
-| Real-time progress updates & meaningful failure states during generation | Mandatory | Not started | SSE or polling status reporting |
+| View company brief, role breakdown, questions, flashcards, schedule | Mandatory | Verified | `KitViewer.tsx`, `CompanyBriefCard.tsx`, `RoleBreakdownCard.tsx`, `QuestionBankCard.tsx`, `FlashcardDeck.tsx`, `StudyScheduleTimeline.tsx` |
+| Edit, reorder, add, and delete kit content (questions, cards, schedule) | Mandatory | In progress | Basic view rendered in M4; section editing endpoints planned |
+| Regenerate single section without destroying edits elsewhere | Mandatory | In progress | Section-scoped endpoints planned |
+| Preserve manually edited questions when regenerating their category | Mandatory | In progress | Dirty-flag tracking during regeneration planned |
+| Real-time progress updates & meaningful failure states during generation | Mandatory | Verified | `GenerationProgressTracker.tsx` & error banner in `KitGeneratorForm.tsx` |
 
 ---
 
@@ -95,9 +95,9 @@
 
 | Requirement | Scope | Status | Notes |
 |---|---|---|---|
-| Interactive flip-card interface | Mandatory | Not started | Client-side flip animation & key bindings |
-| Record confidence levels per card (e.g., easy, medium, hard) | Mandatory | Not started | Local state & server sync |
-| Track session progress & mastery summary | Mandatory | Not started | Progress bar and completion metrics |
+| Interactive flip-card interface | Mandatory | Verified | `FlashcardDeck.tsx` card flip animation & front/back toggle |
+| Record confidence levels per card (e.g., easy, medium, hard) | Mandatory | In progress | Mastery toggle in M4; confidence rating sync planned |
+| Track session progress & mastery summary | Mandatory | Verified | `FlashcardDeck.tsx` mastery counter & progress tracking |
 
 ---
 

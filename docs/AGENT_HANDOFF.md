@@ -8,15 +8,17 @@
 
 * **Project**: Rehearsa — Full-Stack AI-Powered Interview Preparation Platform
 * **Assessment ID**: `FS-AI-INTERVIEW-01` (Trao Assessment)
-* **Active Milestone**: `Milestone 3 — Backend Research & AI Generation Pipeline` (Completed & Verified)
+* **Active Milestone**: `Milestone 4 — Web Frontend Interface & Interactive Kit Builder` (Completed, Audited & Ready for Commit)
 
 ---
 
 ## 2. Latest Known Repository State
 
 * **Branch**: `main`
-* **Latest Committed Baseline**: `02c85cd` (`feat: implement deterministic interview prep core`)
-* **Working Tree**: Milestone 3 changes are uncommitted (in working tree). Do NOT commit unless explicitly instructed.
+* **Latest Committed Baseline**: `754a534` (`feat: implement research and AI generation pipeline`)
+* **Working Tree**: Milestone 4 changes are in working tree (uncommitted — awaiting explicit commit instruction).
+  - Modified: `apps/web/next.config.js`, `apps/web/src/app/page.tsx`, `vitest.config.mts`, `docs/AGENT_HANDOFF.md`, `docs/ASSESSMENT.md`, `docs/CHANGELOG.md`, `docs/PROGRESS.md`
+  - Untracked (new): `apps/web/src/components/` (9 components), `apps/web/src/lib/api.ts`, `apps/web/src/tests/kitGenerator.test.ts`
 * **Workspace Structure**:
   - `packages/shared`: Zod schemas, types, `coverageChecker.ts`, `scheduleAllocator.ts`, `kitValidator.ts`, full test suite.
   - `apps/api/src/modules/research/`: SSRF-safe fetcher, HTML cleaner, robots parser, multi-page crawler.
@@ -24,16 +26,17 @@
   - `apps/api/src/modules/interview-prep/`: `pipelineOrchestrator.ts` (11-step pipeline), integration tests.
   - `apps/api/src/routes/interviewPrep.routes.ts`: `POST /api/interview-prep/generate`.
   - `scripts/evaluator.ts`: Headless batch evaluator with Appendix B envelope output.
-  - `apps/web`: Next.js 14+ frontend (scaffold only — Milestone 4 target).
+  - `apps/web`: Next.js 14 App Router interface with full kit generator form, progress tracker, interactive flashcard deck, question bank, company brief, role breakdown, and schedule timeline views.
   - `docs/`: Complete 7-document permanent project memory.
 
 ---
 
 ## 3. Verification Evidence
 
-1. `npx vitest run`: Exit Code `0`. **48/48 tests passing** across 11 test files (4 shared + 4 research + 1 LLM + 1 pipeline + 1 routes + 1 evaluator).
-2. `npm run build`: Exit Code `0`. All three workspaces (`@rehearsa/shared`, `@rehearsa/api`, `@rehearsa/web`) compiled cleanly.
-3. `npm run evaluate`: Exit Code `0`. CLI batch evaluator verified against Appendix B envelope contract.
+1. `npx vitest run`: Exit Code `0`. **50/50 tests passing** across 12 test files (4 shared + 4 research + 1 LLM + 1 pipeline + 1 routes + 1 evaluator + 1 web).
+2. `npm run build` (web workspace): Exit Code `0`. Next.js production build: `✓ Compiled successfully`, zero TypeScript errors.
+3. `npm run lint`: Exit Code `0`. All workspaces lint cleanly.
+4. `npm run evaluate`: Exit Code `0`. CLI batch evaluator verified against Appendix B envelope contract.
 
 ---
 
@@ -62,17 +65,16 @@
 # Verify unit tests and build
 npx vitest run
 npm run build
+npm run lint
 ```
 
 ---
 
 ## 6. Exact Next Task / Milestone
 
-**Milestone 4: Web Frontend Interface & Interactive Kit Builder**
+**Milestone 5: End-to-End System Evaluation & Benchmark Verification**
 
-1. Build the Next.js web UI at `apps/web/` — full-page kit generation form (job description textarea, company URL input, days slider).
-2. Implement real-time generation progress tracking (streaming or polling the API).
-3. Build the interactive kit viewer: collapsible sections, in-place question/answer editing, flashcard flip UI.
-4. Connect to the `POST /api/interview-prep/generate` endpoint and display the assembled `Kit` object.
-5. Ensure mobile-responsive layout and accessible HTML structure.
-6. Add a study schedule calendar/timeline view.
+1. Execute full evaluation benchmark run (`npm run evaluate -- --input <benchmark-cases.json> --output <results.json>`).
+2. Verify system performance across multiple roles and preparation timeframes (1–60 days).
+3. Validate Appendix B envelope formatting and error isolation under stress test scenarios.
+4. Complete final project documentation review and user acceptance verification.

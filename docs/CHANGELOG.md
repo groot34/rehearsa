@@ -6,7 +6,34 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
-## [Unreleased] - Milestone 3: Backend Research & AI Generation Pipeline - 2026-09-22
+## [Unreleased] - Milestone 4: Web Frontend Interface & Interactive Kit Builder - 2026-09-22
+
+### Added
+- **API Client & Proxy Setup (`apps/web/src/lib/api.ts`, `apps/web/next.config.js`)**:
+  - Configured Next.js proxy rewrites mapping `/api/*` to `http://localhost:4000/api/*`.
+  - Implemented `generateInterviewKit` API helper function for submitting generation requests.
+- **Interactive Component Suite (`apps/web/src/components/`)**:
+  - `KitGeneratorForm.tsx`: Input form for Job Description (textarea, min 20 chars), Company URL, and Days Available slider (1–60) with client-side validation and duplicate submission prevention.
+  - `GenerationProgressTracker.tsx`: Visual step-by-step loading progress tracker reflecting the 11-step pipeline during active generation.
+  - `CompanyBriefCard.tsx`: Company brief & sourced web research display.
+  - `RoleBreakdownCard.tsx`: Extracted role title, seniority, responsibilities, and prioritized requirements with priority (`must`/`nice`) and kind (`technical`/`behavioural`/`domain`) badges.
+  - `QuestionBankCard.tsx`: Categorized question bank with category filter tabs (`all`, `technical`, `behavioural`, `system-design`, `company-fit`), difficulty ratings (1–3 stars), requirement tags, and expandable answer outlines.
+  - `FlashcardDeck.tsx`: Interactive flashcard practice deck with card flip capability (Front/Back toggle), requirement links, and mastery tracking.
+  - `StudyScheduleTimeline.tsx`: Day-by-day study schedule timeline displaying focus topics, allocated study minutes, and question prompts.
+  - `CoverageBadge.tsx`: Deterministic requirement coverage guarantee status & pass provenance indicator.
+  - `KitViewer.tsx`: Comprehensive container view uniting all kit sections with tab filtering.
+- **Frontend Page Integration (`apps/web/src/app/page.tsx`)**:
+  - Integrated landing hero, generation form, real-time progress tracker, and full kit viewer into a single seamless user journey.
+- **Frontend Unit Tests (`apps/web/src/tests/kitGenerator.test.ts`)**:
+  - Added unit tests for client-side API payload formatting and network error handling.
+  - Total test count expanded to **50/50 tests passing** across 12 test files.
+
+### Fixed
+- **React Rules-of-Hooks Violation (`apps/web/src/components/FlashcardDeck.tsx`)**: Moved `useCallback` and `useEffect` hook definitions above the early `return null` empty-array guard. Previously the early return preceded hook calls, violating React's unconditional-hooks invariant and risking runtime errors when flashcard count changes. All hooks now execute unconditionally on every render; the guard is placed after all hooks but before the JSX return.
+
+---
+
+## [1.0.0-m3] - Milestone 3: Backend Research & AI Generation Pipeline - 2026-09-22
 
 ### Added
 - **SSRF-Safe Research Layer (`apps/api/src/modules/research/`)**:
