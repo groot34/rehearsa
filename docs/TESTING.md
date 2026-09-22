@@ -61,16 +61,14 @@ Must verify:
 | Command | Target | Purpose | Status |
 |---|---|---|---|
 | `npm run lint` | Monorepo root | Runs linter across all workspaces | Configured |
-| `npm run build` | Monorepo root | TypeScript compilation across packages | Configured |
-| `npm test` | Monorepo root | Runs unit test suite via Vitest / Jest | Configured |
+| `npm run build` | Monorepo root | TypeScript compilation across packages & Next.js build | Verified |
+| `npm test` or `npx vitest run` | Monorepo root | Runs Vitest unit & integration test suite | Verified (27/27 passing) |
 
-### Planned Commands `[PROPOSED]`
-| Command | Target | Purpose | Target Milestone |
-|---|---|---|---|
-| `npm run test:unit` | Monorepo | Runs unit tests only | Milestone 2 |
-| `npm run test:integration` | Monorepo | Runs integration tests with mock services | Milestone 3 |
-| `npm run test:e2e` | Monorepo | Playwright browser tests for web app | Milestone 4 |
-| `npm run evaluate -- --input <in> --output <out>` | Monorepo | Batch evaluation CLI | Milestone 4 |
+### Test Suite Breakdown (`Vitest v5.0.1`)
+- `packages/shared/src/tests/coverageChecker.test.ts`: 7 tests verifying all covered, partial covered, empty arrays, invalid references, duplicate requirement IDs, and stable ordering.
+- `packages/shared/src/tests/scheduleAllocator.test.ts`: 6 tests verifying 1-day, multi-day (5, 10), 0 questions, contiguous block allocation, deterministic reproducibility, and error handling.
+- `packages/shared/src/tests/kitValidator.test.ts`: 13 tests verifying complete Appendix A valid kit, missing fields, enum errors, difficulty limits, invalid references, duplicate IDs, and coverage consistency.
+- `packages/shared/src/tests/integration.test.ts`: 1 test executing end-to-end pipeline: requirements -> Pass 1 -> Coverage -> Pass 2 -> Schedule -> Kit Validation.
 
 ---
 
@@ -78,4 +76,5 @@ Must verify:
 
 | Date | Suite | Command | Outcome | Details / Evidence |
 |---|---|---|---|---|
-| 2026-09-22 | Workspace Init | `npm run build` | Pending | Foundation verification in Milestone 1 |
+| 2026-09-22 | Workspace Init | `npm run build` | Passed | Workspace build succeeded cleanly |
+| 2026-09-22 | Milestone 2 Core | `npx vitest run` | Passed | 4 test files, 27/27 unit & integration tests passing |

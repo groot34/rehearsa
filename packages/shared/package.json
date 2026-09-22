@@ -6,7 +6,7 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "test": "echo \"Shared tests will run in Milestone 2\""
+    "test": "vitest run"
   },
   "dependencies": {
     "zod": "^3.24.2"

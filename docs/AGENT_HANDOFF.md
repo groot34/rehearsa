@@ -8,27 +8,26 @@
 
 * **Project**: Rehearsa — Full-Stack AI-Powered Interview Preparation Platform
 * **Assessment ID**: `FS-AI-INTERVIEW-01` (Trao Assessment)
-* **Active Milestone**: `Milestone 1 — Project Foundation and Engineering Setup` (Completed & Verified)
+* **Active Milestone**: `Milestone 2 — Deterministic Core Engine` (Completed & Verified)
 
 ---
 
 ## 2. Latest Known Repository State
 
-* **Git Status**: Git initialized on branch `main`. Initial baseline commit created: `b5c0c9d` (`chore: establish Rehearsa project baseline`). Working tree clean. (Do not force push or rewrite history).
+* **Git Status**: Git initialized on branch `main`. Baseline commit: `0e732cf` (`chore: establish Rehearsa project baseline`). Uncommitted changes for Milestone 2 present in working tree (do not commit unless explicitly instructed by project owner).
 * **Workspace Structure**:
-  - `packages/shared`: Shared Zod schemas (Appendix A Kit & Appendix B batch envelope) and static TypeScript types. Built to `dist/`.
-  - `apps/api`: Node.js / Express / TypeScript backend with modular architecture and `/health` route. Compiles with `tsc`.
-  - `apps/web`: Next.js 14+ / Tailwind CSS frontend with branded Rehearsa landing page. Built with `next build`.
-  - `scripts/evaluator.ts`: Headless batch runner supporting `npm run evaluate -- --input <in> --output <out>`.
+  - `packages/shared`: Shared Zod schemas, TypeScript types, `coverageChecker.ts`, `scheduleAllocator.ts`, `kitValidator.ts`, and Vitest test suite (`27/27 passing`).
+  - `apps/api`: Node.js / Express / TypeScript backend.
+  - `apps/web`: Next.js 14+ / Tailwind CSS frontend.
+  - `scripts/evaluator.ts`: Headless batch runner.
   - `docs/`: Complete set of 7 permanent documentation files (`ASSESSMENT.md`, `ARCHITECTURE.md`, `DECISIONS.md`, `PROGRESS.md`, `AGENT_HANDOFF.md`, `CHANGELOG.md`, `TESTING.md`).
-  - `.kiro/`: Pre-existing IDE configuration preserved untouched.
 
 ---
 
 ## 3. Verification Evidence
 
-1. `npm run build`: Exit Code `0` (Success). Monorepo TypeScript compilation and Next.js static build succeeded with 0 errors.
-2. `npm run evaluate -- --input <cases.json> --output <kits.json>`: Exit Code `0` (Success). Produced exact Appendix B envelope contract.
+1. `npx vitest run`: Exit Code `0` (Success). All 24 unit & integration tests passing across 4 test suites.
+2. `npm run build`: Exit Code `0` (Success). Monorepo TypeScript compilation and Next.js static build succeeded with 0 errors.
 
 ---
 
@@ -54,7 +53,8 @@
 ## 5. Commands to Run Before Modifying Code
 
 ```bash
-# Verify workspace build
+# Verify unit tests and build
+npx vitest run
 npm run build
 ```
 
@@ -62,8 +62,8 @@ npm run build
 
 ## 6. Exact Next Task / Milestone
 
-**Milestone 2: Shared Core Pipeline & Deterministic Services**
-1. Implement the deterministic `CoverageChecker` in `packages/shared/src/algorithms/coverageChecker.ts`.
-2. Implement the deterministic `ScheduleAllocator` in `packages/shared/src/algorithms/scheduleAllocator.ts`.
-3. Add unit test suite for coverage checker, schedule allocator, and Appendix A schema validation.
-4. Verify tests pass with 100% boundary coverage.
+**Milestone 3: Backend Research & LLM Generation Pipeline**
+1. Implement SSRF-safe URL fetcher & HTML cleaner module in `apps/api/src/modules/research/`.
+2. Implement replaceable LLM provider interface (`ILlmProvider`) for Gemini / Groq with structured JSON parsing.
+3. Implement 11-step pipeline orchestrator assembling extracted requirements, research, coverage check (Pass 2 missing generation), and schedule allocation.
+4. Wire up Kit persistence in MongoDB and REST API generation endpoints.

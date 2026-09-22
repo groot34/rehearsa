@@ -6,7 +6,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
-## [Unreleased] - Milestone 1: Project Foundation & Engineering Setup - 2026-09-22
+## [Unreleased] - Milestone 2: Deterministic Core Engine - 2026-09-22
+
+### Added
+- **Deterministic Coverage Checker (`packages/shared/src/algorithms/coverageChecker.ts`)**:
+  - Implemented set-difference algorithm to compute covered vs uncovered requirement IDs.
+  - Returns uncovered IDs in stable original requirement order.
+  - Safely ignores invalid requirement references and handles empty arrays.
+- **Deterministic Schedule Allocator (`packages/shared/src/algorithms/scheduleAllocator.ts`)**:
+  - Allocates questions into sequential days (1..60) matching `days_available`.
+  - Calculates positive integer study minutes per day.
+  - Derives category-based focus titles deterministically.
+- **Kit & Cross-Reference Validator (`packages/shared/src/validation/kitValidator.ts`)**:
+  - Validates Appendix A JSON structural integrity and referential constraints (`questions -> requirements`, `flashcards -> requirements`, `schedule -> questions`).
+  - Verifies coverage consistency between claimed uncovered IDs and actual coverage check.
+- **Test Suite (`Vitest v5.0.1`)**:
+  - Added 27 unit and integration tests (`coverageChecker.test.ts`, `scheduleAllocator.test.ts`, `kitValidator.test.ts`, `integration.test.ts`).
+
+## [1.0.0-foundation] - Milestone 1: Project Foundation & Engineering Setup - 2026-09-22
 
 ### Added
 - **Core Documentation**:

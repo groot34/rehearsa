@@ -31,8 +31,8 @@ export const CompanyBriefSchema = z.object({
 });
 
 export const RoleRequirementSchema = z.object({
-  id: z.string(),
-  text: z.string(),
+  id: z.string().min(1, 'Requirement ID cannot be empty'),
+  text: z.string().min(1, 'Requirement text cannot be empty'),
   kind: RequirementKindEnum,
   priority: RequirementPriorityEnum,
 });
@@ -45,26 +45,26 @@ export const RoleSchema = z.object({
 });
 
 export const QuestionSchema = z.object({
-  id: z.string(),
+  id: z.string().min(1, 'Question ID cannot be empty'),
   requirement_ids: z.array(z.string()),
   category: QuestionCategoryEnum,
-  prompt: z.string(),
-  answer_outline: z.string(),
+  prompt: z.string().min(1, 'Question prompt cannot be empty'),
+  answer_outline: z.string().min(1, 'Answer outline cannot be empty'),
   difficulty: z.number().int().min(1).max(3),
 });
 
 export const FlashcardSchema = z.object({
-  id: z.string(),
-  front: z.string(),
-  back: z.string(),
+  id: z.string().min(1, 'Flashcard ID cannot be empty'),
+  front: z.string().min(1, 'Flashcard front text cannot be empty'),
+  back: z.string().min(1, 'Flashcard back text cannot be empty'),
   requirement_ids: z.array(z.string()),
 });
 
 export const ScheduleDaySchema = z.object({
   day: z.number().int().positive(),
-  focus: z.string(),
+  focus: z.string().min(1, 'Schedule focus cannot be empty'),
   question_ids: z.array(z.string()),
-  minutes: z.number().int().positive(),
+  minutes: z.number().int().positive('Schedule day minutes must be a positive integer'),
 });
 
 export const ScheduleSchema = z.object({
@@ -77,7 +77,7 @@ export const ScheduleSchema = z.object({
 
 export const CoverageSchema = z.object({
   uncovered_requirement_ids: z.array(z.string()),
-  passes: z.number().int().positive(),
+  passes: z.number().int().positive('Coverage passes must be a positive integer'),
 });
 
 export const KitSchema = z.object({
@@ -89,13 +89,49 @@ export const KitSchema = z.object({
   schedule: ScheduleSchema,
   coverage: CoverageSchema,
 }).superRefine((data, ctx) => {
-  // Validate referential integrity: question requirement_ids exist in role.requirements
-  const validRequirementIds = new Set(data.role.requirements.map((r) => r.id));
-  const validQuestionIds = new Set(data.questions.map((q) => q.id));
+  // 1. Check requirement ID uniqueness
+  const seenReqIds = new Set<string>();
+  data.role.requirements.forEach((req, idx) => {
+    if (seenReqIds.has(req.id)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `Duplicate requirement ID found: ${req.id}`,
+        path: ['role', 'requirements', idx, 'id'],
+      });
+    }
+    seenReqIds.add(req.id);
+  });
 
+  // 2. Check question ID uniqueness
+  const seenQuestionIds = new Set<string>();
+  data.questions.forEach((q, idx) => {
+    if (seenQuestionIds.has(q.id)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `Duplicate question ID found: ${q.id}`,
+        path: ['questions', idx, 'id'],
+      });
+    }
+    seenQuestionIds.add(q.id);
+  });
+
+  // 3. Check flashcard ID uniqueness
+  const seenFlashcardIds = new Set<string>();
+  data.flashcards.forEach((f, idx) => {
+    if (seenFlashcardIds.has(f.id)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `Duplicate flashcard ID found: ${f.id}`,
+        path: ['flashcards', idx, 'id'],
+      });
+    }
+    seenFlashcardIds.add(f.id);
+  });
+
+  // 4. Validate referential integrity: question requirement_ids exist in role.requirements
   data.questions.forEach((question, idx) => {
     question.requirement_ids.forEach((reqId) => {
-      if (!validRequirementIds.has(reqId)) {
+      if (!seenReqIds.has(reqId)) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           message: `Question ${question.id} references invalid requirement ID: ${reqId}`,
@@ -105,9 +141,10 @@ export const KitSchema = z.object({
     });
   });
 
+  // 5. Validate referential integrity: flashcard requirement_ids exist in role.requirements
   data.flashcards.forEach((card, idx) => {
     card.requirement_ids.forEach((reqId) => {
-      if (!validRequirementIds.has(reqId)) {
+      if (!seenReqIds.has(reqId)) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           message: `Flashcard ${card.id} references invalid requirement ID: ${reqId}`,
@@ -117,9 +154,10 @@ export const KitSchema = z.object({
     });
   });
 
+  // 6. Validate referential integrity: schedule question_ids exist in questions
   data.schedule.days.forEach((day, dayIdx) => {
     day.question_ids.forEach((qId) => {
-      if (!validQuestionIds.has(qId)) {
+      if (!seenQuestionIds.has(qId)) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           message: `Schedule day ${day.day} references unknown question ID: ${qId}`,

@@ -53,15 +53,16 @@ Rehearsa is structured as a TypeScript monorepo providing:
 
 ## 2. Component Boundaries & Responsibilities
 
-### 2.1. Shared Core Layer (`packages/shared`) `[PROPOSED]`
+### 2.1. Shared Core Layer (`packages/shared`) `[CURRENT / ACTIVE]`
 * **`schemas/`**:
-  - `kit.schema.ts`: Zod validation schema matching **Appendix A** exactly.
+  - `kit.schema.ts`: Zod validation schema matching **Appendix A** exactly, enforcing referential integrity.
   - `batch.schema.ts`: Zod validation schema matching **Appendix B** envelope.
   - `input.schema.ts`: Validation for user inputs (JD text, valid URL, days 1–60).
-* **`types/`**: Inferred TypeScript types (`Kit`, `RoleRequirement`, `Question`, `Flashcard`, `Schedule`, etc.).
 * **`algorithms/`**:
-  - `coverageChecker.ts`: Deterministic calculation of uncovered requirement IDs via set difference.
-  - `scheduleAllocator.ts`: Deterministic allocation of questions into requested days (1–60) with balanced minutes.
+  - `coverageChecker.ts`: Deterministic calculation of covered vs uncovered requirement IDs via set difference.
+  - `scheduleAllocator.ts`: Deterministic allocation of questions into requested days (1–60) with sequential day numbers, integer study minutes, and category focus labels.
+* **`validation/`**:
+  - `kitValidator.ts`: Complete kit structural and cross-reference validation engine ensuring exact Appendix A compatibility and coverage consistency.
 
 ### 2.2. Web Application (`apps/web`) `[PROPOSED]`
 * **Tech Stack**: Next.js 14+ (App Router), React 18+, Tailwind CSS.

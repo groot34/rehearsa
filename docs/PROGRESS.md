@@ -1,29 +1,19 @@
 # Project Progress & Status — Rehearsa
 
 ## 1. Current Milestone
-**Milestone 1 — Project Foundation and Engineering Setup (COMPLETED & VERIFIED)**
-- **Git Baseline Established**: Initial commit [`b5c0c9d`](file:///d:/Assignemt/Rehearsa/docs/PROGRESS.md) (`chore: establish Rehearsa project baseline`) created on branch `main`.
+**Milestone 2 — Deterministic Core Engine (COMPLETED & VERIFIED)**
+- **Git Baseline**: Baseline commit `0e732cf` (`chore: establish Rehearsa project baseline`) on branch `main`.
 
 ---
 
 ## 2. Completed Work
-- [x] Initial repository inspection and environment discovery (Git status, files, Node/npm versions).
-- [x] Permanent project memory documentation established:
-  - [`AGENTS.md`](file:///d:/Assignemt/Rehearsa/AGENTS.md): Mandatory rules for all future coding agents.
-  - [`PROJECT_CONTEXT.md`](file:///d:/Assignemt/Rehearsa/PROJECT_CONTEXT.md): Complete project identity, Appendix A & B schemas, 11-step pipeline.
-  - [`docs/ASSESSMENT.md`](file:///d:/Assignemt/Rehearsa/docs/ASSESSMENT.md): Requirement traceability matrix for `FS-AI-INTERVIEW-01`.
-  - [`docs/ARCHITECTURE.md`](file:///d:/Assignemt/Rehearsa/docs/ARCHITECTURE.md): System design, component boundaries, SSRF safeguards.
-  - [`docs/DECISIONS.md`](file:///d:/Assignemt/Rehearsa/docs/DECISIONS.md): Architectural Decision Records (ADR-001 through ADR-007).
-  - [`docs/TESTING.md`](file:///d:/Assignemt/Rehearsa/docs/TESTING.md): Testing strategy and command registry.
-  - [`docs/CHANGELOG.md`](file:///d:/Assignemt/Rehearsa/docs/CHANGELOG.md): Initial changelog record.
-  - [`docs/AGENT_HANDOFF.md`](file:///d:/Assignemt/Rehearsa/docs/AGENT_HANDOFF.md): Primary handoff briefing.
-- [x] Root monorepo configuration (`package.json`, `.gitignore`, `.env.example`).
-- [x] Shared package (`packages/shared`) with Appendix A/B Zod schemas & TypeScript types.
-- [x] Minimal Express backend (`apps/api`) with TypeScript, modular structure, and `/health` endpoint.
-- [x] Minimal Next.js frontend (`apps/web`) with Tailwind CSS and Rehearsa landing branding.
-- [x] Headless batch evaluator script (`scripts/evaluator.ts`) implementing `npm run evaluate`.
-- [x] Full build verification (`npm run build`) completed cleanly across all workspaces.
-- [x] Batch evaluator contract test verified against Appendix B envelope.
+- [x] Initial repository foundation & permanent project memory documentation (Milestone 1).
+- [x] **Milestone 2: Deterministic Core Engine**:
+  - `packages/shared/src/algorithms/coverageChecker.ts`: Pure, deterministic requirement coverage checking via set difference.
+  - `packages/shared/src/algorithms/scheduleAllocator.ts`: Deterministic study schedule allocation across 1–60 days with sequential day numbering, integer study minutes, and category focus labels.
+  - `packages/shared/src/validation/kitValidator.ts`: Complete Appendix A kit structure, referential integrity, and coverage consistency validation.
+  - Test Suite (`Vitest v5.0.1`): 27 unit & integration tests passing 100% across `coverageChecker.test.ts`, `scheduleAllocator.test.ts`, `kitValidator.test.ts`, and `integration.test.ts`.
+  - Monorepo build (`npm run build`): All packages compiling cleanly with zero errors.
 
 ---
 
