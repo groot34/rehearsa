@@ -1,7 +1,8 @@
 import fs from 'fs';
 import path from 'path';
 import { parseArgs } from 'util';
-import { BatchCaseInputSchema, BatchOutputEnvelope } from '../packages/shared/src';
+import { BatchCaseInputSchema, BatchOutputEnvelope, BatchKitResult } from '../packages/shared/src';
+import { executeGenerationPipeline } from '../apps/api/src/modules/interview-prep';
 
 async function main() {
   const { values } = parseArgs({
@@ -41,25 +42,75 @@ async function main() {
     process.exit(1);
   }
 
-  console.log(`[Rehearsa Batch Evaluator] Found ${casesData.length} evaluation case(s).`);
+  console.log(`[Rehearsa Batch Evaluator] Processing ${casesData.length} evaluation case(s)...`);
 
-  const envelope: BatchOutputEnvelope = {
-    version: '1.0',
-    generated_at: new Date().toISOString(),
-    kits: casesData.map((c, index) => {
-      const parsed = BatchCaseInputSchema.safeParse(c);
-      const caseId = parsed.success ? parsed.data.id : `case-${index + 1}`;
+  const results: BatchKitResult[] = [];
 
-      return {
+  for (let index = 0; index < casesData.length; index++) {
+    const rawCase = casesData[index];
+    const parsed = BatchCaseInputSchema.safeParse(rawCase);
+
+    if (!parsed.success) {
+      const caseId = (rawCase && typeof rawCase === 'object' && 'id' in rawCase) ? String(rawCase.id) : `case-${index + 1}`;
+      results.push({
         id: caseId,
         status: 'failed',
         kit: null,
         error: {
-          code: 'PIPELINE_NOT_CONNECTED',
-          message: 'The full research pipeline is scheduled for Milestone 3 implementation.',
+          code: 'INVALID_CASE_INPUT',
+          message: `Case input schema error: ${parsed.error.issues.map((i) => i.message).join(', ')}`,
         },
-      };
-    }),
+      });
+      continue;
+    }
+
+    const { id, jd, company_url, days } = parsed.data;
+
+    try {
+      console.log(`[Rehearsa Batch Evaluator] Executing pipeline for case: ${id} (${company_url}, ${days} days)...`);
+
+      const pipelineRes = await executeGenerationPipeline({
+        jobDescription: jd,
+        companyUrl: company_url,
+        daysAvailable: days,
+        allowLoopbackInDev: true,
+      });
+
+      if (pipelineRes.success && pipelineRes.kit) {
+        results.push({
+          id,
+          status: 'ok',
+          kit: pipelineRes.kit,
+          error: null,
+        });
+      } else {
+        results.push({
+          id,
+          status: 'failed',
+          kit: null,
+          error: pipelineRes.error || {
+            code: 'GENERATION_FAILED',
+            message: 'Pipeline failed to produce a valid prep kit.',
+          },
+        });
+      }
+    } catch (err: any) {
+      results.push({
+        id,
+        status: 'failed',
+        kit: null,
+        error: {
+          code: 'UNHANDLED_CASE_EXCEPTION',
+          message: err.message || 'Unexpected exception during case evaluation.',
+        },
+      });
+    }
+  }
+
+  const envelope: BatchOutputEnvelope = {
+    version: '1.0',
+    generated_at: new Date().toISOString(),
+    kits: results,
   };
 
   const outputDir = path.dirname(outputPath);
@@ -68,7 +119,7 @@ async function main() {
   }
 
   fs.writeFileSync(outputPath, JSON.stringify(envelope, null, 2), 'utf-8');
-  console.log(`[Rehearsa Batch Evaluator] Batch envelope written to ${outputPath}`);
+  console.log(`[Rehearsa Batch Evaluator] Complete! Batch envelope written to ${outputPath}`);
 }
 
 main().catch((err) => {

@@ -6,7 +6,52 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [Unreleased] - Milestone 3: Backend Research & AI Generation Pipeline - 2026-09-22
+
+### Added
+- **SSRF-Safe Research Layer (`apps/api/src/modules/research/`)**:
+  - `ssrfGuard.ts`: DNS-resolving SSRF guard blocking private IPv4 (10.x, 172.16.x–31.x, 192.168.x), loopback, link-local (169.254.x) and cloud metadata IPs. Supports `allowLoopbackInDev` for local development.
+  - `safeFetcher.ts`: Axios-based HTTP fetcher that validates each redirect destination through `ssrfGuard`, enforces 2 MB response limit, blocks non-HTML content types, and handles up to 3 manual redirects.
+  - `htmlCleaner.ts`: Cheerio-based HTML→text extractor removing scripts/styles, extracting title, paragraph and heading text, and internal same-origin link extraction.
+  - `robotsParser.ts`: Fetches and parses `robots.txt` to enforce crawl permission rules.
+  - `companyCrawler.ts`: Bounded multi-page crawler (max 5 pages) with keyword-scored link relevance ranking; gracefully degrades if seed page unreachable.
+- **LLM Provider Abstraction (`apps/api/src/modules/llm/`)**:
+  - `ILlmProvider.ts`: Replaceable interface with `generateStructuredJson<T>` and `generateText` methods.
+  - `geminiProvider.ts`: Gemini 1.5 Flash provider using `responseMimeType: application/json`, 3-attempt retry, and Zod schema validation of responses.
+  - `mockProvider.ts`: Deterministic mock provider returning full valid data without API keys (used in all tests).
+  - `llmFactory.ts`: Factory function for selecting provider by name or environment variable.
+- **11-Step Pipeline Orchestrator (`apps/api/src/modules/interview-prep/pipelineOrchestrator.ts`)**:
+  - Step 1: LLM-based role & requirements extraction from JD.
+  - Steps 2–5: SSRF-safe multi-page company research.
+  - Step 6: LLM-based company brief synthesis from crawled text.
+  - Steps 7: Pass 1 question & flashcard generation (LLM).
+  - Step 8: Deterministic coverage check (Pass 1).
+  - Step 9: Pass 2 targeted LLM generation for uncovered requirements.
+  - Step 10: Deterministic schedule allocation.
+  - Step 11: Final kit assembly and Appendix A schema validation.
+- **REST API Route (`apps/api/src/routes/interviewPrep.routes.ts`)**: `POST /api/interview-prep/generate` with Zod input validation and structured error responses.
+- **Batch Evaluator (`scripts/evaluator.ts`)**: Headless CLI runner outputting Appendix B envelope. Entry point: `npm run evaluate -- --input <cases.json> --output <kits.json>`.
+- **Test Suite Expansion**:
+  - `ssrfGuard.test.ts`: 6 tests verifying SSRF protection rules.
+  - `htmlCleaner.test.ts`: 2 tests verifying HTML parsing.
+  - `robotsParser.test.ts`: 2 tests verifying robots.txt parsing.
+  - `llmProvider.test.ts`: 3 tests verifying provider interface and error handling.
+  - `pipelineOrchestrator.test.ts`: 4 integration tests for the end-to-end pipeline with `MockLlmProvider`.
+  - `interviewPrepRoutes.test.ts`: 3 integration tests for REST API routes.
+  - `evaluator.test.ts`: 1 integration test for batch evaluator CLI.
+  - **Total: 48/48 tests passing** across 11 test files.
+
+### Fixed
+- **SSRF & DNS Rebinding Security (`ssrfGuard.ts`, `safeFetcher.ts`)**: Implemented `createSsrfLookup` callback and custom `httpAgent`/`httpsAgent` for Axios to validate IP addresses at socket connection time, preventing DNS Rebinding (TOCTOU) attacks. Expanded IP filtering to include Carrier-Grade NAT (`100.64.0.0/10`), documentation IP subnets, and IPv4-mapped IPv6 addresses.
+- **Gemini API Key Exposure Prevention (`geminiProvider.ts`)**: Moved `GEMINI_API_KEY` from URL query parameter `?key=...` to `x-goog-api-key` HTTP header and added API key redaction in error messages to prevent secret leakage in logs.
+- **Pipeline Passes & Referential Integrity (`pipelineOrchestrator.ts`)**: Dynamically set `coverage.passes` to `1` or `2` based on Pass 2 execution and added referential integrity sanitization for `requirement_ids` in questions and flashcards.
+- **Mock LLM Prompt Matching (`mockProvider.ts`)**: Fixed prompt matching regex for role extraction to ensure reliable structured output in mock test mode.
+- `safeFetcher.ts`: Cast `response.headers['content-type']` via `String(...)` to resolve TypeScript error with `AxiosHeaders` union type.
+
+---
+
 ## [Unreleased] - Milestone 2: Deterministic Core Engine - 2026-09-22
+
 
 ### Added
 - **Deterministic Coverage Checker (`packages/shared/src/algorithms/coverageChecker.ts`)**:

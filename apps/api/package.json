@@ -8,10 +8,12 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "lint": "echo \"Linting api...\"",
-    "test": "echo \"API tests will run in Milestone 3\""
+    "test": "vitest run --reporter=verbose apps/api/src/modules"
   },
   "dependencies": {
     "@rehearsa/shared": "*",
+    "axios": "^1.20.0",
+    "cheerio": "^1.2.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",

@@ -1,6 +1,7 @@
 import express, { Express, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import { healthRoutes } from './routes/health.routes';
+import { interviewPrepRoutes } from './routes/interviewPrep.routes';
 import { config } from './config';
 
 export const createApp = (): Express => {
@@ -15,6 +16,10 @@ export const createApp = (): Express => {
   app.use('/health', healthRoutes);
   app.use('/api/health', healthRoutes);
 
+  // Generation routes
+  app.use('/api/interview-prep', interviewPrepRoutes);
+  app.use('/api/kits', interviewPrepRoutes);
+
   // Root endpoint
   app.get('/', (_req: Request, res: Response) => {
     res.json({
@@ -22,6 +27,7 @@ export const createApp = (): Express => {
       version: '1.0.0',
       description: 'Full-stack AI-powered interview preparation platform API',
       health: '/api/health',
+      generate: '/api/interview-prep/generate',
     });
   });
 
