@@ -4,7 +4,7 @@
 **Milestone 9 — Kit Persistence + User-Scoped CRUD (COMPLETED and COMMITTED)**
 - **Commit 1 (M8)**: `1a0dfc7` — `feat(api): add user authentication and MongoDB connection`
 - **Commit 2 (M9)**: `8a94003` — `feat(api,web): add persistent user-owned interview kits`
-- **Branch**: `main`, 6 commits ahead of `origin/main` (not yet pushed).
+- **Branch**: `main`, 7 commits ahead of `origin/main` (not yet pushed).
 
 ---
 

@@ -214,8 +214,8 @@ npm run evaluate -- --input <cases.json> --output <kits.json>
 ## 7. Current Project State & Milestones
 
 * **Current Milestone**: `Milestone 9 — Kit Persistence + User-Scoped CRUD`
-* **Repository State**: Milestones 8 and 9 are implemented in the working tree. Automated auth, ownership, build, lint, and batch verification pass; live MongoDB/auth verification remains pending.
-* **Git Status**: Git is initialized on `main`; the M8/M9 implementation is uncommitted and must be preserved until the project owner authorizes a commit.
+* **Repository State**: Milestones 8 and 9 are implemented and committed. Automated auth, ownership, build, lint, and batch verification pass; live MongoDB/auth verification remains pending.
+* **Git Status**: Git is initialized on `main`; M8 and M9 are committed locally and the branch is ahead of `origin/main`. No push has been performed.
 
 ---
 
