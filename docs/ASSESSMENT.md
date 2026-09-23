@@ -14,10 +14,10 @@
 
 | Requirement | Scope | Status | Notes / Evidence |
 |---|---|---|---|
-| User registration with email and password | Mandatory | Not started | Planned in `apps/api` auth module |
-| User login and session management (JWT / Cookie) | Mandatory | Not started | Secure password hashing (bcrypt/argon2) planned |
-| User logout functionality | Mandatory | Not started | Token invalidation / cookie clearing planned |
-| Strict kit ownership isolation (users only access own kits) | Mandatory | Not started | Middleware to enforce `user_id` query scoping |
+| User registration with email and password | Mandatory | Verified (automated tests) | `POST /auth/register` — bcrypt hashing, Zod validation, 201 on success. Tested with mongodb-memory-server. Live DB not yet manually verified. |
+| User login and session management (JWT / Cookie) | Mandatory | Verified (automated tests) | `POST /auth/login` — bcrypt compare, JWT signed with env secret. `GET /auth/me` returns identity. Tested with mongodb-memory-server. Live not yet manually verified. |
+| User logout functionality | Mandatory | Implemented, not fully verified | `POST /auth/logout` — requires valid token, returns 200. **Stateless JWT**: token remains valid until expiry after client discards it. Behaviour documented in code and response body. |
+| Strict kit ownership isolation (users only access own kits) | Mandatory | Verified (automated tests) | All kit queries scoped to `{ _id, userId }`. 404 returned for both missing and non-owned kits. 30 integration tests covering user isolation, ownership-non-change, cross-user access rejection. Live DB not yet manually verified. |
 
 ---
 
@@ -26,7 +26,7 @@
 | Requirement | Scope | Status | Notes / Evidence |
 |---|---|---|---|
 | Create kit from pasted Job Description (JD), Company URL, Days | Mandatory | Verified | `POST /api/interview-prep/generate` with Zod input schema. Integration test passing. |
-| Support multiple roles / multiple kit submissions per user | Mandatory | Not started | Relational / document mapping (`userId -> [kits]`) |
+| Support multiple roles / multiple kit submissions per user | Mandatory | Verified (automated tests) | `GET /api/kits` lists all user kits; `POST /api/kits` creates new documents each time. 30 kit tests include multi-kit save + list verification. |
 | Seed page retrieval and HTML sanitization / text cleaning | Mandatory | Verified | `safeFetcher.ts` + `htmlCleaner.ts`. 2 htmlCleaner tests passing. |
 | Dynamic crawler with intelligent link ranking | Mandatory | Verified | `companyCrawler.ts` scores links by keyword relevance. |
 | Public interview discussion and hiring info search | Mandatory | In progress | Multi-page crawler fetches about/careers/culture pages. Full search engine integration planned. |
@@ -84,9 +84,9 @@
 | Requirement | Scope | Status | Notes |
 |---|---|---|---|
 | View company brief, role breakdown, questions, flashcards, schedule | Mandatory | Verified | `KitViewer.tsx`, `CompanyBriefCard.tsx`, `RoleBreakdownCard.tsx`, `QuestionBankCard.tsx`, `FlashcardDeck.tsx`, `StudyScheduleTimeline.tsx` |
-| Edit, reorder, add, and delete kit content (questions, cards, schedule) | Mandatory | In progress | Basic view rendered in M4; section editing endpoints planned |
-| Regenerate single section without destroying edits elsewhere | Mandatory | In progress | Section-scoped endpoints planned |
-| Preserve manually edited questions when regenerating their category | Mandatory | In progress | Dirty-flag tracking during regeneration planned |
+| Edit, reorder, add, and delete kit content (questions, cards, schedule) | Mandatory | Partially implemented | **Edit/add/delete**: Verified — `kitEditing.ts`, 9 unit tests. **Reorder (drag-and-drop)**: Not implemented. |
+| Regenerate single section without destroying edits elsewhere | Mandatory | Verified (automated tests) | `POST /api/interview-prep/regenerate-section`. 18 unit + 8 route tests with MockProvider. Live Gemini not yet re-verified post-M7B. |
+| Preserve manually edited questions when regenerating their category | Mandatory | Verified (automated tests) | Two-part preservation predicate (q_custom_*/f_custom_* prefix + explicit `preserved_ids`). Tested. |
 | Real-time progress updates & meaningful failure states during generation | Mandatory | Verified | `GenerationProgressTracker.tsx` & error banner in `KitGeneratorForm.tsx` |
 
 ---

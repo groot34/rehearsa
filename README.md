@@ -1,7 +1,7 @@
 # Rehearsa — AI Interview Prep Kit Platform
 
 > **Assessment Ref**: `FS-AI-INTERVIEW-01` (Trao Assessment)  
-> **Status**: Milestone 1 (Foundation & Documentation) Complete
+> **Status**: Milestones 8 + 9 implemented; automated verification complete, live MongoDB verification pending
 
 Rehearsa is a full-stack, AI-powered interview preparation platform. By providing a job description, target company URL, and available preparation days (1–60), Rehearsa orchestrates a multi-step research and generation pipeline to produce a tailored interview prep kit with role requirements, categorized questions, flashcards, and a day-by-day study schedule.
 

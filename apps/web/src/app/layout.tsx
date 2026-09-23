@@ -1,5 +1,6 @@
 import './globals.css';
 import type { Metadata } from 'next';
+import { AuthProvider } from '../lib/auth';
 
 export const metadata: Metadata = {
   title: 'Rehearsa — AI Interview Prep Kit Platform',
@@ -14,7 +15,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="antialiased selection:bg-brand-500 selection:text-white">
-        {children}
+        <AuthProvider>
+          {children}
+        </AuthProvider>
       </body>
     </html>
   );

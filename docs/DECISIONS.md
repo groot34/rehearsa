@@ -16,6 +16,8 @@ This document records the architectural and engineering decisions made for the R
 | [ADR-006](#adr-006-ssrf-mitigation-and-untrusted-content-sanitization) | SSRF Mitigation and Untrusted Content Sanitization | Proposed | 2026-09-22 |
 | [ADR-007](#adr-007-manual-edit-preservation-strategy-during-regeneration) | Manual Edit Preservation Strategy During Regeneration | Accepted | 2026-09-23 |
 | [ADR-008](#adr-008-section-regeneration-api-contract) | Section Regeneration API Contract | Accepted | 2026-09-23 |
+| [ADR-009](#adr-009-authentication-and-database-architecture) | Authentication and Database Architecture | Accepted | 2026-09-23 |
+| [ADR-010](#adr-010-kit-persistence-ownership-and-generation-auth-strategy) | Kit Persistence, Ownership, and Generation Auth Strategy | Accepted | 2026-09-23 |
 
 ---
 
@@ -332,3 +334,111 @@ This schema lives in `@rehearsa/shared` so it can be imported by both the backen
   - The client sends the full kit JSON in the request body (potentially ~10–30 KB). This is acceptable given the `2mb` express body limit already in place.
   - `editedItemIds` tracking in React state is lost on browser refresh. Without a persistence layer this is unavoidable and acceptable.
   - Regenerating questions also rebuilds the schedule, which may reorder study days. Users should be informed via UI that the schedule will refresh.
+
+---
+
+### ADR-009: Authentication and Database Architecture
+
+* **Status**: Accepted
+* **Date**: 2026-09-23
+* **Context**:
+  The assessment mandates user registration, login, and strict kit ownership isolation (users can only access their own kits). This requires a persistent user store and a session mechanism. The assessment specification (`PROJECT_CONTEXT.md`, `ARCHITECTURE.md`) explicitly names MongoDB and JWT.
+
+---
+
+#### Technology Choices (all driven by existing specification — no new decisions required)
+
+| Concern | Choice | Source |
+|---|---|---|
+| Database | MongoDB (via Mongoose ODM) | `ARCHITECTURE.md` specifies "MongoDB (Mongoose or native driver)" |
+| Password hashing | bcrypt, cost factor 12 | `ARCHITECTURE.md` specifies bcrypt |
+| Session mechanism | JWT in `Authorization: Bearer` header | `ARCHITECTURE.md` specifies JWT |
+| Token transport | HTTP Authorization header (not cookie) | Simpler for stateless API; avoids CSRF for non-browser clients |
+| Input validation | Zod (existing project convention) | Consistent with `packages/shared` pattern |
+| Rate limiting | `express-rate-limit` (10 req/15 min per IP on auth endpoints) | Prevents credential stuffing; disabled in `NODE_ENV=test` |
+| In-memory test DB | `mongodb-memory-server` | Allows fully isolated automated tests without a real MongoDB instance |
+
+---
+
+#### Security Decisions
+
+1. **Password hashing**: bcrypt with cost factor 12. Plaintext passwords are never stored, logged, or returned.
+2. **`passwordHash` field exclusion**: Mongoose schema marks `passwordHash` as `select: false`. It is excluded from all query results by default; must be explicitly selected with `.select('+passwordHash')` only when needed for verification.
+3. **No user enumeration**: `loginUser` returns the same `INVALID_CREDENTIALS` error code and message for both wrong password and unknown email. A constant-time dummy bcrypt comparison runs even when the user is not found, preventing timing-based enumeration.
+4. **Email normalisation**: Email is lowercased and trimmed in the Zod schema transform before any DB operation, ensuring `Alice@Example.COM` and `alice@example.com` are treated identically.
+5. **JWT secret at call time**: `signToken`/`verifyToken` read `process.env.JWT_SECRET` at function call time (not at module load time). This prevents a subtle test isolation bug where the config module is evaluated before `beforeAll` sets the env var.
+6. **JWT secret guard in `server.ts`**: Warns in development and refuses to start in production if `JWT_SECRET` is missing or shorter than 32 characters.
+7. **MongoDB URI redaction**: The connection URI is logged with credentials replaced by `<credentials>` to prevent accidental secret exposure in logs.
+
+---
+
+#### Stateless JWT Logout — Known Limitation
+
+`POST /auth/logout` requires a valid JWT (enforced by `requireAuth`) and returns 200, signalling the client to discard its token. **The token is NOT invalidated server-side.** It remains cryptographically valid until its `exp` claim is reached.
+
+*Why accepted*: Adding a server-side token blocklist requires persistent storage per token (Redis or a DB collection), adds latency to every authenticated request, and is not required by the assessment. The short `JWT_EXPIRES_IN` default (`7d`) limits the exposure window. A blocklist can be added in a future milestone if the assessment or security requirements demand it.
+
+*Documented in*: route comment, response body message, CHANGELOG.md, PROGRESS.md.
+
+---
+
+#### App Factory vs Server Separation
+
+`createApp()` in `app.ts` mounts all routes but does **not** call `connectToDatabase()`. The DB connection is called only from `server.ts` (the process entry point). This keeps `createApp()` synchronous and testable — route integration tests can call `createApp()` and connect to `mongodb-memory-server` independently without touching the production DB connection path.
+
+* **Trade-offs**: Tests must manage their own Mongoose connection lifecycle (`beforeAll` connect, `afterAll` disconnect). This is handled consistently in both test files.
+
+---
+
+### ADR-010: Kit Persistence, Ownership, and Generation Auth Strategy
+
+* **Status**: Accepted
+* **Date**: 2026-09-23
+* **Context**:
+  Milestone 9 adds kit persistence to MongoDB. The assessment requires strict per-user kit isolation. A key architectural decision is whether kit *generation* also requires authentication, or only kit *saving*.
+
+---
+
+#### Decision: Generation is public; saving requires auth
+
+**Rationale:**
+- The batch evaluator CLI (`npm run evaluate`) calls `POST /api/interview-prep/generate` directly without any user credentials. Making generation require auth would break the mandatory Appendix B evaluation contract.
+- The assessment explicitly requires the batch evaluator to work. Forcing auth onto the generation endpoint would require all benchmark test cases to include JWT tokens — contradicting the existing `BatchCaseInputSchema`.
+- Separation of concerns: generation is a stateless pipeline operation; persistence is stateful and user-scoped.
+
+**Implementation:**
+- `POST /api/interview-prep/generate` and `POST /api/interview-prep/regenerate-section` remain public.
+- `POST /api/kits`, `GET /api/kits`, `GET /api/kits/:id`, `PUT /api/kits/:id`, `DELETE /api/kits/:id` all require a valid JWT.
+- The decision is documented in `app.ts` via a code comment.
+
+---
+
+#### Kit Document Schema — Mixed type for Appendix A payload
+
+**Rationale:**
+The Appendix A `KitSchema` is already defined and validated in `packages/shared`. Re-declaring it as a Mongoose subdocument schema would create a second schema to maintain in sync. Using `Schema.Types.Mixed` stores the payload verbatim and delegates validation to Zod at the application layer (before save and on load).
+
+**Trade-offs:**
+- Mongoose does not validate the `kit` field structure — Zod does. If Zod validation is skipped, a malformed kit could be written. The route handler always runs `KitSchema.safeParse` via `SaveKitInputSchema`/`UpdateKitInputSchema` before calling the service.
+- `Schema.Types.Mixed` fields are not automatically marked dirty on deep mutation. Since all saves pass in a complete new object (not in-place mutating the Mongoose document), this is not an issue in practice.
+
+---
+
+#### Ownership Enforcement — Compound query filter
+
+All kit service functions use `{ _id: new ObjectId(kitId), userId: new ObjectId(userId) }` as the MongoDB query filter. This ensures ownership is enforced at the database level — not just in application logic — so even a bug bypassing the application check would not return another user's kit.
+
+NOT_FOUND (404) is returned for both missing and non-owned kits, avoiding ownership disclosure (the caller cannot tell whether a kit exists for another user).
+
+---
+
+#### Frontend Token Storage — sessionStorage
+
+JWT is stored in `sessionStorage` rather than `localStorage` or a server-set `httpOnly` cookie.
+
+- `sessionStorage` is cleared when the browser tab closes, limiting token exposure.
+- Unlike `httpOnly` cookies, it is readable by JavaScript on the same origin (XSS risk).
+- Unlike `localStorage`, it does not persist across tab restarts.
+- A new tab opened from the page does not inherit the session (per-tab storage).
+
+This is an accepted trade-off for a client-rendered SPA without a BFF. An `httpOnly` cookie approach would be preferred in a production hardening pass. Documented in `apps/web/src/lib/auth.tsx`.

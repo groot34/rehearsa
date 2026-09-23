@@ -213,9 +213,9 @@ npm run evaluate -- --input <cases.json> --output <kits.json>
 
 ## 7. Current Project State & Milestones
 
-* **Current Milestone**: `Milestone 1 — Project Foundation and Engineering Setup`
-* **Repository State**: Fresh setup in progress. Permanent project memory documentation created; monorepo scaffolding being established.
-* **Git Status**: Git uninitialized in base directory; no previous commits exist. Work is being prepared cleanly.
+* **Current Milestone**: `Milestone 9 — Kit Persistence + User-Scoped CRUD`
+* **Repository State**: Milestones 8 and 9 are implemented in the working tree. Automated auth, ownership, build, lint, and batch verification pass; live MongoDB/auth verification remains pending.
+* **Git Status**: Git is initialized on `main`; the M8/M9 implementation is uncommitted and must be preserved until the project owner authorizes a commit.
 
 ---
 

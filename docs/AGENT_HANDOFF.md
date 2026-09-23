@@ -8,24 +8,17 @@
 
 * **Project**: Rehearsa — Full-Stack AI-Powered Interview Preparation Platform
 * **Assessment ID**: `FS-AI-INTERVIEW-01` (Trao Assessment)
-* **Active Milestone**: `Milestone 7B.2 — Section Regeneration Implementation` (Completed, NOT yet committed)
+* **Active Milestone**: `Milestone 9 — Kit Persistence + User-Scoped CRUD` (Completed, NOT yet committed)
 
 ---
 
 ## 2. Latest Known Repository State
 
 * **Branch**: `main`
-* **Latest Committed Baseline**: `5bd067a` (`docs(design): add ADR-008 section regeneration contract for Milestone 7B`)
-* **Working Tree**: Uncommitted implementation changes (awaiting user commit instruction):
-  - Modified: `packages/shared/src/schemas/input.schema.ts` — added `RegenerateSectionEnum` and `RegenerateKitSectionInputSchema`
-  - Modified: `apps/api/src/modules/interview-prep/index.ts` — exports `sectionRegenerator`
-  - New: `apps/api/src/modules/interview-prep/sectionRegenerator.ts` — 7-step regeneration algorithm
-  - New: `apps/api/src/modules/interview-prep/tests/sectionRegenerator.test.ts` — 15 unit tests
-  - Modified: `apps/api/src/routes/interviewPrep.routes.ts` — added `POST /regenerate-section` route
-  - New: `apps/api/src/routes/tests/regenerateSectionRoutes.test.ts` — 8 route integration tests
-  - Modified: `apps/web/src/lib/api.ts` — added `regenerateKitSection()` helper
-  - Modified: `apps/web/src/app/page.tsx` — `editedItemIds` state, regen handler, stale-response guard
-  - Modified: `apps/web/src/components/KitViewer.tsx` — regen buttons, per-section loading/error state
+* **Latest Committed Baseline**: `5512463` (`feat(web): add interview kit section regeneration`)
+* **Working Tree**: Large uncommitted set covering Milestones 8 + 9 (awaiting user commit instruction):
+  - **M8** — Auth/DB: `apps/api/src/modules/auth/` (user.model, auth.service, auth.middleware, index, tests), `apps/api/src/modules/db/connection.ts`, `apps/api/src/routes/auth.routes.ts + tests/authRoutes.test.ts`, `apps/api/src/config/index.ts`, `apps/api/src/server.ts`, `packages/shared/src/schemas/auth.schema.ts`, `.env.example`, `apps/api/package.json`
+  - **M9** — Kit Persistence: `apps/api/src/modules/kits/` (kit.model, kit.service, index), `apps/api/src/routes/kits.routes.ts + tests/kitsRoutes.test.ts`, `apps/api/src/app.ts`, `apps/web/src/lib/api.ts`, `apps/web/src/lib/auth.tsx`, `apps/web/src/components/AuthForms.tsx + SavedKitsList.tsx`, `apps/web/src/app/layout.tsx + page.tsx`, `apps/web/next.config.js`, `packages/shared/src/schemas/input.schema.ts`, `scripts/tests/evaluator.test.ts`, `vitest.config.mts`, `package-lock.json`
 * **Workspace Structure**:
   - `packages/shared`: Zod schemas, types, coverageChecker.ts, scheduleAllocator.ts, kitValidator.ts, full test suite.
   - `apps/api/src/modules/research/`: SSRF-safe fetcher, HTML cleaner, robots parser, multi-page crawler.
@@ -42,11 +35,11 @@
 
 ## 3. Verification Evidence
 
-1. `npx vitest run` (from repo root): Exit Code 0. **89/89 tests passing** across 15 test files.
+1. `npx vitest run` (from repo root): Exit Code 0. **161/161 tests passing** across 18 test files.
 2. `npm run build`: Exit Code 0. All three workspaces compile with zero TypeScript errors.
 3. `npm run lint`: Exit Code 0. All workspaces lint cleanly.
-4. `npm run evaluate -- --input scratch/synthetic-benchmark-cases.json --output scratch/synthetic-benchmark-output.json`: Exit Code 0. 5/8 cases OK, 3 invalid rejected, 409ms.
-5. Milestone 7B.2 implementation reviewed and two bugs fixed; 3 regression tests added.
+4. `npm run evaluate -- --input scratch/synthetic-benchmark-cases.json --output scratch/synthetic-benchmark-output.json`: Exit Code 0. Batch evaluation unaffected by M8/M9 changes.
+5. Live MongoDB + real auth/kit persistence NOT verified — all tests use `mongodb-memory-server`.
 
 ---
 
@@ -73,11 +66,11 @@ npm run evaluate -- --input scratch/synthetic-benchmark-cases.json --output scra
 
 ## 6. Exact Next Task / Milestone
 
-**Final User Review & Project Audit**
+**Commit Milestones 8+9, then live manual verification + ASSESSMENT.md update**
 
-Milestone 7B.2 is complete and verified. The next action is for the user to:
-1. Review and commit the 7B.2 implementation if satisfied.
-2. Conduct a final project audit against the `docs/ASSESSMENT.md` requirements checklist.
-3. Update `docs/ASSESSMENT.md` Section 5 (Kit Builder, Editing & Regeneration) to mark the editing and regeneration requirements as `Verified`.
-
-No further feature milestones are planned at this time.
+1. Commit the uncommitted changes (user instruction required). Suggested split:
+   - Commit 1: `feat(api): add user authentication and MongoDB connection (Milestone 8)`
+   - Commit 2: `feat(api,web): add persistent kit storage and authenticated kit workflow (Milestone 9)`
+2. Set `MONGODB_URI` and `JWT_SECRET` in `.env`, start both servers (`npm run dev`), and manually verify: register, login, generate a kit, save it, refresh the page, reopen the kit, edit a question, update the saved kit, regenerate a section, delete the kit.
+3. Update `docs/ASSESSMENT.md` Section 1 (Auth) and Section 5 (Editing/Regeneration) to `Verified` with evidence from the live manual test.
+4. After verification: consider Milestone 10 — flashcard confidence tiers (easy/medium/hard), drag-to-reorder questions, and final project audit.

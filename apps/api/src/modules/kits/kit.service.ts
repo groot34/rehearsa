@@ -1,0 +1,253 @@
+import { Types } from 'mongoose';
+import { Kit, KitSummary } from '@rehearsa/shared';
+import { KitDocumentModel } from './kit.model';
+
+// ---------------------------------------------------------------------------
+// Result types
+// ---------------------------------------------------------------------------
+
+export interface KitServiceSuccess<T> {
+  success: true;
+  data: T;
+}
+
+export interface KitServiceFailure {
+  success: false;
+  code: string;
+  message: string;
+  statusCode: number;
+}
+
+export type KitServiceResult<T> = KitServiceSuccess<T> | KitServiceFailure;
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Converts a MongoDB document to the public KitSummary shape.
+ * Never returns the full kit payload in list responses.
+ */
+function toKitSummary(doc: {
+  _id: unknown;
+  kit: Kit;
+  createdAt: Date;
+  updatedAt: Date;
+}): KitSummary {
+  return {
+    id: String(doc._id),
+    role: doc.kit.role?.title ?? 'Unknown Role',
+    company: doc.kit.source?.company ?? 'Unknown Company',
+    daysAvailable: doc.kit.schedule?.days_available ?? 0,
+    createdAt: doc.createdAt.toISOString(),
+    updatedAt: doc.updatedAt.toISOString(),
+  };
+}
+
+/**
+ * Validates that a string is a syntactically valid MongoDB ObjectId.
+ * Returns false for malformed IDs before hitting the database.
+ */
+function isValidObjectId(id: string): boolean {
+  return Types.ObjectId.isValid(id) && String(new Types.ObjectId(id)) === id;
+}
+
+// ---------------------------------------------------------------------------
+// Save a new kit
+// ---------------------------------------------------------------------------
+
+/**
+ * Persists a validated Appendix A kit for the authenticated user.
+ * userId is derived from req.user.sub (the verified JWT subject).
+ */
+export async function saveKit(
+  userId: string,
+  kit: Kit
+): Promise<KitServiceResult<{ id: string; kit: Kit; createdAt: string; updatedAt: string }>> {
+  try {
+    const doc = await KitDocumentModel.create({
+      userId: new Types.ObjectId(userId),
+      kit,
+    });
+
+    return {
+      success: true,
+      data: {
+        id: String(doc._id),
+        kit: doc.kit,
+        createdAt: doc.createdAt.toISOString(),
+        updatedAt: doc.updatedAt.toISOString(),
+      },
+    };
+  } catch (err) {
+    throw err; // Let unexpected errors propagate to the route handler
+  }
+}
+
+// ---------------------------------------------------------------------------
+// List user's kits
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns a lightweight summary list of all kits belonging to the user.
+ * Never returns full kit payloads to keep list responses fast.
+ */
+export async function listKits(userId: string): Promise<KitServiceResult<KitSummary[]>> {
+  const docs = await KitDocumentModel
+    .find({ userId: new Types.ObjectId(userId) })
+    .sort({ createdAt: -1 })
+    .lean();
+
+  const summaries: KitSummary[] = docs.map((doc) =>
+    toKitSummary({
+      _id: doc._id,
+      kit: doc.kit as Kit,
+      createdAt: (doc as any).createdAt,
+      updatedAt: (doc as any).updatedAt,
+    })
+  );
+
+  return { success: true, data: summaries };
+}
+
+// ---------------------------------------------------------------------------
+// Get one kit by ID (ownership enforced)
+// ---------------------------------------------------------------------------
+
+/**
+ * Fetches a single kit, scoped to the authenticated user.
+ * Returns NOT_FOUND for both missing and non-owned kits to avoid
+ * disclosing that a kit exists but belongs to another user.
+ */
+export async function getKitById(
+  userId: string,
+  kitId: string
+): Promise<KitServiceResult<{ id: string; kit: Kit; createdAt: string; updatedAt: string }>> {
+  if (!isValidObjectId(kitId)) {
+    return {
+      success: false,
+      code: 'NOT_FOUND',
+      message: 'Kit not found.',
+      statusCode: 404,
+    };
+  }
+
+  const doc = await KitDocumentModel.findOne({
+    _id: new Types.ObjectId(kitId),
+    userId: new Types.ObjectId(userId),
+  });
+
+  if (!doc) {
+    return {
+      success: false,
+      code: 'NOT_FOUND',
+      message: 'Kit not found.',
+      statusCode: 404,
+    };
+  }
+
+  return {
+    success: true,
+    data: {
+      id: String(doc._id),
+      kit: doc.kit,
+      createdAt: doc.createdAt.toISOString(),
+      updatedAt: doc.updatedAt.toISOString(),
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Update a kit (ownership enforced, owner cannot be changed)
+// ---------------------------------------------------------------------------
+
+/**
+ * Replaces the kit payload on an owned document.
+ *
+ * The userId is always taken from the JWT — the update never accepts a
+ * new userId from the client, preventing ownership hijacking.
+ */
+export async function updateKit(
+  userId: string,
+  kitId: string,
+  updatedKit: Kit
+): Promise<KitServiceResult<{ id: string; kit: Kit; createdAt: string; updatedAt: string }>> {
+  if (!isValidObjectId(kitId)) {
+    return {
+      success: false,
+      code: 'NOT_FOUND',
+      message: 'Kit not found.',
+      statusCode: 404,
+    };
+  }
+
+  // findOneAndUpdate with { userId, _id } ensures ownership without a separate
+  // read-then-write. new: true returns the updated document.
+  const doc = await KitDocumentModel.findOneAndUpdate(
+    {
+      _id: new Types.ObjectId(kitId),
+      userId: new Types.ObjectId(userId), // ownership guard — never updatable
+    },
+    {
+      $set: { kit: updatedKit },
+    },
+    { new: true, runValidators: false } // Zod already validated the payload
+  );
+
+  if (!doc) {
+    return {
+      success: false,
+      code: 'NOT_FOUND',
+      message: 'Kit not found.',
+      statusCode: 404,
+    };
+  }
+
+  return {
+    success: true,
+    data: {
+      id: String(doc._id),
+      kit: doc.kit,
+      createdAt: doc.createdAt.toISOString(),
+      updatedAt: doc.updatedAt.toISOString(),
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Delete a kit (ownership enforced)
+// ---------------------------------------------------------------------------
+
+/**
+ * Deletes an owned kit document.
+ * Returns NOT_FOUND for missing or non-owned kits.
+ */
+export async function deleteKit(
+  userId: string,
+  kitId: string
+): Promise<KitServiceResult<{ deleted: true }>> {
+  if (!isValidObjectId(kitId)) {
+    return {
+      success: false,
+      code: 'NOT_FOUND',
+      message: 'Kit not found.',
+      statusCode: 404,
+    };
+  }
+
+  const result = await KitDocumentModel.deleteOne({
+    _id: new Types.ObjectId(kitId),
+    userId: new Types.ObjectId(userId),
+  });
+
+  if (result.deletedCount === 0) {
+    return {
+      success: false,
+      code: 'NOT_FOUND',
+      message: 'Kit not found.',
+      statusCode: 404,
+    };
+  }
+
+  return { success: true, data: { deleted: true } };
+}

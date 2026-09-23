@@ -4,6 +4,75 @@ All notable changes to the Rehearsa project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.0.0-m9] - Milestone 9: Kit Persistence + User-Scoped CRUD - 2026-09-23
+
+### Added
+- **Kit Document Model (`apps/api/src/modules/kits/kit.model.ts`)**: `KitDocumentModel` with `userId` (ObjectId, indexed), `kit` (Mixed — Appendix A payload stored verbatim, not re-declared in Mongoose to avoid schema drift), `createdAt`/`updatedAt`. Compound index `{ userId, createdAt: -1 }` for fast per-user list queries.
+- **Kit Persistence Schemas (`packages/shared/src/schemas/input.schema.ts`)**: `SaveKitInputSchema`, `UpdateKitInputSchema` (both wrap `KitSchema`), `KitSummarySchema` (id/role/company/daysAvailable/timestamps for list responses). All keep persistence metadata outside Appendix A.
+- **Kit Service (`apps/api/src/modules/kits/kit.service.ts`)**: `saveKit`, `listKits`, `getKitById`, `updateKit`, `deleteKit`. Ownership enforced via `{ _id, userId }` compound query on every read/update/delete — NOT_FOUND returned for both missing and non-owned kits. `isValidObjectId` guard rejects malformed IDs before hitting the database. `updateKit` uses `findOneAndUpdate` with ownership in the filter clause so userId cannot be overwritten.
+- **Kit CRUD Routes (`apps/api/src/routes/kits.routes.ts`)**: `POST /api/kits` (201), `GET /api/kits` (summaries), `GET /api/kits/:id`, `PUT /api/kits/:id`, `DELETE /api/kits/:id`. All behind `requireAuth`; `userId` derived exclusively from `req.user.sub`.
+- **Auth Proxy (`apps/web/next.config.js`)**: Added `/auth/:path*` rewrite so the browser proxies auth calls through Next.js instead of hitting the API port directly.
+- **Frontend Auth (`apps/web/src/lib/auth.tsx`)**: `AuthProvider` React context + `useAuth` hook. Token stored in `sessionStorage` — cleared on tab close (trade-off: XSS readable vs httpOnly cookie, documented in JSDoc).
+- **Auth Forms (`apps/web/src/components/AuthForms.tsx`)**: Combined login/register tab component.
+- **Kit List UI (`apps/web/src/components/SavedKitsList.tsx`)**: Displays user's saved kits (newest first), open button, delete with confirmation, loading/empty/error states.
+- **Full Frontend Workflow (`apps/web/src/app/page.tsx`)**: View state machine (`home` / `auth` / `my-kits` / `kit-viewer`). Save/Update banner with success/error feedback. Edit preservation (`editedItemIds`) retained across save and regeneration cycles. Logout clears session.
+- **Kit CRUD Tests (`apps/api/src/routes/tests/kitsRoutes.test.ts`)**: 30 integration tests using mongodb-memory-server with two distinct users. Covers: save (auth, 201, 400 invalid/missing, no internal fields), list (auth, empty, user isolation, summary shape, sort), get (auth, owned, 404 non-owned/non-existent/malformed), update (auth, owned, 404 non-owned, 400 invalid, ownership unchangeable), delete (auth, owned+verify gone, 404 non-owned+original intact, 404 non-existent/malformed), edit survival cycle, multiple kits per user.
+
+### Fixed
+- **`apps/api/src/app.ts`**: Removed incorrect `app.use('/api/kits', interviewPrepRoutes)` alias; now correctly mounts `kitsRoutes`.
+- **`apps/web/src/lib/api.ts`**: Rewrote to remove duplicate function exports introduced by a partial str_replace.
+- **`apps/api/src/modules/auth/user.model.ts`**: Removed redundant `UserSchema.index()` call that caused a Mongoose duplicate-index warning.
+- **`scripts/tests/evaluator.test.ts`**: Increased per-test timeouts from 20s to 60s to prevent load-induced flakiness when running alongside bcrypt-heavy auth tests on Windows.
+- **`vitest.config.mts`**: Added global `testTimeout: 30000` / `hookTimeout: 30000`.
+
+### Architecture decisions
+- **Generation stays public** (no auth required for `POST /api/interview-prep/generate`). This preserves the batch evaluator contract. Saving a kit requires auth; generation does not.
+- **Token storage**: `sessionStorage` — cleared on tab close, readable by JS on same origin. Trade-off documented in code.
+
+### Verification
+- `npx vitest run`: Exit Code `0`. **161/161 tests passing** across 18 test files.
+- `npm run build`: Exit Code `0`. All three workspaces compile cleanly.
+- `npm run lint`: Exit Code `0`.
+- Live MongoDB/auth NOT verified — all tests use `mongodb-memory-server`. Manual verification requires `MONGODB_URI` + `JWT_SECRET` in `.env`.
+- Changes are **NOT committed** (awaiting user instruction).
+
+---
+
+## [1.0.0-m8] - Milestone 8: Database Foundation and Authentication - 2026-09-23
+
+### Added
+- **MongoDB Connection (`apps/api/src/modules/db/connection.ts`)**: Singleton `connectToDatabase(uri)` that establishes a Mongoose connection. Idempotent — safe to call multiple times. Tests bypass this module and connect directly with mongodb-memory-server.
+- **Auth Zod Schemas (`packages/shared/src/schemas/auth.schema.ts`)**: `RegisterInputSchema` (email + min-8-char password, email normalised to lowercase), `LoginInputSchema`, `PublicUserSchema` (id/email/createdAt — no password), `JwtPayloadSchema`.
+- **User Model (`apps/api/src/modules/auth/user.model.ts`)**: Mongoose schema with `email` (unique, lowercase, indexed) and `passwordHash` (`select: false` — excluded from all queries by default). `createdAt` timestamp via schema options.
+- **Auth Service (`apps/api/src/modules/auth/auth.service.ts`)**: `registerUser` (bcrypt cost 12, returns `EMAIL_TAKEN` 409 on duplicate), `loginUser` (constant-time dummy-hash comparison for unknown email, generic `INVALID_CREDENTIALS` 401 for both wrong password and unknown email to prevent user enumeration), `signToken`/`verifyToken` (JWT secret read at call time, not module load time), `toPublicUser`.
+- **Auth Middleware (`apps/api/src/modules/auth/auth.middleware.ts`)**: `requireAuth` Express middleware — extracts `Authorization: Bearer <token>`, returns structured 401 with `MISSING_TOKEN`, `TOKEN_EXPIRED`, or `INVALID_TOKEN` codes. Populates `req.user = { sub, email }` on success.
+- **Auth Routes (`apps/api/src/routes/auth.routes.ts`)**: `POST /auth/register` (201), `POST /auth/login` (200), `POST /auth/logout` (200, requires valid token), `GET /auth/me`. Rate limiting (10 req/15 min per IP via `express-rate-limit`, disabled in test environment).
+- **Server startup guard (`apps/api/src/server.ts`)**: Warns in development and refuses to start in production if `JWT_SECRET` is missing or shorter than 32 characters. Calls `connectToDatabase()` before accepting connections.
+- **Config additions (`apps/api/src/config/index.ts`)**: `config.mongo.uri` (from `MONGODB_URI`) and `config.jwt.secret`/`config.jwt.expiresIn` (from `JWT_SECRET`/`JWT_EXPIRES_IN`).
+- **Unit Tests (`apps/api/src/modules/auth/tests/auth.service.test.ts`)**: 25 tests — signToken/verifyToken (tampered, wrong secret, expired, invalid string), registerUser (hashing, normalisation, duplicate, JWT payload), loginUser (correct creds, wrong password, unknown email, no-enumeration, case-insensitive email, no passwordHash in response), toPublicUser.
+- **Route Integration Tests (`apps/api/src/routes/tests/authRoutes.test.ts`)**: 30 tests using mongodb-memory-server — full register/login/logout/me flows, all validation error paths, no-passwordHash-in-response, public endpoints remain accessible without auth.
+- **Dependencies added to `apps/api`**: `mongoose ^9.10.2`, `bcrypt ^6.0.0`, `jsonwebtoken ^9.0.3`, `express-rate-limit ^8.7.0`, `mongodb-memory-server ^11.3.0` (dev), `@types/bcrypt`, `@types/jsonwebtoken`.
+
+### Security decisions
+- Passwords hashed with bcrypt, cost factor 12.
+- `passwordHash` marked `select: false` in Mongoose — never appears in query results unless explicitly requested.
+- Login returns `INVALID_CREDENTIALS` for both unknown email and wrong password (no user enumeration).
+- Constant-time bcrypt comparison even when the user is not found (dummy hash path).
+- JWT secret read from environment variable at call time, never hardcoded.
+- Rate limiting on register/login endpoints.
+
+### Known limitations
+- JWT logout is stateless. The server does not maintain a token blocklist. A token remains cryptographically valid until expiry after the client discards it. Short `JWT_EXPIRES_IN` values (e.g., `1h`) reduce the exposure window. A token blocklist can be added in a future milestone if required.
+- Live DB/auth has not been verified against a real MongoDB instance. All 55 new tests (25 unit + 30 route) use `mongodb-memory-server`.
+
+### Verification
+- `npx vitest run`: Exit Code `0`. **132/132 tests passing** across 17 test files.
+- `npm run build`: Exit Code `0`. All three workspaces compile cleanly.
+- `npm run lint`: Exit Code `0`.
+- Changes are **NOT committed** (awaiting user instruction).
+
+---
+
 ## [1.0.0-m7b2] - Milestone 7B.2: Section Regeneration Implementation - 2026-09-23
 
 ### Added

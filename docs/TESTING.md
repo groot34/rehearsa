@@ -62,22 +62,32 @@ Must verify:
 |---|---|---|---|
 | `npm run lint` | Monorepo root | Runs linter across all workspaces | Verified |
 | `npm run build` | Monorepo root | TypeScript compilation across packages & Next.js build | Verified |
-| `npm test` or `npx vitest run` | Monorepo root | Runs Vitest unit & integration test suite | Verified (51/51 passing) |
+| `npm test` or `npx vitest run` | Monorepo root | Runs Vitest unit & integration test suite | Verified (161/161 passing) |
 | `npm run evaluate -- --input <cases.json> --output <kits.json>` | Monorepo root | Runs batch evaluator CLI with Appendix B output | Verified (8 cases, 782ms) |
 
-### Test Suite Breakdown (`Vitest v5.0.1` — 12 test files, 51 tests)
-- `packages/shared/src/tests/coverageChecker.test.ts`: 7 tests verifying covered, partial covered, empty arrays, invalid references, duplicate IDs, and stable ordering.
-- `packages/shared/src/tests/scheduleAllocator.test.ts`: 6 tests verifying 1-day, multi-day (5, 10), 0 questions, contiguous block allocation, deterministic reproducibility, and error handling.
-- `packages/shared/src/tests/kitValidator.test.ts`: 13 tests verifying Appendix A valid kit, missing fields, enum errors, difficulty limits, invalid references, duplicate IDs, and coverage consistency.
-- `packages/shared/src/tests/integration.test.ts`: 1 test executing end-to-end pipeline: requirements -> Pass 1 -> Coverage -> Pass 2 -> Schedule -> Kit Validation.
-- `apps/api/src/modules/research/tests/ssrfGuard.test.ts`: 6 tests verifying SSRF protection, private IP blocking, DNS rebinding, and loopback dev override.
-- `apps/api/src/modules/research/tests/htmlCleaner.test.ts`: 2 tests verifying script stripping, clean text extraction, and link discovery.
-- `apps/api/src/modules/research/tests/robotsParser.test.ts`: 2 tests verifying robots.txt parsing and allow/disallow rule enforcement.
-- `apps/api/src/modules/llm/tests/llmProvider.test.ts`: 3 tests verifying provider interface, mock generation, and missing key error handling.
-- `apps/api/src/modules/interview-prep/tests/pipelineOrchestrator.test.ts`: 4 tests verifying end-to-end pipeline execution, input validation, and SSRF rejection.
-- `apps/api/src/routes/tests/interviewPrepRoutes.test.ts`: 3 tests verifying Express REST API endpoints, validation errors, and success payloads.
-- `apps/web/src/tests/kitGenerator.test.ts`: 2 tests verifying frontend API client request formatting and error propagation.
-- `scripts/tests/evaluator.test.ts`: 2 tests verifying CLI batch evaluation, Appendix B envelope formatting, per-case failure isolation across 7 cases (standard, 1d boundary, 60d boundary, invalid JD, invalid days, invalid URL, unreachable site fallback), and error exit codes for invalid inputs.
+**Note**: Auth and kit CRUD tests use `mongodb-memory-server` — no real MongoDB connection required.
+
+### Test Suite Breakdown (`Vitest v5.0.1` — 18 test files, 161 tests)
+- `packages/shared/src/tests/coverageChecker.test.ts`: 7 tests — coverage set difference, partial coverage, empty arrays, invalid refs, duplicates, stable ordering.
+- `packages/shared/src/tests/scheduleAllocator.test.ts`: 6 tests — 1-day, multi-day, 0 questions, contiguous block, deterministic reproducibility, error handling.
+- `packages/shared/src/tests/kitValidator.test.ts`: 13 tests — Appendix A valid kit, missing fields, enum errors, difficulty limits, invalid refs, duplicate IDs, coverage consistency.
+- `packages/shared/src/tests/integration.test.ts`: 1 test — end-to-end pipeline: requirements → Pass 1 → Coverage → Pass 2 → Schedule → Kit Validation.
+- `apps/api/src/modules/research/tests/ssrfGuard.test.ts`: 6 tests — SSRF protection, private IP blocking, DNS rebinding, loopback dev override.
+- `apps/api/src/modules/research/tests/htmlCleaner.test.ts`: 2 tests — script stripping, clean text extraction, link discovery.
+- `apps/api/src/modules/research/tests/robotsParser.test.ts`: 2 tests — robots.txt parsing and allow/disallow rule enforcement.
+- `apps/api/src/modules/llm/tests/llmProvider.test.ts`: 6 tests — provider interface, mock generation, key normalisation, missing key handling.
+- `apps/api/src/modules/interview-prep/tests/pipelineOrchestrator.test.ts`: 4 tests — end-to-end pipeline with MockLlmProvider, SSRF rejection.
+- `apps/api/src/modules/interview-prep/tests/sectionRegenerator.test.ts`: 18 tests — preservation, cross-section isolation, ID collision prevention, LLM failure, sanitisation.
+- `apps/api/src/modules/auth/tests/auth.service.test.ts`: 25 tests **(NEW — Milestone 8)** — signToken/verifyToken (tampered, wrong secret, expired, invalid), registerUser (hashing, normalisation, duplicate, JWT payload), loginUser (correct creds, wrong password, unknown email, no user enumeration, case-insensitive email, no passwordHash in response), toPublicUser.
+- `apps/api/src/routes/tests/interviewPrepRoutes.test.ts`: 3 tests — Express REST API endpoints, validation errors, success payloads.
+- `apps/api/src/routes/tests/regenerateSectionRoutes.test.ts`: 8 tests — section regeneration input validation, happy paths, preserved IDs, error response shape.
+- `apps/api/src/routes/tests/authRoutes.test.ts`: 30 tests **(NEW — Milestone 8)** — register, login, logout, /me endpoints; all validation error paths; no-passwordHash-in-response; public endpoint accessibility without auth.
+- `apps/api/src/routes/tests/kitsRoutes.test.ts`: 30 tests **(NEW — Milestone 9)** — POST save (auth, 201, 400 invalid/missing, no internal fields), GET list (auth, empty, per-user isolation, summary shape, sort), GET :id (auth, owned, 404 non-owned/non-existent/malformed, no userId), PUT :id (auth, update owned, 404 non-owned, 400 invalid, ownership not changeable), DELETE :id (auth, owned+verify gone, 404 non-owned+original intact, 404 non-existent/malformed), edit survival cycle, multiple kits per user.
+- `apps/web/src/tests/kitGenerator.test.ts`: 2 tests — frontend API client request formatting and error propagation.
+- `apps/web/src/tests/kitEditing.test.ts`: 9 tests — update/add/delete questions and flashcards, referential integrity, schedule cleanup, coverage recalculation.
+- `scripts/tests/evaluator.test.ts`: 2 tests — CLI batch evaluation, Appendix B envelope formatting, per-case failure isolation, error exit codes.
+
+Automated auth and kit persistence tests use `mongodb-memory-server`; they do not verify connectivity to a real MongoDB deployment. Live Gemini generation was verified in Milestone 6, but it is separate from live M8/M9 database verification. Deployment verification has not been performed.
 
 ---
 
@@ -91,3 +101,16 @@ Must verify:
 | 2026-09-22 | Milestone 4 Frontend | `npx vitest run` | Passed | 12 test files, 50/50 tests passing |
 | 2026-09-22 | Milestone 5 Evaluator | `npx vitest run` | Passed | 12 test files, 51/51 tests passing |
 | 2026-09-22 | Milestone 5 Benchmark | `npm run evaluate` | Passed | 8 benchmark cases evaluated in 782ms; Appendix A/B verified |
+| 2026-09-23 | Milestone 7A Editing | `npx vitest run` | Passed | 13 test files, 63/63 tests passing |
+| 2026-09-23 | Milestone 7B.2 Regen | `npx vitest run` | Passed | 15 test files, 89/89 tests passing |
+| 2026-09-23 | Milestone 8 Auth+DB | `npx vitest run` | Passed | 17 test files, **132/132 tests passing** (mongodb-memory-server) |
+| 2026-09-23 | Milestone 8 Build | `npm run build` | Passed | All three workspaces compile cleanly |
+| 2026-09-23 | Milestone 8 Lint | `npm run lint` | Passed | All workspaces lint cleanly |
+| 2026-09-23 | Milestone 9 Kit CRUD | `npx vitest run` | Passed | 18 test files, **161/161 tests passing** |
+| 2026-09-23 | Milestone 9 Build | `npm run build` | Passed | All three workspaces compile cleanly |
+| 2026-09-23 | Milestone 9 Lint | `npm run lint` | Passed | All workspaces lint cleanly |
+| 2026-09-23 | M8+M9 review | `npm test` | Passed | 18 test files, 161/161 tests passing |
+| 2026-09-23 | M8+M9 review | `npm run build` | Passed | Shared, API, and Next.js builds completed successfully |
+| 2026-09-23 | M8+M9 review | `npm run lint` | Passed | Workspace lint scripts exited successfully |
+| 2026-09-23 | M8+M9 review | `npm run evaluate -- --input scratch/synthetic-benchmark-cases.json --output scratch/synthetic-benchmark-output.json` | Passed | 8 cases: 5 valid kits, 3 isolated invalid cases, 874ms |
+| 2026-09-23 | M8+M9 review | Local Mongo readiness check | Not available | `.env` has no `MONGODB_URI` or `JWT_SECRET`; no live database attempt was possible |

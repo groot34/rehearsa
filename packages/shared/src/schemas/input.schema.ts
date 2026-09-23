@@ -50,3 +50,39 @@ export const RegenerateKitSectionInputSchema = z.object({
   preserved_ids: z.array(z.string()).default([]),
 });
 export type RegenerateKitSectionInput = z.infer<typeof RegenerateKitSectionInputSchema>;
+
+// ---------------------------------------------------------------------------
+// Kit persistence schemas (Milestone 9)
+// ---------------------------------------------------------------------------
+
+/**
+ * Input schema for POST /api/kits — save a generated kit.
+ * The kit payload must conform to Appendix A exactly.
+ */
+export const SaveKitInputSchema = z.object({
+  kit: KitSchema,
+});
+export type SaveKitInput = z.infer<typeof SaveKitInputSchema>;
+
+/**
+ * Input schema for PUT /api/kits/:id — update a saved kit after editing.
+ * Identical payload requirements to save.
+ */
+export const UpdateKitInputSchema = z.object({
+  kit: KitSchema,
+});
+export type UpdateKitInput = z.infer<typeof UpdateKitInputSchema>;
+
+/**
+ * Lightweight summary returned in GET /api/kits list responses.
+ * Does not include the full kit payload to keep the list response fast.
+ */
+export const KitSummarySchema = z.object({
+  id: z.string(),
+  role: z.string(),
+  company: z.string(),
+  daysAvailable: z.number(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+export type KitSummary = z.infer<typeof KitSummarySchema>;

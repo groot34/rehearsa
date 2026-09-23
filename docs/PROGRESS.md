@@ -1,8 +1,8 @@
 # Project Progress & Status — Rehearsa
 
 ## 1. Current Milestone
-**Milestone 7B.2 — Section Regeneration Implementation (COMPLETED, not yet committed)**
-- **Git Baseline**: Commit `5bd067a` (`docs(design): add ADR-008 section regeneration contract for Milestone 7B`) on branch `main`.
+**Milestone 9 — Kit Persistence + User-Scoped CRUD (COMPLETED, not yet committed)**
+- **Git Baseline**: Commit `5512463` (`feat(web): add interview kit section regeneration`) on branch `main`.
 
 ---
 
@@ -82,29 +82,71 @@
   - **Build**: `npm run build` → Exit Code `0`. All three workspaces compile cleanly.
   - **Lint**: `npm run lint` → Exit Code `0`.
   - **Benchmark**: `npm run evaluate` → Exit Code `0`. 5/8 cases OK, 3 invalid rejected, 343ms total.
+  - **Changes committed at `5512463`**.
+- [x] **Milestone 8: Database Foundation and Authentication (COMPLETED, not yet committed)**:
+  - **Dependencies**: Added `mongoose`, `bcrypt`, `jsonwebtoken`, `express-rate-limit`, `mongodb-memory-server` to `apps/api/package.json`.
+  - **`apps/api/src/modules/db/connection.ts`**: Singleton `connectToDatabase(uri)` + `disconnectFromDatabase()`. Tests use mongodb-memory-server directly; this module is called only from `server.ts`.
+  - **`packages/shared/src/schemas/auth.schema.ts`**: Added `RegisterInputSchema`, `LoginInputSchema`, `PublicUserSchema`, `JwtPayloadSchema` with email normalisation (lowercase + trim) in the Zod transforms.
+  - **`apps/api/src/modules/auth/user.model.ts`**: Mongoose `UserSchema` with `email` (unique, indexed, lowercase), `passwordHash` (`select: false`), `createdAt` timestamps.
+  - **`apps/api/src/modules/auth/auth.service.ts`**: `registerUser` (bcrypt cost 12, EMAIL_TAKEN on duplicate), `loginUser` (constant-time dummy hash for unknown email, generic INVALID_CREDENTIALS error), `signToken`/`verifyToken` (reads env at call time — not module load time), `toPublicUser`.
+  - **`apps/api/src/modules/auth/auth.middleware.ts`**: `requireAuth` Express middleware — requires `Authorization: Bearer <token>`, distinguishes MISSING_TOKEN / TOKEN_EXPIRED / INVALID_TOKEN error codes.
+  - **`apps/api/src/routes/auth.routes.ts`**: `POST /auth/register` (201), `POST /auth/login` (200), `POST /auth/logout` (200, requires valid token, stateless — does not invalidate JWT server-side, behaviour documented in response body and code comments), `GET /auth/me`. Rate limiting: 10 req/15 min per IP, disabled in `NODE_ENV=test`.
+  - **`apps/api/src/app.ts`**: Mounts `authRoutes` at `/auth`. Health and interview-prep routes unchanged.
+  - **`apps/api/src/server.ts`**: JWT secret guard (warns in dev, refuses in prod if < 32 chars). Calls `connectToDatabase()` on startup before listening.
+  - **`apps/api/src/config/index.ts`**: Added `mongo.uri` and `jwt.secret`/`jwt.expiresIn` from env.
+  - **`apps/api/src/modules/auth/tests/auth.service.test.ts`**: 25 unit tests using mongodb-memory-server (signToken, verifyToken, registerUser, loginUser, toPublicUser — incl. no-user-enumeration, bcrypt hash format, email normalisation, JWT payload).
+  - **`apps/api/src/routes/tests/authRoutes.test.ts`**: 30 route integration tests (register, login, logout, /me, public endpoint accessibility).
+  - **Known limitation**: JWT logout is stateless — the token remains cryptographically valid until expiry after logout. Documented in route comments and response body.
+  - **Test result**: `npx vitest run` → Exit Code `0`. **132/132 tests passing** across 17 test files.
+  - **Build**: `npm run build` → Exit Code `0`.
+  - **Lint**: `npm run lint` → Exit Code `0`.
+  - **Live DB/auth verification**: NOT verified against real MongoDB/real secrets. All automated tests use mongodb-memory-server. Manual verification requires `MONGODB_URI` and `JWT_SECRET` in `.env`.
+  - **Changes NOT committed** (awaiting user instruction).
+- [x] **Milestone 9: Kit Persistence + User-Scoped CRUD (COMPLETED, not yet committed)**:
+  - **`packages/shared/src/schemas/input.schema.ts`**: Added `SaveKitInputSchema`, `UpdateKitInputSchema`, `KitSummarySchema` — persistence contracts kept outside Appendix A.
+  - **`apps/api/src/modules/kits/kit.model.ts`** (new): `KitDocumentModel` Mongoose schema with `userId` (ObjectId ref, indexed), `kit` (Mixed — stores Appendix A payload verbatim), `createdAt`/`updatedAt` timestamps. Compound index `{ userId, createdAt: -1 }` for efficient per-user list queries.
+  - **`apps/api/src/modules/kits/kit.service.ts`** (new): `saveKit`, `listKits`, `getKitById`, `updateKit`, `deleteKit`. All operations scope every query by `{ _id, userId }` — NOT_FOUND returned for both missing and non-owned kits (no ownership disclosure). ObjectId validation before DB hit. `updateKit` uses `findOneAndUpdate` with ownership in the query filter — ownership cannot be changed.
+  - **`apps/api/src/routes/kits.routes.ts`** (new): `POST /api/kits` (201), `GET /api/kits` (list summaries), `GET /api/kits/:id`, `PUT /api/kits/:id`, `DELETE /api/kits/:id`. All behind `requireAuth`. `userId` derived exclusively from `req.user.sub` (JWT). Fixed: TypeScript discriminated union narrowing added success guards before spreading `.data`.
+  - **`apps/api/src/app.ts`**: Removed incorrect `/api/kits → interviewPrepRoutes` alias; added `kitsRoutes` at `/api/kits`. Generation kept public (batch evaluator preserved). Decision documented in code comment.
+  - **`apps/web/next.config.js`**: Added `/auth/:path*` proxy rewrite (was missing — auth calls would have failed from browser).
+  - **`apps/web/src/lib/api.ts`**: Added `registerUser`, `loginUser`, `logoutUser`, `saveKitToServer`, `fetchKitList`, `fetchKitById`, `updateKitOnServer`, `deleteKitFromServer`. Fixed duplicate export bug.
+  - **`apps/web/src/lib/auth.tsx`** (new): `AuthProvider` + `useAuth` hook. Token stored in `sessionStorage` (cleared on tab close; documented XSS trade-off vs httpOnly cookie in JSDoc).
+  - **`apps/web/src/components/AuthForms.tsx`** (new): Login/register tab switcher.
+  - **`apps/web/src/components/SavedKitsList.tsx`** (new): User's kit list with open/delete, loading/empty/error states, sorts newest first.
+  - **`apps/web/src/app/layout.tsx`**: Wraps app with `AuthProvider`.
+  - **`apps/web/src/app/page.tsx`**: Full view state machine (`home` / `auth` / `my-kits` / `kit-viewer`). Save/Update banner with success/error indicator. Edit preservation (`editedItemIds`) retained across save/regen cycles. Logout clears session.
+  - **`apps/api/src/routes/tests/kitsRoutes.test.ts`** (new): 30 integration tests — POST (auth, 201, 400 invalid/missing, no userId in response), GET list (auth, empty, user isolation, summary shape, sort order), GET :id (auth, owned, 404 non-owned, 404 non-existent, 404 malformed ID), PUT :id (auth, update owned, 404 non-owned, 400 invalid, ownership not changeable, 404 malformed), DELETE :id (auth, delete + verify gone, 404 non-owned + original intact, 404 non-existent, 404 malformed), edit survival cycle, multiple kits per user.
+  - **`apps/api/src/modules/auth/user.model.ts`**: Removed duplicate Mongoose index (was warning; `unique: true` field option already creates the index).
+  - **`scripts/tests/evaluator.test.ts`**: Increased per-test timeout 20s → 60s (load-induced flakiness on Windows under parallel bcrypt workers).
+  - **`vitest.config.mts`**: Added global `testTimeout: 30000` / `hookTimeout: 30000`.
+  - **Test result**: `npx vitest run` → Exit Code `0`. **161/161 tests passing** across 18 test files.
+  - **Build**: `npm run build` → Exit Code `0`. All three workspaces compile cleanly.
+  - **Lint**: `npm run lint` → Exit Code `0`.
+  - **Live verification**: NOT performed against real MongoDB. All tests use mongodb-memory-server.
   - **Changes NOT committed** (awaiting user instruction).
 
 ---
 
 ## 3. Work Not Yet Started
-- None. Milestone 7B.2 implementation is complete. Next is Final User Review & Project Audit.
+- Milestone 10: Multi-Kit Dashboard (kit list UI fully tested live, reorder, confidence tiers).
 
 ---
 
 ## 4. Outstanding Tasks (Next Milestones)
+- **Milestone 10**: Assessment.md Section 5 update to Verified; live manual verification of M8+M9; flashcard confidence tiers (easy/medium/hard); reorder UI.
 - Final User Review & Project Audit.
 
 ---
 
 ## 5. Known Bugs / Issues
-* None. All 89 tests pass; live Gemini generation verified; full monorepo build succeeds; lint succeeds; benchmark 5/8 cases verified.
+* None. All 161 tests pass; live Gemini generation verified (M6); full monorepo build succeeds; lint succeeds.
 
 ---
 
 ## 6. Blockers
-* None. All validation checks passing.
+* Milestones 8+9 live verification requires a running MongoDB instance and `JWT_SECRET` in `.env`. Automated tests are self-contained.
 
 ---
 
 ## 7. Next Recommended Task
-Commit the Milestone 7B.2 implementation if the user approves, then proceed to Final User Review & Project Audit.
+Commit Milestones 8+9 (single combined commit or two separate) if the user approves, then proceed to live manual verification and ASSESSMENT.md status update.
