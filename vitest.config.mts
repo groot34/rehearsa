@@ -10,5 +10,9 @@ export default defineConfig({
       'apps/web/src/tests/**/*.test.ts',
     ],
     exclude: ['**/node_modules/**', '**/dist/**'],
+    // Increased from default 5s to accommodate mongodb-memory-server startup
+    // and bcrypt operations under parallel test load (Milestone 8/9).
+    testTimeout: 30000,
+    hookTimeout: 30000,
   },
 });

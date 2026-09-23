@@ -142,7 +142,7 @@ describe('Batch Evaluator CLI Integration & Benchmark Verification', () => {
     expect(validateKit(case7.kit).valid).toBe(true);
     expect(case7.kit.schedule.days_available).toBe(3);
     expect(case7.kit.schedule.days.length).toBe(3);
-  }, 20000);
+  }, 60000);
 
   it('exits with code 1 when input file is missing or invalid JSON', () => {
     const rootDir = path.resolve(__dirname, '../..');
@@ -170,5 +170,5 @@ describe('Batch Evaluator CLI Integration & Benchmark Verification', () => {
         stdio: 'pipe',
       });
     }).toThrow();
-  }, 20000);
+  }, 60000);
 });
