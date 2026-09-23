@@ -8,7 +8,7 @@
 
 * **Project**: Rehearsa — Full-Stack AI-Powered Interview Preparation Platform
 * **Assessment ID**: `FS-AI-INTERVIEW-01` (Trao Assessment)
-* **Active Milestone**: `Milestone 5 — End-to-End Evaluation & Benchmarking` (Completed & Verified)
+* **Active Milestone**: `Milestone 6 — Live Gemini Integration & Resilience Hardening` (Completed & Verified)
 
 ---
 
@@ -16,8 +16,8 @@
 
 * **Branch**: `main`
 * **Latest Committed Baseline**: `b0dca7b` (`feat: build interview prep frontend`)
-* **Working Tree**: Milestone 5 changes are in working tree (uncommitted — awaiting explicit instruction).
-  - Modified: `apps/api/src/modules/interview-prep/pipelineOrchestrator.ts`, `packages/shared/src/schemas/batch.schema.ts`, `packages/shared/src/schemas/input.schema.ts`, `scripts/evaluator.ts`, `scripts/tests/evaluator.test.ts`, `docs/AGENT_HANDOFF.md`, `docs/ASSESSMENT.md`, `docs/CHANGELOG.md`, `docs/PROGRESS.md`, `docs/TESTING.md`
+* **Working Tree**: Working tree changes ready (uncommitted — awaiting explicit instruction).
+  - Modified: `apps/api/src/modules/interview-prep/pipelineOrchestrator.ts`, `apps/api/src/modules/llm/geminiProvider.ts`, `apps/api/src/modules/research/safeFetcher.ts`, `apps/api/src/modules/research/robotsParser.ts`, `apps/api/src/routes/tests/interviewPrepRoutes.test.ts`, `docs/*`
   - Synthetic benchmark artifacts stored in `scratch/` (ignored by Git): `scratch/synthetic-benchmark-cases.json`, `scratch/synthetic-benchmark-output.json`
 * **Workspace Structure**:
   - `packages/shared`: Zod schemas, types, `coverageChecker.ts`, `scheduleAllocator.ts`, `kitValidator.ts`, full test suite.

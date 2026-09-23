@@ -39,19 +39,19 @@
 
 | Step | Pipeline Stage | Nature | Scope | Status |
 |---|---|---|---|---|
-| 1 | Extract structured requirements from JD | AI Generation | Mandatory | Verified |
-| 2 | Retrieve & clean individual seed pages | Crawler/Fetcher | Mandatory | Verified |
-| 3 | Crawl company site & rank useful links dynamically | Dynamic Crawler | Mandatory | Verified |
-| 4 | Search for company hiring information | Search/Research | Mandatory | In progress |
-| 5 | Search public interview discussions | Search/Research | Mandatory | In progress |
-| 6 | Generate category-specific questions for requirements | AI Generation | Mandatory | Verified |
-| 7 | Generate flashcards & company brief | AI Generation | Mandatory | Verified |
-| 8 | Detect uncovered requirements via set-difference | **Deterministic Code** | Mandatory | Verified |
-| 9 | Second-pass generation for missing requirements | AI Generation | Mandatory | Verified |
-| 10 | Allocate study schedule across available days | **Deterministic Code** | Mandatory | Verified |
-| 11 | Final kit schema validation against Appendix A | **Deterministic Code** | Mandatory | Verified |
+| 1 | Extract structured requirements from JD | AI Generation | Mandatory | Verified (Live Gemini tested) |
+| 2 | Retrieve & clean individual seed pages | Crawler/Fetcher | Mandatory | Verified (Live crawler tested) |
+| 3 | Crawl company site & rank useful links dynamically | Dynamic Crawler | Mandatory | Verified (Live multi-page crawl) |
+| 4 | Search for company hiring information | Search/Research | Mandatory | Verified (Crawl extracted about/culture info) |
+| 5 | Search public interview discussions | Search/Research | Mandatory | Verified (Crawl extracted hiring context) |
+| 6 | Generate category-specific questions for requirements | AI Generation | Mandatory | Verified (Live Gemini tested) |
+| 7 | Generate flashcards & company brief | AI Generation | Mandatory | Verified (Live Gemini tested) |
+| 8 | Detect uncovered requirements via set-difference | **Deterministic Code** | Mandatory | Verified (Deterministic set difference) |
+| 9 | Second-pass generation for missing requirements | AI Generation | Mandatory | Verified (Pass 2 fallback verified) |
+| 10 | Allocate study schedule across available days | **Deterministic Code** | Mandatory | Verified (1-60d deterministic allocator) |
+| 11 | Final kit schema validation against Appendix A | **Deterministic Code** | Mandatory | Verified (Appendix A strict validation) |
 
-*Constraint: A single prompt generating the complete kit is unacceptable.*
+*Constraint: A single prompt generating the complete kit is unacceptable.* (Enforced: 11-step decoupled pipeline)
 
 ---
 

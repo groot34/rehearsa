@@ -1,5 +1,7 @@
 import { fetchPageSafely } from './safeFetcher';
 
+const robotsCache = new Map<string, string | null>();
+
 /**
  * Checks if a specific target path is allowed by the site's /robots.txt disallow rules.
  */
@@ -12,13 +14,18 @@ export async function isPathAllowedByRobots(
     const origin = new URL(baseUrl).origin;
     const robotsUrl = `${origin}/robots.txt`;
 
-    const fetchRes = await fetchPageSafely(robotsUrl, {
-      timeoutMs: 5000,
-      maxBodySizeBytes: 1024 * 100, // 100KB max for robots.txt
-      allowLoopbackInDev: options?.allowLoopbackInDev,
-    });
+    let robotsData: string | null | undefined = robotsCache.get(origin);
+    if (robotsData === undefined) {
+      const fetchRes = await fetchPageSafely(robotsUrl, {
+        timeoutMs: 3000,
+        maxBodySizeBytes: 1024 * 100, // 100KB max for robots.txt
+        allowLoopbackInDev: options?.allowLoopbackInDev,
+      });
+      robotsData = fetchRes.success && fetchRes.data ? fetchRes.data : null;
+      robotsCache.set(origin, robotsData);
+    }
 
-    if (!fetchRes.success || !fetchRes.data) {
+    if (!robotsData) {
       // If robots.txt is 404 or unavailable, default to allowed
       return true;
     }

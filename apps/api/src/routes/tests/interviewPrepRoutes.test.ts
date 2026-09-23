@@ -7,6 +7,7 @@ describe('POST /api/interview-prep/generate Route', () => {
   let baseUrl: string;
 
   beforeAll(async () => {
+    process.env.LLM_PROVIDER = 'mock';
     const app = createApp();
     await new Promise<void>((resolve) => {
       server = app.listen(0, '127.0.0.1', () => {

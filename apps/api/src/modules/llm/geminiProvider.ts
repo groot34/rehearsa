@@ -69,8 +69,34 @@ export class GeminiProvider implements ILlmProvider {
           .replace(/```$/i, '')
           .trim();
 
-        const jsonParsed = JSON.parse(cleanedJson);
-        const validated = schema.safeParse(jsonParsed);
+        let jsonParsed = JSON.parse(cleanedJson);
+        let validated = schema.safeParse(jsonParsed);
+
+        if (!validated.success && typeof jsonParsed === 'object' && jsonParsed !== null) {
+          // Normalize common LLM key naming variations
+          const normalize = (obj: any): any => {
+            if (!obj || typeof obj !== 'object') return obj;
+            if (Array.isArray(obj)) return obj.map(normalize);
+            const res: any = {};
+            for (const [k, v] of Object.entries(obj)) {
+              let targetKey = k;
+              const lk = k.toLowerCase().replace(/[^a-z0-9_]/g, '');
+              if (lk === 'job_title' || lk === 'jobtitle' || lk === 'role_title') targetKey = 'title';
+              else if (lk === 'seniority_level' || lk === 'senioritylevel') targetKey = 'seniority';
+              else if (lk === 'core_responsibilities' || lk === 'primary_responsibilities') targetKey = 'responsibilities';
+              else if (lk === 'prioritized_requirements' || lk === 'core_requirements') targetKey = 'requirements';
+              else if (lk === 'category' && (obj.text || obj.description)) targetKey = 'kind';
+              else if (lk === 'description' && obj.id) targetKey = 'text';
+              res[targetKey] = normalize(v);
+            }
+            return res;
+          };
+          const normalized = normalize(jsonParsed);
+          const revalidated = schema.safeParse(normalized);
+          if (revalidated.success) {
+            validated = revalidated;
+          }
+        }
 
         if (validated.success) {
           return validated.data;

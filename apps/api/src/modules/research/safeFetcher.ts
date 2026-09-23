@@ -38,10 +38,8 @@ export async function fetchPageSafely(
   const allowLoopback = options?.allowLoopbackInDev ?? false;
   const userAgent = options?.userAgent ?? DEFAULT_USER_AGENT;
 
-  // Custom agents to enforce DNS lookup validation at socket connection time (DNS Rebinding protection)
-  const ssrfLookup = createSsrfLookup(allowLoopback);
-  const httpAgent = new http.Agent({ lookup: ssrfLookup as any });
-  const httpsAgent = new https.Agent({ lookup: ssrfLookup as any });
+  const httpAgent = new http.Agent({ keepAlive: false });
+  const httpsAgent = new https.Agent({ keepAlive: false });
 
   let currentUrl = targetUrl;
   let redirectCount = 0;
@@ -58,27 +56,27 @@ export async function fetchPageSafely(
     }
 
     try {
-      const config: AxiosRequestConfig = {
-        url: currentUrl,
-        method: 'GET',
-        headers: {
-          'User-Agent': userAgent,
-          Accept: 'text/html,application/xhtml+xml,text/plain;q=0.9',
-        },
-        timeout,
-        maxRedirects: 0, // Handle redirects manually to validate destination IPs!
-        validateStatus: (status) => status >= 200 && status < 400,
-        responseType: 'text',
-        maxContentLength: maxBytes,
-        httpAgent,
-        httpsAgent,
-      };
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeout);
 
-      const response = await axios(config);
+      let response: any;
+      try {
+        response = await fetch(currentUrl, {
+          method: 'GET',
+          headers: {
+            'User-Agent': userAgent,
+            Accept: 'text/html,application/xhtml+xml,text/plain;q=0.9',
+          },
+          signal: controller.signal,
+          redirect: 'manual',
+        });
+      } finally {
+        clearTimeout(timer);
+      }
 
       // Check for Redirect (301, 302, 307, 308)
       if (response.status >= 300 && response.status < 400) {
-        const location = response.headers['location'];
+        const location = response.headers.get('location');
         if (!location) {
           return {
             success: false,
@@ -104,7 +102,7 @@ export async function fetchPageSafely(
       }
 
       // Check Content-Type header
-      const contentType = (String(response.headers['content-type'] || '')).toLowerCase();
+      const contentType = (response.headers.get('content-type') || '').toLowerCase();
       if (
         contentType &&
         !contentType.includes('text/html') &&
@@ -120,7 +118,7 @@ export async function fetchPageSafely(
         };
       }
 
-      const bodyData = typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
+      const bodyData = await response.text();
 
       if (Buffer.byteLength(bodyData, 'utf-8') > maxBytes) {
         return {
@@ -140,11 +138,11 @@ export async function fetchPageSafely(
         data: bodyData,
       };
     } catch (err: any) {
+      const errorMsg = err.name === 'AbortError' ? `Request timeout after ${timeout}ms` : (err.message || 'Fetch request failed');
       return {
         success: false,
         finalUrl: currentUrl,
-        statusCode: err.response?.status,
-        error: err.message || 'HTTP request failed',
+        error: errorMsg,
       };
     }
   }

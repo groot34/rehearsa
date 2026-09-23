@@ -42,7 +42,18 @@
 ---
 
 ## 3. Work in Progress
-- None. Milestones 1 through 5 are fully completed and verified.
+- [x] **Milestone 6: Live Gemini Integration & Resilience Hardening (VERIFIED)**:
+  - Verified live Gemini 1.5 Flash pipeline with API key integration.
+  - Implemented resilient JSON schema normalization in `geminiProvider.ts` to seamlessly handle LLM key aliases (`job_title`, `core_responsibilities`, etc.).
+  - Added explicit JSON schemas to prompt instructions in `pipelineOrchestrator.ts` to prevent hallucinations and schema validation failures.
+  - Hardened `safeFetcher.ts` and crawler to handle site unreachable gracefully with strict timeouts and abort controllers.
+  - Verified live end-to-end kit generation via both direct API (port 4000) and Next.js frontend proxy (port 3000) with HTTP 200 OK.
+  - Verified all 51 tests across 12 test suites passing cleanly.
+
+---
+
+## 3. Work in Progress
+- None. All milestones and live tests are fully verified.
 
 ---
 
@@ -52,7 +63,7 @@
 ---
 
 ## 5. Known Bugs / Issues
-* None. All 51 tests pass; full monorepo build succeeds; lint succeeds; batch evaluator verified.
+* None. All 51 tests pass; live Gemini generation verified; full monorepo build succeeds; lint succeeds.
 
 ---
 

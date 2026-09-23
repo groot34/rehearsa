@@ -95,15 +95,21 @@ export function createSsrfLookup(allowLoopbackInDev = false) {
       opts = {};
     }
 
-    dns.lookup(hostname, opts, (err, address, family) => {
+    dns.lookup(hostname, opts, (err, address: any, family: any) => {
       if (err) return cb(err, address, family);
 
-      const addresses = Array.isArray(address) ? address : [{ address, family }];
-      for (const item of addresses) {
-        const ip = typeof item === 'string' ? item : item.address;
-        if (ip && checkIpIsPrivate(ip, allowLoopbackInDev)) {
-          return cb(new Error(`SSRF Blocked at socket connection: IP ${ip} is private/forbidden`), '', 4);
+      if (Array.isArray(address)) {
+        for (const item of address) {
+          const ip = typeof item === 'string' ? item : item.address;
+          if (ip && checkIpIsPrivate(ip, allowLoopbackInDev)) {
+            return cb(new Error(`SSRF Blocked at socket connection: IP ${ip} is private/forbidden`));
+          }
         }
+        return cb(null, address);
+      }
+
+      if (address && checkIpIsPrivate(address, allowLoopbackInDev)) {
+        return cb(new Error(`SSRF Blocked at socket connection: IP ${address} is private/forbidden`));
       }
 
       return cb(null, address, family);

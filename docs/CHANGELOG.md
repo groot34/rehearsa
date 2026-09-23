@@ -4,6 +4,18 @@ All notable changes to the Rehearsa project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.0.0-m6] - Milestone 6: Live Gemini Integration & Resilience Hardening - 2026-09-22
+
+### Added
+- **LLM Key Normalization (`apps/api/src/modules/llm/geminiProvider.ts`)**: Added automatic recursive mapping and normalization of common LLM key naming variations (e.g., `job_title` -> `title`, `core_responsibilities` -> `responsibilities`) to ensure zero schema parsing rejections.
+- **Explicit Prompt JSON Schemas (`apps/api/src/modules/interview-prep/pipelineOrchestrator.ts`)**: Embedded strict TypeScript/JSON schemas directly into system instructions for role extraction, company brief, and questions/flashcards generation.
+
+### Fixed
+- **Safe Fetcher Resilience (`apps/api/src/modules/research/safeFetcher.ts`)**: Integrated `AbortController` timeouts and graceful error handling on DNS failures and unreachable domains to prevent socket hangups.
+- **Robots.txt In-Memory Caching (`apps/api/src/modules/research/robotsParser.ts`)**: Added domain-level robots.txt caching to prevent repeated network overhead during multi-page site discovery.
+
+---
+
 ## [1.0.0-m5] - Milestone 5: End-to-End Evaluation & Benchmarking - 2026-09-22
 
 ### Added
