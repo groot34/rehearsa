@@ -30,4 +30,61 @@ describe('LlmProvider Abstraction', () => {
 
     await expect(provider.generateStructuredJson('test', 'sys', TestSchema)).rejects.toThrow('Gemini API key is not configured');
   });
+
+  describe('normalizeLlmJsonKeys Helper', () => {
+    it('normalizes common role and requirement key variations', async () => {
+      const { normalizeLlmJsonKeys } = await import('../geminiProvider');
+      const input = {
+        job_title: 'Staff Platform Engineer',
+        seniority_level: 'Staff',
+        core_responsibilities: ['Build distributed systems'],
+        prioritized_requirements: [
+          {
+            id: 'r1',
+            description: 'Deep Go concurrency',
+            category: 'technical',
+            priority: 'must',
+          },
+        ],
+      };
+
+      const normalized = normalizeLlmJsonKeys(input);
+      expect(normalized).toEqual({
+        title: 'Staff Platform Engineer',
+        seniority: 'Staff',
+        responsibilities: ['Build distributed systems'],
+        requirements: [
+          {
+            id: 'r1',
+            text: 'Deep Go concurrency',
+            kind: 'technical',
+            priority: 'must',
+          },
+        ],
+      });
+    });
+
+    it('preserves untouched keys for question objects', async () => {
+      const { normalizeLlmJsonKeys } = await import('../geminiProvider');
+      const question = {
+        id: 'q1',
+        category: 'technical',
+        prompt: 'Explain channels in Go',
+        difficulty: 2,
+      };
+
+      const normalized = normalizeLlmJsonKeys(question);
+      expect(normalized.category).toBe('technical');
+      expect(normalized.prompt).toBe('Explain channels in Go');
+    });
+
+    it('handles null, non-object, and empty primitives gracefully', async () => {
+      const { normalizeLlmJsonKeys } = await import('../geminiProvider');
+      expect(normalizeLlmJsonKeys(null)).toBeNull();
+      expect(normalizeLlmJsonKeys('string')).toBe('string');
+      expect(normalizeLlmJsonKeys(42)).toBe(42);
+      expect(normalizeLlmJsonKeys(undefined)).toBeUndefined();
+    });
+  });
 });
+

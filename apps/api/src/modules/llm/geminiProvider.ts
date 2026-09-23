@@ -2,6 +2,28 @@ import axios from 'axios';
 import { z } from 'zod';
 import { ILlmProvider } from './ILlmProvider';
 
+/**
+ * Normalizes common LLM key naming variations (e.g. job_title -> title).
+ * Pure helper function to assist schema validation without mutating values.
+ */
+export function normalizeLlmJsonKeys(obj: any): any {
+  if (!obj || typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) return obj.map(normalizeLlmJsonKeys);
+  const res: any = {};
+  for (const [k, v] of Object.entries(obj)) {
+    let targetKey = k;
+    const lk = k.toLowerCase().replace(/[^a-z0-9_]/g, '');
+    if (lk === 'job_title' || lk === 'jobtitle' || lk === 'role_title') targetKey = 'title';
+    else if (lk === 'seniority_level' || lk === 'senioritylevel') targetKey = 'seniority';
+    else if (lk === 'core_responsibilities' || lk === 'primary_responsibilities') targetKey = 'responsibilities';
+    else if (lk === 'prioritized_requirements' || lk === 'core_requirements') targetKey = 'requirements';
+    else if (lk === 'category' && (obj.text || obj.description)) targetKey = 'kind';
+    else if (lk === 'description' && obj.id) targetKey = 'text';
+    res[targetKey] = normalizeLlmJsonKeys(v);
+  }
+  return res;
+}
+
 export class GeminiProvider implements ILlmProvider {
   public name = 'Google Gemini';
   private apiKey: string;
@@ -73,25 +95,7 @@ export class GeminiProvider implements ILlmProvider {
         let validated = schema.safeParse(jsonParsed);
 
         if (!validated.success && typeof jsonParsed === 'object' && jsonParsed !== null) {
-          // Normalize common LLM key naming variations
-          const normalize = (obj: any): any => {
-            if (!obj || typeof obj !== 'object') return obj;
-            if (Array.isArray(obj)) return obj.map(normalize);
-            const res: any = {};
-            for (const [k, v] of Object.entries(obj)) {
-              let targetKey = k;
-              const lk = k.toLowerCase().replace(/[^a-z0-9_]/g, '');
-              if (lk === 'job_title' || lk === 'jobtitle' || lk === 'role_title') targetKey = 'title';
-              else if (lk === 'seniority_level' || lk === 'senioritylevel') targetKey = 'seniority';
-              else if (lk === 'core_responsibilities' || lk === 'primary_responsibilities') targetKey = 'responsibilities';
-              else if (lk === 'prioritized_requirements' || lk === 'core_requirements') targetKey = 'requirements';
-              else if (lk === 'category' && (obj.text || obj.description)) targetKey = 'kind';
-              else if (lk === 'description' && obj.id) targetKey = 'text';
-              res[targetKey] = normalize(v);
-            }
-            return res;
-          };
-          const normalized = normalize(jsonParsed);
+          const normalized = normalizeLlmJsonKeys(jsonParsed);
           const revalidated = schema.safeParse(normalized);
           if (revalidated.success) {
             validated = revalidated;
