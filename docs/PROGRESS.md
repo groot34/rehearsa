@@ -1,8 +1,10 @@
 # Project Progress & Status — Rehearsa
 
 ## 1. Current Milestone
-**Milestone 9 — Kit Persistence + User-Scoped CRUD (COMPLETED, not yet committed)**
-- **Git Baseline**: Commit `5512463` (`feat(web): add interview kit section regeneration`) on branch `main`.
+**Milestone 9 — Kit Persistence + User-Scoped CRUD (COMPLETED and COMMITTED)**
+- **Commit 1 (M8)**: `1a0dfc7` — `feat(api): add user authentication and MongoDB connection`
+- **Commit 2 (M9)**: `8a94003` — `feat(api,web): add persistent user-owned interview kits`
+- **Branch**: `main`, 6 commits ahead of `origin/main` (not yet pushed).
 
 ---
 
@@ -83,7 +85,7 @@
   - **Lint**: `npm run lint` → Exit Code `0`.
   - **Benchmark**: `npm run evaluate` → Exit Code `0`. 5/8 cases OK, 3 invalid rejected, 343ms total.
   - **Changes committed at `5512463`**.
-- [x] **Milestone 8: Database Foundation and Authentication (COMPLETED, not yet committed)**:
+- [x] **Milestone 8: Database Foundation and Authentication (COMPLETED, committed at `1a0dfc7`)**:
   - **Dependencies**: Added `mongoose`, `bcrypt`, `jsonwebtoken`, `express-rate-limit`, `mongodb-memory-server` to `apps/api/package.json`.
   - **`apps/api/src/modules/db/connection.ts`**: Singleton `connectToDatabase(uri)` + `disconnectFromDatabase()`. Tests use mongodb-memory-server directly; this module is called only from `server.ts`.
   - **`packages/shared/src/schemas/auth.schema.ts`**: Added `RegisterInputSchema`, `LoginInputSchema`, `PublicUserSchema`, `JwtPayloadSchema` with email normalisation (lowercase + trim) in the Zod transforms.
@@ -101,8 +103,8 @@
   - **Build**: `npm run build` → Exit Code `0`.
   - **Lint**: `npm run lint` → Exit Code `0`.
   - **Live DB/auth verification**: NOT verified against real MongoDB/real secrets. All automated tests use mongodb-memory-server. Manual verification requires `MONGODB_URI` and `JWT_SECRET` in `.env`.
-  - **Changes NOT committed** (awaiting user instruction).
-- [x] **Milestone 9: Kit Persistence + User-Scoped CRUD (COMPLETED, not yet committed)**:
+  - **Changes committed at `1a0dfc7`**.
+- [x] **Milestone 9: Kit Persistence + User-Scoped CRUD (COMPLETED, committed at `8a94003`)**:
   - **`packages/shared/src/schemas/input.schema.ts`**: Added `SaveKitInputSchema`, `UpdateKitInputSchema`, `KitSummarySchema` — persistence contracts kept outside Appendix A.
   - **`apps/api/src/modules/kits/kit.model.ts`** (new): `KitDocumentModel` Mongoose schema with `userId` (ObjectId ref, indexed), `kit` (Mixed — stores Appendix A payload verbatim), `createdAt`/`updatedAt` timestamps. Compound index `{ userId, createdAt: -1 }` for efficient per-user list queries.
   - **`apps/api/src/modules/kits/kit.service.ts`** (new): `saveKit`, `listKits`, `getKitById`, `updateKit`, `deleteKit`. All operations scope every query by `{ _id, userId }` — NOT_FOUND returned for both missing and non-owned kits (no ownership disclosure). ObjectId validation before DB hit. `updateKit` uses `findOneAndUpdate` with ownership in the query filter — ownership cannot be changed.
@@ -123,7 +125,7 @@
   - **Build**: `npm run build` → Exit Code `0`. All three workspaces compile cleanly.
   - **Lint**: `npm run lint` → Exit Code `0`.
   - **Live verification**: NOT performed against real MongoDB. All tests use mongodb-memory-server.
-  - **Changes NOT committed** (awaiting user instruction).
+  - **Changes committed at `8a94003`**.
 
 ---
 
@@ -149,4 +151,4 @@
 ---
 
 ## 7. Next Recommended Task
-Commit Milestones 8+9 (single combined commit or two separate) if the user approves, then proceed to live manual verification and ASSESSMENT.md status update.
+Live manual verification of M8+M9: set `MONGODB_URI` and `JWT_SECRET` in `.env`, start both servers (`npm run dev`), then verify register → login → generate → save → reopen → edit → update → regenerate → delete. Update `docs/ASSESSMENT.md` Section 1 to `Verified` with evidence. Then push the 6 local commits to `origin/main`.

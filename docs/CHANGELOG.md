@@ -34,11 +34,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `npm run build`: Exit Code `0`. All three workspaces compile cleanly.
 - `npm run lint`: Exit Code `0`.
 - Live MongoDB/auth NOT verified — all tests use `mongodb-memory-server`. Manual verification requires `MONGODB_URI` + `JWT_SECRET` in `.env`.
-- Changes are **NOT committed** (awaiting user instruction).
-
----
-
-## [1.0.0-m8] - Milestone 8: Database Foundation and Authentication - 2026-09-23
+- Changes are **committed at `8a94003`**.
 
 ### Added
 - **MongoDB Connection (`apps/api/src/modules/db/connection.ts`)**: Singleton `connectToDatabase(uri)` that establishes a Mongoose connection. Idempotent — safe to call multiple times. Tests bypass this module and connect directly with mongodb-memory-server.
@@ -69,11 +65,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `npx vitest run`: Exit Code `0`. **132/132 tests passing** across 17 test files.
 - `npm run build`: Exit Code `0`. All three workspaces compile cleanly.
 - `npm run lint`: Exit Code `0`.
-- Changes are **NOT committed** (awaiting user instruction).
-
----
-
-## [1.0.0-m7b2] - Milestone 7B.2: Section Regeneration Implementation - 2026-09-23
+- Changes are **committed at `1a0dfc7`**.
 
 ### Added
 - **Shared Input Schema (`packages/shared/src/schemas/input.schema.ts`)**: Added `RegenerateSectionEnum` (`'questions' | 'flashcards'`) and `RegenerateKitSectionInputSchema` (`{ kit: KitSchema, section, preserved_ids: string[] }`). Includes JSDoc trust-boundary note: the server cannot independently verify which submitted items were edited; the client is authoritative for `preserved_ids`.

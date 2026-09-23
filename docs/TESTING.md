@@ -114,3 +114,9 @@ Automated auth and kit persistence tests use `mongodb-memory-server`; they do no
 | 2026-09-23 | M8+M9 review | `npm run lint` | Passed | Workspace lint scripts exited successfully |
 | 2026-09-23 | M8+M9 review | `npm run evaluate -- --input scratch/synthetic-benchmark-cases.json --output scratch/synthetic-benchmark-output.json` | Passed | 8 cases: 5 valid kits, 3 isolated invalid cases, 874ms |
 | 2026-09-23 | M8+M9 review | Local Mongo readiness check | Not available | `.env` has no `MONGODB_URI` or `JWT_SECRET`; no live database attempt was possible |
+| 2026-09-24 | M8+M9 final pre-commit | `npm test` | Passed | 18 test files, **161/161 tests passing** (Exit Code 0) |
+| 2026-09-24 | M8+M9 final pre-commit | `npm run build` | Passed | All three workspaces compile cleanly (Exit Code 0) |
+| 2026-09-24 | M8+M9 final pre-commit | `npm run lint` | Passed | All workspaces lint cleanly (Exit Code 0) |
+| 2026-09-24 | M8+M9 final pre-commit | `npm run evaluate -- --input scratch/synthetic-benchmark-cases.json --output scratch/synthetic-benchmark-output.json` | Passed | 8 cases: 5 valid kits, 3 isolated invalid, 2586ms (Exit Code 0) |
+| 2026-09-24 | M8+M9 final pre-commit | `git diff --check` | Passed | Exit Code 0, stdout clean; LF→CRLF warnings on stderr are expected on Windows |
+| 2026-09-24 | M8+M9 commit | git commit | Passed | Commit 1 `1a0dfc7` (M8, 19 files); Commit 2 `8a94003` (M9, 22 files); working tree clean |

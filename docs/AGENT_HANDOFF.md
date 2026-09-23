@@ -8,17 +8,18 @@
 
 * **Project**: Rehearsa — Full-Stack AI-Powered Interview Preparation Platform
 * **Assessment ID**: `FS-AI-INTERVIEW-01` (Trao Assessment)
-* **Active Milestone**: `Milestone 9 — Kit Persistence + User-Scoped CRUD` (Completed, NOT yet committed)
+* **Active Milestone**: `Milestone 9 — Kit Persistence + User-Scoped CRUD` (Completed and committed)
 
 ---
 
 ## 2. Latest Known Repository State
 
 * **Branch**: `main`
-* **Latest Committed Baseline**: `5512463` (`feat(web): add interview kit section regeneration`)
-* **Working Tree**: Large uncommitted set covering Milestones 8 + 9 (awaiting user commit instruction):
-  - **M8** — Auth/DB: `apps/api/src/modules/auth/` (user.model, auth.service, auth.middleware, index, tests), `apps/api/src/modules/db/connection.ts`, `apps/api/src/routes/auth.routes.ts + tests/authRoutes.test.ts`, `apps/api/src/config/index.ts`, `apps/api/src/server.ts`, `packages/shared/src/schemas/auth.schema.ts`, `.env.example`, `apps/api/package.json`
-  - **M9** — Kit Persistence: `apps/api/src/modules/kits/` (kit.model, kit.service, index), `apps/api/src/routes/kits.routes.ts + tests/kitsRoutes.test.ts`, `apps/api/src/app.ts`, `apps/web/src/lib/api.ts`, `apps/web/src/lib/auth.tsx`, `apps/web/src/components/AuthForms.tsx + SavedKitsList.tsx`, `apps/web/src/app/layout.tsx + page.tsx`, `apps/web/next.config.js`, `packages/shared/src/schemas/input.schema.ts`, `scripts/tests/evaluator.test.ts`, `vitest.config.mts`, `package-lock.json`
+* **Latest Committed Baseline**: `8a94003` (`feat(api,web): add persistent user-owned interview kits`)
+* **Previous Commits (this session)**:
+  - `1a0dfc7` — `feat(api): add user authentication and MongoDB connection` (Milestone 8)
+  - `8a94003` — `feat(api,web): add persistent user-owned interview kits` (Milestone 9)
+* **Working Tree**: Clean — nothing uncommitted.
 * **Workspace Structure**:
   - `packages/shared`: Zod schemas, types, coverageChecker.ts, scheduleAllocator.ts, kitValidator.ts, full test suite.
   - `apps/api/src/modules/research/`: SSRF-safe fetcher, HTML cleaner, robots parser, multi-page crawler.
@@ -38,8 +39,10 @@
 1. `npx vitest run` (from repo root): Exit Code 0. **161/161 tests passing** across 18 test files.
 2. `npm run build`: Exit Code 0. All three workspaces compile with zero TypeScript errors.
 3. `npm run lint`: Exit Code 0. All workspaces lint cleanly.
-4. `npm run evaluate -- --input scratch/synthetic-benchmark-cases.json --output scratch/synthetic-benchmark-output.json`: Exit Code 0. Batch evaluation unaffected by M8/M9 changes.
-5. Live MongoDB + real auth/kit persistence NOT verified — all tests use `mongodb-memory-server`.
+4. `npm run evaluate -- --input scratch/synthetic-benchmark-cases.json --output scratch/synthetic-benchmark-output.json`: Exit Code 0. 5/8 OK, 3 invalid rejected, 2586ms total.
+5. `git diff --check`: Exit Code 0 (stdout clean; LF→CRLF warnings on stderr are expected on Windows).
+6. Two commits created: `1a0dfc7` (M8) and `8a94003` (M9).
+7. Live MongoDB + real auth/kit persistence NOT verified — all tests use `mongodb-memory-server`.
 
 ---
 
@@ -66,11 +69,12 @@ npm run evaluate -- --input scratch/synthetic-benchmark-cases.json --output scra
 
 ## 6. Exact Next Task / Milestone
 
-**Commit Milestones 8+9, then live manual verification + ASSESSMENT.md update**
+**Live manual verification + ASSESSMENT.md update (Milestone 10 prep)**
 
-1. Commit the uncommitted changes (user instruction required). Suggested split:
-   - Commit 1: `feat(api): add user authentication and MongoDB connection (Milestone 8)`
-   - Commit 2: `feat(api,web): add persistent kit storage and authenticated kit workflow (Milestone 9)`
-2. Set `MONGODB_URI` and `JWT_SECRET` in `.env`, start both servers (`npm run dev`), and manually verify: register, login, generate a kit, save it, refresh the page, reopen the kit, edit a question, update the saved kit, regenerate a section, delete the kit.
-3. Update `docs/ASSESSMENT.md` Section 1 (Auth) and Section 5 (Editing/Regeneration) to `Verified` with evidence from the live manual test.
-4. After verification: consider Milestone 10 — flashcard confidence tiers (easy/medium/hard), drag-to-reorder questions, and final project audit.
+Milestones 8 and 9 are committed (`1a0dfc7`, `8a94003`). The next actions are:
+
+1. Set `MONGODB_URI` and `JWT_SECRET` in `.env`, then start both servers (`npm run dev`).
+2. Manually verify the full authenticated flow: register → login → generate a kit → save it → refresh the page → reopen the kit → edit a question → update the saved kit → regenerate a section → delete the kit.
+3. Update `docs/ASSESSMENT.md` Section 1 (Auth) entries to `Verified` with live evidence.
+4. Push the 6 unpushed commits to `origin/main` once live verification is confirmed.
+5. Consider Milestone 10: flashcard confidence tiers (easy/medium/hard), drag-to-reorder questions, and final project audit.
