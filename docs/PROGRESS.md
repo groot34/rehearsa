@@ -1,8 +1,8 @@
 # Project Progress & Status — Rehearsa
 
 ## 1. Current Milestone
-**Milestone 5 — End-to-End Evaluation and Benchmarking (COMPLETED & VERIFIED)**
-- **Git Baseline**: Commit `b0dca7b` (`feat: build interview prep frontend`) on branch `main`.
+**Milestone 7A — Manual Kit Editing (COMPLETED & VERIFIED)**
+- **Git Baseline**: Commit `9803474` (`fix(llm): normalise Gemini response keys and add regression tests`) on branch `main`.
 
 ---
 
@@ -48,22 +48,32 @@
   - Added explicit JSON schemas to prompt instructions in `pipelineOrchestrator.ts` to prevent hallucinations and schema validation failures.
   - Hardened `safeFetcher.ts` and crawler to handle site unreachable gracefully with strict timeouts and abort controllers.
   - Verified live end-to-end kit generation via both direct API (port 4000) and Next.js frontend proxy (port 3000) with HTTP 200 OK.
-  - Verified all 51 tests across 12 test suites passing cleanly.
+  - Verified all 54 tests across 12 test suites passing cleanly.
+- [x] **Milestone 7A: Manual Kit Editing (COMPLETED & VERIFIED)**:
+  - Created `apps/web/src/lib/kitEditing.ts`: Pure, immutable editing functions for `updateQuestionInKit`, `addQuestionToKit`, `deleteQuestionFromKit`, `updateFlashcardInKit`, `addFlashcardToKit`, `deleteFlashcardFromKit`. All validated against shared Zod schemas.
+  - Updated `apps/web/src/components/QuestionBankCard.tsx`: Inline edit form, add-question form, delete-with-confirmation per question. Preserves category filter state.
+  - Updated `apps/web/src/components/FlashcardDeck.tsx`: Inline edit form for current card, add-card form, delete guard (cannot delete last card). Keyboard nav disabled during editing.
+  - Updated `apps/web/src/components/KitViewer.tsx`: All six editing handlers wired, calls `onUpdateKit` to propagate changes up to `page.tsx`.
+  - Updated `apps/web/src/app/page.tsx`: `onUpdateKit={setGeneratedKit}` wires parent state mutation correctly.
+  - Created `apps/web/src/tests/kitEditing.test.ts`: 9 unit tests covering update/add/delete for both questions and flashcards, referential integrity rejection, schedule cleanup on question delete, coverage recalculation, and category filter preservation.
+  - **Test result**: `npx vitest run` (from repo root) → Exit Code `0`. **63/63 tests passing** across 13 test files.
+  - **Changes NOT committed** (awaiting user instruction).
 
 ---
 
-## 3. Work in Progress
-- None. All milestones and live tests are fully verified.
+## 3. Work Not Yet Started
+- None. Milestone 7A is complete. Next is 7B (Section Regeneration).
 
 ---
 
 ## 4. Outstanding Tasks (Next Milestones)
+- **Milestone 7B**: Section-Level Content Regeneration — backend endpoint to regenerate individual kit sections (question bank, flashcards) without rebuilding the entire kit, while preserving manually edited items.
 - Final User Review & Project Audit.
 
 ---
 
 ## 5. Known Bugs / Issues
-* None. All 51 tests pass; live Gemini generation verified; full monorepo build succeeds; lint succeeds.
+* None. All 63 tests pass; live Gemini generation verified; full monorepo build succeeds; lint succeeds.
 
 ---
 
@@ -73,4 +83,4 @@
 ---
 
 ## 7. Next Recommended Task
-User acceptance review and project finalization.
+Milestone 7B — Section-Level Content Regeneration. Or commit the current 7A changes if the user approves.

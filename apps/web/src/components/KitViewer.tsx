@@ -1,20 +1,39 @@
 import React, { useState } from 'react';
-import { Kit } from '@rehearsa/shared';
+import { Kit, Question, Flashcard } from '@rehearsa/shared';
 import { CompanyBriefCard } from './CompanyBriefCard';
 import { RoleBreakdownCard } from './RoleBreakdownCard';
 import { QuestionBankCard } from './QuestionBankCard';
 import { FlashcardDeck } from './FlashcardDeck';
 import { StudyScheduleTimeline } from './StudyScheduleTimeline';
 import { CoverageBadge } from './CoverageBadge';
-import { Sparkles, Calendar, Layers, HelpCircle, Briefcase, Building2, CheckCircle2, RotateCcw } from 'lucide-react';
+import {
+  updateQuestionInKit,
+  addQuestionToKit,
+  deleteQuestionFromKit,
+  updateFlashcardInKit,
+  addFlashcardToKit,
+  deleteFlashcardFromKit,
+} from '../lib/kitEditing';
+import {
+  Sparkles,
+  Calendar,
+  Layers,
+  HelpCircle,
+  Briefcase,
+  Building2,
+  RotateCcw,
+} from 'lucide-react';
 
 interface Props {
   kit: Kit;
+  onUpdateKit?: (updatedKit: Kit) => void;
   onReset: () => void;
 }
 
-export const KitViewer: React.FC<Props> = ({ kit, onReset }) => {
-  const [activeTab, setActiveTab] = useState<'all' | 'brief' | 'role' | 'questions' | 'cards' | 'schedule'>('all');
+export const KitViewer: React.FC<Props> = ({ kit, onUpdateKit, onReset }) => {
+  const [activeTab, setActiveTab] = useState<
+    'all' | 'brief' | 'role' | 'questions' | 'cards' | 'schedule'
+  >('all');
 
   const tabs = [
     { id: 'all', label: 'Complete Kit View', icon: Sparkles },
@@ -24,6 +43,50 @@ export const KitViewer: React.FC<Props> = ({ kit, onReset }) => {
     { id: 'cards', label: `Flashcards (${kit.flashcards.length})`, icon: Layers },
     { id: 'schedule', label: `Schedule (${kit.schedule.days_available} Days)`, icon: Calendar },
   ];
+
+  // Question editing handlers
+  const handleUpdateQuestion = (updatedQuestion: Question) => {
+    const res = updateQuestionInKit(kit, updatedQuestion);
+    if (res.success && res.kit && onUpdateKit) {
+      onUpdateKit(res.kit);
+    }
+  };
+
+  const handleAddQuestion = (newQuestionData: Omit<Question, 'id'>) => {
+    const res = addQuestionToKit(kit, newQuestionData);
+    if (res.success && res.kit && onUpdateKit) {
+      onUpdateKit(res.kit);
+    }
+  };
+
+  const handleDeleteQuestion = (questionId: string) => {
+    const res = deleteQuestionFromKit(kit, questionId);
+    if (res.success && res.kit && onUpdateKit) {
+      onUpdateKit(res.kit);
+    }
+  };
+
+  // Flashcard editing handlers
+  const handleUpdateFlashcard = (updatedCard: Flashcard) => {
+    const res = updateFlashcardInKit(kit, updatedCard);
+    if (res.success && res.kit && onUpdateKit) {
+      onUpdateKit(res.kit);
+    }
+  };
+
+  const handleAddFlashcard = (newCardData: Omit<Flashcard, 'id'>) => {
+    const res = addFlashcardToKit(kit, newCardData);
+    if (res.success && res.kit && onUpdateKit) {
+      onUpdateKit(res.kit);
+    }
+  };
+
+  const handleDeleteFlashcard = (cardId: string) => {
+    const res = deleteFlashcardFromKit(kit, cardId);
+    if (res.success && res.kit && onUpdateKit) {
+      onUpdateKit(res.kit);
+    }
+  };
 
   return (
     <div className="space-y-8 max-w-6xl mx-auto my-8 px-4 sm:px-6">
@@ -93,11 +156,23 @@ export const KitViewer: React.FC<Props> = ({ kit, onReset }) => {
         )}
 
         {(activeTab === 'all' || activeTab === 'questions') && (
-          <QuestionBankCard questions={kit.questions} />
+          <QuestionBankCard
+            questions={kit.questions}
+            availableRequirements={kit.role.requirements}
+            onUpdateQuestion={handleUpdateQuestion}
+            onAddQuestion={handleAddQuestion}
+            onDeleteQuestion={handleDeleteQuestion}
+          />
         )}
 
         {(activeTab === 'all' || activeTab === 'cards') && (
-          <FlashcardDeck flashcards={kit.flashcards} />
+          <FlashcardDeck
+            flashcards={kit.flashcards}
+            availableRequirements={kit.role.requirements}
+            onUpdateFlashcard={handleUpdateFlashcard}
+            onAddFlashcard={handleAddFlashcard}
+            onDeleteFlashcard={handleDeleteFlashcard}
+          />
         )}
 
         {(activeTab === 'all' || activeTab === 'schedule') && (

@@ -80,7 +80,11 @@ export default function HomePage() {
       <main className="flex-1 pb-16">
         {/* If a Kit is generated, show KitViewer */}
         {generatedKit ? (
-          <KitViewer kit={generatedKit} onReset={handleReset} />
+          <KitViewer
+            kit={generatedKit}
+            onUpdateKit={setGeneratedKit}
+            onReset={handleReset}
+          />
         ) : (
           <>
             {/* Hero Section */}

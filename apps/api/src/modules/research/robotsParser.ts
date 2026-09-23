@@ -31,14 +31,14 @@ export async function isPathAllowedByRobots(
     }
 
     const targetPath = new URL(targetUrl).pathname;
-    const lines = fetchRes.data.split('\n');
+    const lines = robotsData.split('\n');
     let appliesToBot = false;
 
     for (const rawLine of lines) {
       const line = rawLine.trim();
       if (line.startsWith('#') || !line) continue;
 
-      const [key, val] = line.split(':').map((s) => s.trim());
+      const [key, val] = line.split(':').map((s: string) => s.trim());
       if (!key || !val) continue;
 
       if (key.toLowerCase() === 'user-agent') {

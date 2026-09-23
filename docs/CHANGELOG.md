@@ -4,7 +4,23 @@ All notable changes to the Rehearsa project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.0.0-m7a] - Milestone 7A: Manual Kit Editing - 2026-09-23
+
+### Added
+- **Kit Editing Library (`apps/web/src/lib/kitEditing.ts`)**: New pure, immutable editing utility module exposing six functions — `updateQuestionInKit`, `addQuestionToKit`, `deleteQuestionFromKit`, `updateFlashcardInKit`, `addFlashcardToKit`, `deleteFlashcardFromKit`. Each validates inputs against shared Zod schemas, enforces referential integrity against `role.requirements`, and returns an immutable `KitEditResult`.
+- **Question Bank Inline Editing (`apps/web/src/components/QuestionBankCard.tsx`)**: Pencil/edit button opens an inline form on each question row allowing prompt, answer outline, category, and difficulty editing. Cancel/Save controls with error banners. Add-Question form in the section header with requirement mapping dropdown. Delete-with-confirmation per question. Preserves active category filter after edits.
+- **Flashcard Inline Editing (`apps/web/src/components/FlashcardDeck.tsx`)**: Edit button on the current flashcard switches to an inline form for front/back editing. Add-card form at section header with requirement mapping. Delete guard prevents removing the last card. Keyboard navigation (arrow keys, space, M) disabled while editing/adding.
+- **Kit State Propagation (`apps/web/src/components/KitViewer.tsx`, `apps/web/src/app/page.tsx`)**: `KitViewer` calls all six editing handlers via the `kitEditing` library and notifies the parent via `onUpdateKit`. `page.tsx` passes `onUpdateKit={setGeneratedKit}` so the source-of-truth state updates immediately.
+- **Unit Test Suite (`apps/web/src/tests/kitEditing.test.ts`)**: 9 tests covering update/add/delete for both questions and flashcards, rejection of invalid inputs, referential integrity enforcement, schedule cleanup on question delete, coverage recalculation, and category filter preservation across edits.
+
+### Verification
+- `npx vitest run` (repo root): Exit Code `0`. **63/63 tests passing** across 13 test files.
+- Changes are uncommitted (awaiting user instruction).
+
+---
+
 ## [1.0.0-m6] - Milestone 6: Live Gemini Integration & Resilience Hardening - 2026-09-22
+
 
 ### Added
 - **LLM Key Normalization (`apps/api/src/modules/llm/geminiProvider.ts`)**: Added automatic recursive mapping and normalization of common LLM key naming variations (e.g., `job_title` -> `title`, `core_responsibilities` -> `responsibilities`) to ensure zero schema parsing rejections.
