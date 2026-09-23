@@ -8,22 +8,18 @@
 
 * **Project**: Rehearsa — Full-Stack AI-Powered Interview Preparation Platform
 * **Assessment ID**: `FS-AI-INTERVIEW-01` (Trao Assessment)
-* **Active Milestone**: `Milestone 7A — Manual Kit Editing` (Completed & Verified, NOT yet committed)
+* **Active Milestone**: `Milestone 7B.1 — Section Regeneration Contract Design` (Completed, NOT yet committed)
 
 ---
 
 ## 2. Latest Known Repository State
 
 * **Branch**: `main`
-* **Latest Committed Baseline**: `9803474` (`fix(llm): normalise Gemini response keys and add regression tests`)
-* **Working Tree**: Uncommitted changes (awaiting user commit instruction):
-  - Modified: `apps/api/src/modules/research/robotsParser.ts` (TS error fix)
-  - Modified: `apps/web/src/app/page.tsx` (wired `onUpdateKit`)
-  - Modified: `apps/web/src/components/FlashcardDeck.tsx` (editing/adding/deleting flashcards)
-  - Modified: `apps/web/src/components/KitViewer.tsx` (all six editing handlers)
-  - Modified: `apps/web/src/components/QuestionBankCard.tsx` (editing/adding/deleting questions)
-  - Untracked (new): `apps/web/src/lib/kitEditing.ts` (editing logic library)
-  - Untracked (new): `apps/web/src/tests/kitEditing.test.ts` (9 unit tests)
+* **Latest Committed Baseline**: `21731a8` (`feat(web): implement manual kit editing for questions and flashcards`)
+* **Working Tree**: Uncommitted documentation changes only (no code changes):
+  - Modified: `docs/DECISIONS.md` — ADR-007 revised to Accepted; ADR-008 (Section Regeneration API Contract) added
+  - Modified: `docs/PROGRESS.md` — Milestone 7B.1 design recorded; next steps updated
+  - Modified: `docs/AGENT_HANDOFF.md` — updated to reflect 7B.1 completion and 7B.2 as next task
 * **Workspace Structure**:
   - `packages/shared`: Zod schemas, types, coverageChecker.ts, scheduleAllocator.ts, kitValidator.ts, full test suite.
   - `apps/api/src/modules/research/`: SSRF-safe fetcher, HTML cleaner, robots parser, multi-page crawler.
@@ -44,6 +40,7 @@
 2. `npm run build`: Exit Code 0. All three workspaces compile with zero TypeScript errors.
 3. `npm run lint`: Exit Code 0. All workspaces lint cleanly.
 4. `npm run evaluate`: Exit Code 0. Full batch benchmark execution verified.
+5. Milestone 7B.1 is design-only — no code was changed.
 
 ---
 
@@ -70,11 +67,29 @@ npm run evaluate -- --input scratch/synthetic-benchmark-cases.json --output scra
 
 ## 6. Exact Next Task / Milestone
 
-**Milestone 7B - Section-Level Content Regeneration**
+**Milestone 7B.2 — Section Regeneration Implementation**
 
-Allow users to regenerate individual kit sections (question bank, flashcards) via a new backend endpoint without rebuilding the entire kit, while preserving all manually edited items. Key constraints:
+Implement the contract from ADR-008 in `docs/DECISIONS.md`. Exact implementation sequence:
 
-- Manually edited questions/flashcards (identified by q_custom_* / f_custom_* ID prefix) must not be overwritten.
-- The backend endpoint should accept the current kit + target section name and return only the regenerated section.
-- After section regeneration, deterministic coverage re-check and schedule re-allocation must run.
-- The UI should show a "Regenerate Section" button per section card (Questions, Flashcards) in KitViewer.tsx.
+1. **`packages/shared/src/schemas/input.schema.ts`**: Add `RegenerateSectionEnum` (`'questions' | 'flashcards'`) and `RegenerateKitSectionInputSchema` (`{ kit: KitSchema, section: RegenerateSectionEnum, preserved_ids: z.array(z.string()).default([]) }`).
+
+2. **`apps/api/src/modules/interview-prep/sectionRegenerator.ts`** (new file): Implement the 7-step regeneration algorithm:
+   - Step 1: Extract preserved items using the two-part predicate: `id ∈ preserved_ids` OR `id.startsWith('q_custom_') || id.startsWith('f_custom_')`.
+   - Step 2: LLM call reusing the Pass 1 prompt pattern from `pipelineOrchestrator.ts`, with ID prefix `q_regen_<ts>_<rand>` / `f_regen_<ts>_<rand>`.
+   - Step 3: Sanitize `requirement_ids` against `kit.role.requirements`.
+   - Step 4: `merge = [...preserved, ...newItems]`
+   - Step 5 (questions only): `checkRequirementCoverage` + Pass 2 if uncovered.
+   - Step 6 (questions only): `allocateSchedule` to rebuild schedule from merged questions.
+   - Step 7: `validateKit` — return `REGEN_VALIDATION_FAILED` if invalid.
+
+3. **`apps/api/src/routes/interviewPrep.routes.ts`**: Add `POST /regenerate-section` route validating with `RegenerateKitSectionInputSchema`.
+
+4. **`apps/web/src/lib/api.ts`**: Add `regenerateKitSection(payload)` helper function.
+
+5. **`apps/web/src/app/page.tsx`**: Add `editedItemIds: Set<string>` state; intercept `onUpdateKit` calls from edits to populate it; pass `editedItemIds` and `onEditedIdsChange` to `KitViewer`.
+
+6. **`apps/web/src/components/KitViewer.tsx`**: Add "Regenerate Section" buttons to Questions and Flashcards section headers; call `regenerateKitSection` with `Array.from(editedItemIds)` as `preserved_ids`; on success call `onUpdateKit(newKit)`.
+
+7. **Tests**: Add unit tests for `sectionRegenerator.ts` (preserved items survive, new items have sanitized req IDs, schedule rebuilt, validation gate fires) and integration test for the new route.
+
+8. **Validation**: `npx vitest run` (expect 70+ tests), `npm run build`, `npm run lint`.

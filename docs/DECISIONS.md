@@ -14,7 +14,8 @@ This document records the architectural and engineering decisions made for the R
 | [ADR-004](#adr-004-deterministic-coverage-and-schedule-algorithms) | Deterministic Coverage and Schedule Algorithms | Accepted | 2026-09-22 |
 | [ADR-005](#adr-005-replaceable-llm-provider-abstraction) | Replaceable LLM Provider Abstraction | Proposed | 2026-09-22 |
 | [ADR-006](#adr-006-ssrf-mitigation-and-untrusted-content-sanitization) | SSRF Mitigation and Untrusted Content Sanitization | Proposed | 2026-09-22 |
-| [ADR-007](#adr-007-manual-edit-preservation-strategy-during-regeneration) | Manual Edit Preservation Strategy During Regeneration | Proposed | 2026-09-22 |
+| [ADR-007](#adr-007-manual-edit-preservation-strategy-during-regeneration) | Manual Edit Preservation Strategy During Regeneration | Accepted | 2026-09-23 |
+| [ADR-008](#adr-008-section-regeneration-api-contract) | Section Regeneration API Contract | Accepted | 2026-09-23 |
 
 ---
 
@@ -141,16 +142,193 @@ This document records the architectural and engineering decisions made for the R
 
 ### ADR-007: Manual Edit Preservation Strategy During Regeneration
 
-* **Status**: Proposed
-* **Date**: 2026-09-22
+* **Status**: Accepted (superseded by ADR-008 for implementation detail)
+* **Date**: 2026-09-22 (revised 2026-09-23)
 * **Context**:
-  Users can manually edit, add, or delete questions and content. When regenerating a category or section, manual user edits must not be overwritten or lost.
+  Users can manually edit, add, or delete questions and flashcards via the M7A kitEditing library. When regenerating a section, those edits must survive. The kit's canonical Appendix A schema (`KitSchema`) must remain unmodified — adding tracking flags directly to `KitSchema` would violate the schema contract and break batch evaluation.
 * **Alternatives Considered**:
-  - Storing a separate shadow copy of original vs user-edited kits.
-  - In-place merge with `is_custom` / `is_edited` metadata flags per question and section.
+  - Storing a separate shadow copy of original vs user-edited kits (too complex, requires persistence).
+  - Embedding `is_custom`/`is_edited` flags inside `KitSchema` fields (breaks Appendix A compliance).
+  - Trusting ID prefix alone (`q_custom_*` / `f_custom_*`) without an explicit client-supplied list (misses in-place edits that retain their original IDs like `q1`).
 * **Decision**:
-  Use `is_custom: boolean` and `is_edited: boolean` metadata on kit items (or maintain a list of dirty item IDs). During section regeneration, untouched items are replaced while flagged items are preserved and merged.
+  Use a **two-part preservation predicate** evaluated at request time, outside the `KitSchema`:
+  1. **Auto-preserved by ID prefix**: Any item whose `id` matches `/^(q_custom_|f_custom_)/` is always preserved — these were added by the user via `addQuestionToKit` / `addFlashcardToKit`.
+  2. **Explicitly preserved by client list**: The request carries a `preserved_ids: string[]` array. The client frontend tracks which original-ID items (e.g. `q1`, `f2`) the user has edited, and includes them here.
+  
+  `KitSchema` is never modified. The `preserved_ids` parameter is a request input, not kit state.
 * **Reasoning**:
-  - Simple, predictable data model that survives serialization and matches user mental model.
+  - Keeps Appendix A schema clean and batch-evaluation-compatible.
+  - The two-part predicate covers both user-added items (identified by prefix) and user-edited items (identified by explicit list), with no schema pollution.
+  - Stateless by design: the client holds the source of truth (React state) and sends the full current kit plus its preservation intent on each request.
 * **Trade-offs**:
-  - Internal schema includes tracking flags which are stripped or mapped when exporting canonical Appendix A JSON.
+  - The client must maintain a `Set<string>` of edited item IDs in React state. This is a small addition to `page.tsx` / `KitViewer.tsx` state management.
+  - If the user refreshes their browser, edited-ID tracking is lost. However, since there is no persistence layer in scope, this is acceptable — the user would need to regenerate from scratch anyway.
+
+---
+
+### ADR-008: Section Regeneration API Contract
+
+* **Status**: Accepted
+* **Date**: 2026-09-23
+* **Context**:
+  Milestone 7B requires a backend endpoint to regenerate individual kit sections (questions or flashcards) without rebuilding the entire kit, while preserving manual edits. The design must be consistent with the existing stateless architecture, the 11-step pipeline reuse strategy, and Appendix A compliance.
+
+---
+
+#### 1. Regenerable Sections
+
+Only two sections can be independently regenerated without re-running the full 11-step pipeline:
+
+| Section | Regenerable? | Reason |
+|---|---|---|
+| `questions` | **Yes** | Self-contained LLM generation step (pipeline step 6/9), all inputs (role, company brief) already exist in the kit |
+| `flashcards` | **Yes** | Self-contained LLM generation step (pipeline step 7), same inputs available |
+| `company_brief` | **No** | Requires re-crawling the company URL (network I/O, not just LLM) — out of scope for M7B |
+| `role` | **No** | Re-extraction changes requirement IDs, invalidating all existing questions/flashcards/schedule |
+| `schedule` | **No** | Fully deterministic from questions — automatically recalculated after question regeneration, not independently regenerable |
+
+---
+
+#### 2. API Endpoint
+
+```
+POST /api/interview-prep/regenerate-section
+Content-Type: application/json
+```
+
+**Request body** (validated via `RegenerateKitSectionInputSchema` in `packages/shared/src/schemas/input.schema.ts`):
+
+```typescript
+{
+  kit: Kit;                        // Full current Appendix A kit (client-owned state)
+  section: 'questions' | 'flashcards';
+  preserved_ids: string[];         // IDs of items the client wants preserved through regen
+}
+```
+
+**Success response** (`HTTP 200`):
+
+```typescript
+{
+  success: true;
+  kit: Kit;   // Full updated Appendix A kit — replaces client's in-memory state
+}
+```
+
+**Failure response** (`HTTP 400` or `HTTP 500`):
+
+```typescript
+{
+  success: false;
+  error: {
+    code: 'REGEN_INVALID_INPUT' | 'REGEN_LLM_FAILED' | 'REGEN_VALIDATION_FAILED';
+    message: string;
+    details?: unknown;
+  };
+}
+```
+
+On failure, the client retains its existing kit unchanged. The server never mutates the client's kit — it returns a new one or an error.
+
+---
+
+#### 3. Preservation Rules
+
+The **effective preserved set** for a regeneration request is:
+
+```
+preserved = { id | id ∈ preserved_ids }
+           ∪ { id | id.startsWith('q_custom_') || id.startsWith('f_custom_') }
+```
+
+Applied per section:
+- **questions regeneration**: Items in `kit.questions` whose `id` is in `preserved` are carried forward unchanged. All other questions are discarded and replaced by new LLM-generated content.
+- **flashcards regeneration**: Same logic applied to `kit.flashcards`.
+- Items in the **other section** (not being regenerated) are never touched.
+
+---
+
+#### 4. Server-Side Regeneration Algorithm (7 steps)
+
+For `section = 'questions'`:
+
+1. **Extract preserved questions**: `preservedQuestions = kit.questions.filter(q => preserved.has(q.id))`
+2. **LLM generation**: Call `provider.generateStructuredJson` with the same Pass 1 prompt pattern from `pipelineOrchestrator.ts`, passing `kit.role.requirements` and `kit.company_brief.summary` as context. De-duplicate IDs against `preservedQuestions`.
+3. **Sanitize**: Strip any `requirement_ids` referencing IDs not in `kit.role.requirements`.
+4. **Merge**: `mergedQuestions = [...preservedQuestions, ...newQuestions]`
+5. **Deterministic coverage check**: `checkRequirementCoverage(kit.role.requirements, mergedQuestions)`. If uncovered requirements remain, run a Pass 2 targeted LLM call for them (same pattern as pipeline step 9).
+6. **Deterministic schedule reallocation**: `allocateSchedule({ days_available: kit.schedule.days_available, questions: mergedQuestions, role_title: kit.role.title })`. This always runs after question regeneration to keep `schedule.days[].question_ids` referentially valid.
+7. **Full kit validation**: `validateKit(candidateKit)`. If it fails, return `REGEN_VALIDATION_FAILED` — do **not** return a partially invalid kit.
+
+For `section = 'flashcards'`:
+
+Steps 1–4 are identical (applied to flashcards). Steps 5–6 are skipped (flashcards don't affect coverage or schedule). Step 7 still runs.
+
+---
+
+#### 5. Referential Integrity Guarantees
+
+- New LLM-generated item IDs use a prefix scheme (`q_regen_<timestamp>_<rand>` / `f_regen_<timestamp>_<rand>`) to avoid colliding with preserved IDs.
+- All `requirement_ids` in new items are sanitized against `kit.role.requirements` before merge (same pattern as `pipelineOrchestrator.ts` step 4).
+- The schedule is fully recomputed from the merged question array — no stale `question_ids` references can survive.
+- `validateKit()` enforces all Appendix A referential integrity rules as a final gate before returning.
+
+---
+
+#### 6. Failure Isolation
+
+| Failure scenario | Behaviour |
+|---|---|
+| LLM call fails or returns unparseable JSON | Return `REGEN_LLM_FAILED`; client keeps existing kit |
+| LLM generates items with all-invalid `requirement_ids` | Sanitization produces empty `requirement_ids`; Pass 2 runs for uncovered reqs; kit may still be valid |
+| Merged kit fails `validateKit()` | Return `REGEN_VALIDATION_FAILED`; client keeps existing kit |
+| Invalid request body | Return `REGEN_INVALID_INPUT` with validation detail |
+| Preserved items have IDs not found in the sent kit | Silently ignored — only items actually present in `kit.questions`/`kit.flashcards` are preserved |
+
+The existing kit is **never destroyed by a failed regeneration**. The client holds the source of truth in React state and only replaces it on a `success: true` response.
+
+---
+
+#### 7. Input Schema Addition
+
+Add to `packages/shared/src/schemas/input.schema.ts`:
+
+```typescript
+export const RegenerateSectionEnum = z.enum(['questions', 'flashcards']);
+export type RegenerateSection = z.infer<typeof RegenerateSectionEnum>;
+
+export const RegenerateKitSectionInputSchema = z.object({
+  kit: KitSchema,
+  section: RegenerateSectionEnum,
+  preserved_ids: z.array(z.string()).default([]),
+});
+export type RegenerateKitSectionInput = z.infer<typeof RegenerateKitSectionInputSchema>;
+```
+
+This schema lives in `@rehearsa/shared` so it can be imported by both the backend route handler and future frontend API client code.
+
+---
+
+#### 8. Frontend Tracking (client-side only — not in KitSchema)
+
+`page.tsx` will maintain a `editedItemIds: Set<string>` state variable (separate from `generatedKit`). When `KitViewer` calls `onUpdateKit` after an edit via `updateQuestionInKit` or `updateFlashcardInKit`, `page.tsx` also adds the edited item's original ID to `editedItemIds`. This set is passed as `preserved_ids` to the regeneration API call. It is never persisted to the server — it lives only in the React session.
+
+---
+
+#### 9. Appendix A & Batch Evaluation Compatibility
+
+- `KitSchema` is not modified. The regeneration endpoint accepts and returns canonical Appendix A kits.
+- The batch evaluator (`scripts/evaluator.ts`) does not call the regeneration endpoint — it only uses `executeGenerationPipeline`. No batch evaluation changes are needed.
+- The regeneration endpoint is purely additive — it adds a new route and a new shared schema type without modifying any existing exports.
+
+---
+
+* **Alternatives Considered**:
+  - **Server-sent events (SSE) streaming for regen progress**: Rejected for M7B — adds complexity; the regen call is fast enough (single LLM pass vs 11 steps) that a simple synchronous POST is sufficient.
+  - **Separate `RegeneratedKit` type wrapping `Kit` with tracking metadata**: Rejected — adds type complexity; the tracking concern is entirely at the request layer, not the kit layer.
+  - **Regenerating only within a category (e.g. only `technical` questions)**: Deferred — the current design regenerates the full section and preserves user items; category-scoped regeneration can be added later by filtering `preservedQuestions` by category.
+
+* **Trade-offs**:
+  - The client sends the full kit JSON in the request body (potentially ~10–30 KB). This is acceptable given the `2mb` express body limit already in place.
+  - `editedItemIds` tracking in React state is lost on browser refresh. Without a persistence layer this is unavoidable and acceptable.
+  - Regenerating questions also rebuilds the schedule, which may reorder study days. Users should be informed via UI that the schedule will refresh.
