@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { Kit } from '@rehearsa/shared';
-import { generateInterviewKit, GenerateKitPayload } from '../lib/api';
+import { generateInterviewKit, regenerateKitSection, GenerateKitPayload } from '../lib/api';
 import { KitGeneratorForm } from '../components/KitGeneratorForm';
 import { GenerationProgressTracker } from '../components/GenerationProgressTracker';
 import { KitViewer } from '../components/KitViewer';
@@ -12,6 +12,47 @@ export default function HomePage() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<{ code: string; message: string; details?: any } | null>(null);
   const [generatedKit, setGeneratedKit] = useState<Kit | null>(null);
+
+  /**
+   * Tracks which original-LLM-ID items the user has edited in-place (e.g. 'q1', 'f2').
+   * Items added by the user already have q_custom_* / f_custom_* IDs and are
+   * auto-preserved by the server without needing to appear here.
+   *
+   * This state is intentionally separate from generatedKit — it is NOT part of
+   * the Appendix A schema.  It is lost on browser refresh (no persistence layer).
+   */
+  const [editedItemIds, setEditedItemIds] = useState<Set<string>>(new Set());
+
+  /**
+   * Called by KitViewer whenever the user performs an in-place edit on an
+   * item with an original LLM-generated ID.  Adds that ID to the preserved set.
+   */
+  const handleItemEdited = useCallback((itemId: string) => {
+    setEditedItemIds((prev) => {
+      // Only track IDs that are NOT already q_custom_* / f_custom_* (those are
+      // auto-preserved by the server).
+      if (itemId.startsWith('q_custom_') || itemId.startsWith('f_custom_')) {
+        return prev;
+      }
+      if (prev.has(itemId)) return prev;
+      const next = new Set(prev);
+      next.add(itemId);
+      return next;
+    });
+  }, []);
+
+  /**
+   * Called by KitViewer when the user deletes an item.  Removes it from the
+   * preserved set so a deleted item can never reappear after regeneration.
+   */
+  const handleItemDeleted = useCallback((itemId: string) => {
+    setEditedItemIds((prev) => {
+      if (!prev.has(itemId)) return prev;
+      const next = new Set(prev);
+      next.delete(itemId);
+      return next;
+    });
+  }, []);
 
   const handleGenerate = async (payload: GenerateKitPayload) => {
     setIsLoading(true);
@@ -23,15 +64,75 @@ export default function HomePage() {
 
     if (result.success && result.kit) {
       setGeneratedKit(result.kit);
+      setEditedItemIds(new Set()); // fresh kit — no edits yet
     } else {
       setError(result.error || { code: 'GENERATION_FAILED', message: 'Failed to generate preparation kit.' });
     }
   };
 
+  /**
+   * Handles section regeneration triggered from KitViewer.
+   * Uses a ref-based request counter as the stale-response guard.
+   *
+   * Using a ref (not state) for the counter means:
+   *   - The increment is synchronous and immediately visible to the callback
+   *     that runs after the await, even if React batches the re-render.
+   *   - Two rapid calls both read the ref's current value, so they each
+   *     receive a distinct ID and the guard correctly discards the slower one.
+   *
+   * State-based counters fail here because setState is async: the second call
+   * reads the same stale closure value, assigns the same thisRequestId as the
+   * first call, and the guard never fires.
+   */
+  const regenRequestRef = useRef<number>(0);
+
+  const handleRegenerateSection = useCallback(
+    async (
+      section: 'questions' | 'flashcards',
+      onStart: () => void,
+      onDone: (error?: string) => void,
+    ) => {
+      if (!generatedKit) return;
+
+      // Increment synchronously — immediately visible to any concurrent call
+      regenRequestRef.current += 1;
+      const thisRequestId = regenRequestRef.current;
+
+      onStart();
+
+      const result = await regenerateKitSection({
+        kit: generatedKit,
+        section,
+        preserved_ids: Array.from(editedItemIds),
+      });
+
+      // Stale-response guard: if another regeneration was triggered while this
+      // one was in flight, its ref value will be higher — discard this response.
+      if (regenRequestRef.current !== thisRequestId) {
+        // A newer request completed or is in flight — discard silently
+        onDone(); // clear the loading state in KitViewer
+        return;
+      }
+
+      if (result.success && result.kit) {
+        setGeneratedKit(result.kit);
+        // editedItemIds intentionally retained: preserved items are still edited
+        onDone();
+      } else {
+        onDone(
+          result.error?.message ?? 'Section regeneration failed. Your existing kit is unchanged.',
+        );
+      }
+    },
+    [generatedKit, editedItemIds],
+  );
+
   const handleReset = () => {
     setGeneratedKit(null);
     setError(null);
     setIsLoading(false);
+    setEditedItemIds(new Set());
+    regenRequestRef.current = 0;
   };
 
   return (
@@ -83,6 +184,9 @@ export default function HomePage() {
           <KitViewer
             kit={generatedKit}
             onUpdateKit={setGeneratedKit}
+            onItemEdited={handleItemEdited}
+            onItemDeleted={handleItemDeleted}
+            onRegenerateSection={handleRegenerateSection}
             onReset={handleReset}
           />
         ) : (

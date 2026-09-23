@@ -1,8 +1,8 @@
 # Project Progress & Status — Rehearsa
 
 ## 1. Current Milestone
-**Milestone 7B.1 — Section Regeneration Contract Design (COMPLETED)**
-- **Git Baseline**: Commit `21731a8` (`feat(web): implement manual kit editing for questions and flashcards`) on branch `main`.
+**Milestone 7B.2 — Section Regeneration Implementation (COMPLETED, not yet committed)**
+- **Git Baseline**: Commit `5bd067a` (`docs(design): add ADR-008 section regeneration contract for Milestone 7B`) on branch `main`.
 
 ---
 
@@ -57,7 +57,7 @@
   - Updated `apps/web/src/app/page.tsx`: `onUpdateKit={setGeneratedKit}` wires parent state mutation correctly.
   - Created `apps/web/src/tests/kitEditing.test.ts`: 9 unit tests covering update/add/delete for both questions and flashcards, referential integrity rejection, schedule cleanup on question delete, coverage recalculation, and category filter preservation.
   - **Test result**: `npx vitest run` → Exit Code `0`. **63/63 tests passing** across 13 test files.
-- [x] **Milestone 7B.1: Section Regeneration Contract Design (COMPLETED, not yet committed)**:
+- [x] **Milestone 7B.1: Section Regeneration Contract Design (COMPLETED, committed `5bd067a`)**:
   - Designed the complete regeneration contract in `docs/DECISIONS.md` as ADR-007 (revised) and ADR-008 (new).
   - Defined two regenerable sections: `questions` and `flashcards`. `company_brief`, `role`, and `schedule` are not independently regenerable.
   - Defined preservation predicate: auto-preserve items matching `/^(q_custom_|f_custom_)/` ID prefix PLUS explicit `preserved_ids: string[]` from client for in-place edited items.
@@ -67,40 +67,44 @@
   - Defined `editedItemIds: Set<string>` client-side tracking in `page.tsx` (separate from `Kit` state).
   - Confirmed no changes to `KitSchema`, batch evaluator, or Appendix A/B compliance.
   - **No code changed** (design-only milestone).
+- [x] **Milestone 7B.2: Section Regeneration Implementation (COMPLETED, not yet committed)**:
+  - **`packages/shared/src/schemas/input.schema.ts`**: Added `RegenerateSectionEnum` (`'questions' | 'flashcards'`) and `RegenerateKitSectionInputSchema` (`{ kit: KitSchema, section, preserved_ids }`). Documented trust boundary in JSDoc comment.
+  - **`apps/api/src/modules/interview-prep/sectionRegenerator.ts`** (new file): Full 7-step regeneration algorithm. `buildPreservedSet()` implements the two-part predicate (auto-prefix + explicit list, with server-side validation that each explicit ID exists in the submitted kit). Regen IDs stamped with `q_regen_*/f_regen_*` prefix to prevent collisions. Questions path: LLM pass 1 → sanitize req IDs → merge → coverage check → optional pass 2 → schedule rebuild → `validateKit` gate. Flashcards path: LLM → sanitize → merge → `validateKit` gate. Any failure returns structured `REGEN_LLM_FAILED` or `REGEN_VALIDATION_FAILED`; original kit never returned.
+  - **`apps/api/src/modules/interview-prep/index.ts`**: Added `export * from './sectionRegenerator'`.
+  - **`apps/api/src/routes/interviewPrep.routes.ts`**: Added `POST /regenerate-section` route with `RegenerateKitSectionInputSchema` validation, returning `{ success: true, kit }` or `{ success: false, error }`.
+  - **`apps/web/src/lib/api.ts`**: Added `regenerateKitSection()` helper, `RegenerateKitSectionPayload` and `ApiRegenerateResponse` types.
+  - **`apps/web/src/app/page.tsx`**: Added `editedItemIds: Set<string>` state; `handleItemEdited` (adds ID, skips `q_custom_*/f_custom_*`); `handleItemDeleted` (removes ID from preserved set); `handleRegenerateSection` with stale-response guard (request-ID counter); all wired to `KitViewer` as `onItemEdited`, `onItemDeleted`, `onRegenerateSection`.
+  - **`apps/web/src/components/KitViewer.tsx`**: Added `onItemEdited`, `onItemDeleted`, `onRegenerateSection` props; per-section `regenLoading`/`regenError` state; `RegenButton` and `RegenErrorBanner` inline components; edit handlers now call `onItemEdited`/`onItemDeleted`; regen buttons shown above QuestionBankCard and FlashcardDeck.
+  - **`apps/api/src/modules/interview-prep/tests/sectionRegenerator.test.ts`** (new): 18 unit tests (added cross-section isolation and sanitization regression tests vs original 15).
+  - **`apps/api/src/routes/tests/regenerateSectionRoutes.test.ts`** (new): 8 route integration tests covering input validation (empty body, invalid section, incomplete kit), successful regen for both sections, preserved_id wiring, error response has no kit, non-existent preserved_ids silently dropped.
+  - **Post-review fixes**: (1) stale-response guard replaced with `useRef`-based counter (was broken `useState` counter); (2) `RegenerateSection` type now imported from `@rehearsa/shared` instead of duplicated in `api.ts`; (3) 3 regression tests added.
+  - **Test result**: `npx vitest run` → Exit Code `0`. **89/89 tests passing** across 15 test files.
+  - **Build**: `npm run build` → Exit Code `0`. All three workspaces compile cleanly.
+  - **Lint**: `npm run lint` → Exit Code `0`.
+  - **Benchmark**: `npm run evaluate` → Exit Code `0`. 5/8 cases OK, 3 invalid rejected, 343ms total.
+  - **Changes NOT committed** (awaiting user instruction).
 
 ---
 
 ## 3. Work Not Yet Started
-- Milestone 7B.2 implementation (see Section 7 — Next Recommended Task).
+- None. Milestone 7B.2 implementation is complete. Next is Final User Review & Project Audit.
 
 ---
 
 ## 4. Outstanding Tasks (Next Milestones)
-- **Milestone 7B**: Section-Level Content Regeneration — backend endpoint to regenerate individual kit sections (question bank, flashcards) without rebuilding the entire kit, while preserving manually edited items.
 - Final User Review & Project Audit.
 
 ---
 
 ## 5. Known Bugs / Issues
-* None. All 63 tests pass; live Gemini generation verified; full monorepo build succeeds; lint succeeds.
+* None. All 89 tests pass; live Gemini generation verified; full monorepo build succeeds; lint succeeds; benchmark 5/8 cases verified.
 
 ---
 
 ## 6. Blockers
-* None. Contract design complete. Ready for implementation.
+* None. All validation checks passing.
 
 ---
 
 ## 7. Next Recommended Task
-**Milestone 7B.2 — Section Regeneration Implementation**
-
-Implement the contract defined in ADR-008 (`docs/DECISIONS.md`). Sequence:
-
-1. Add `RegenerateKitSectionInputSchema` and `RegenerateSectionEnum` to `packages/shared/src/schemas/input.schema.ts`.
-2. Implement `apps/api/src/modules/interview-prep/sectionRegenerator.ts` — the 7-step server-side algorithm.
-3. Add `POST /api/interview-prep/regenerate-section` route to `apps/api/src/routes/interviewPrep.routes.ts`.
-4. Add `regenerateKitSection()` API helper to `apps/web/src/lib/api.ts`.
-5. Add `editedItemIds` state tracking to `apps/web/src/app/page.tsx` and wire `onEditedIdsChange` prop down to `KitViewer`.
-6. Add "Regenerate Section" buttons to `KitViewer.tsx` for Questions and Flashcards sections.
-7. Write unit tests for `sectionRegenerator.ts` and the new route.
-8. Run full validation suite (63+ tests, lint, build).
+Commit the Milestone 7B.2 implementation if the user approves, then proceed to Final User Review & Project Audit.

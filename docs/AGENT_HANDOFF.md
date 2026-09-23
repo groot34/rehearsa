@@ -8,18 +8,24 @@
 
 * **Project**: Rehearsa — Full-Stack AI-Powered Interview Preparation Platform
 * **Assessment ID**: `FS-AI-INTERVIEW-01` (Trao Assessment)
-* **Active Milestone**: `Milestone 7B.1 — Section Regeneration Contract Design` (Completed, NOT yet committed)
+* **Active Milestone**: `Milestone 7B.2 — Section Regeneration Implementation` (Completed, NOT yet committed)
 
 ---
 
 ## 2. Latest Known Repository State
 
 * **Branch**: `main`
-* **Latest Committed Baseline**: `21731a8` (`feat(web): implement manual kit editing for questions and flashcards`)
-* **Working Tree**: Uncommitted documentation changes only (no code changes):
-  - Modified: `docs/DECISIONS.md` — ADR-007 revised to Accepted; ADR-008 (Section Regeneration API Contract) added
-  - Modified: `docs/PROGRESS.md` — Milestone 7B.1 design recorded; next steps updated
-  - Modified: `docs/AGENT_HANDOFF.md` — updated to reflect 7B.1 completion and 7B.2 as next task
+* **Latest Committed Baseline**: `5bd067a` (`docs(design): add ADR-008 section regeneration contract for Milestone 7B`)
+* **Working Tree**: Uncommitted implementation changes (awaiting user commit instruction):
+  - Modified: `packages/shared/src/schemas/input.schema.ts` — added `RegenerateSectionEnum` and `RegenerateKitSectionInputSchema`
+  - Modified: `apps/api/src/modules/interview-prep/index.ts` — exports `sectionRegenerator`
+  - New: `apps/api/src/modules/interview-prep/sectionRegenerator.ts` — 7-step regeneration algorithm
+  - New: `apps/api/src/modules/interview-prep/tests/sectionRegenerator.test.ts` — 15 unit tests
+  - Modified: `apps/api/src/routes/interviewPrep.routes.ts` — added `POST /regenerate-section` route
+  - New: `apps/api/src/routes/tests/regenerateSectionRoutes.test.ts` — 8 route integration tests
+  - Modified: `apps/web/src/lib/api.ts` — added `regenerateKitSection()` helper
+  - Modified: `apps/web/src/app/page.tsx` — `editedItemIds` state, regen handler, stale-response guard
+  - Modified: `apps/web/src/components/KitViewer.tsx` — regen buttons, per-section loading/error state
 * **Workspace Structure**:
   - `packages/shared`: Zod schemas, types, coverageChecker.ts, scheduleAllocator.ts, kitValidator.ts, full test suite.
   - `apps/api/src/modules/research/`: SSRF-safe fetcher, HTML cleaner, robots parser, multi-page crawler.
@@ -36,11 +42,11 @@
 
 ## 3. Verification Evidence
 
-1. `npx vitest run` (from repo root): Exit Code 0. **63/63 tests passing** across 13 test files.
+1. `npx vitest run` (from repo root): Exit Code 0. **89/89 tests passing** across 15 test files.
 2. `npm run build`: Exit Code 0. All three workspaces compile with zero TypeScript errors.
 3. `npm run lint`: Exit Code 0. All workspaces lint cleanly.
-4. `npm run evaluate`: Exit Code 0. Full batch benchmark execution verified.
-5. Milestone 7B.1 is design-only — no code was changed.
+4. `npm run evaluate -- --input scratch/synthetic-benchmark-cases.json --output scratch/synthetic-benchmark-output.json`: Exit Code 0. 5/8 cases OK, 3 invalid rejected, 409ms.
+5. Milestone 7B.2 implementation reviewed and two bugs fixed; 3 regression tests added.
 
 ---
 
@@ -67,29 +73,11 @@ npm run evaluate -- --input scratch/synthetic-benchmark-cases.json --output scra
 
 ## 6. Exact Next Task / Milestone
 
-**Milestone 7B.2 — Section Regeneration Implementation**
+**Final User Review & Project Audit**
 
-Implement the contract from ADR-008 in `docs/DECISIONS.md`. Exact implementation sequence:
+Milestone 7B.2 is complete and verified. The next action is for the user to:
+1. Review and commit the 7B.2 implementation if satisfied.
+2. Conduct a final project audit against the `docs/ASSESSMENT.md` requirements checklist.
+3. Update `docs/ASSESSMENT.md` Section 5 (Kit Builder, Editing & Regeneration) to mark the editing and regeneration requirements as `Verified`.
 
-1. **`packages/shared/src/schemas/input.schema.ts`**: Add `RegenerateSectionEnum` (`'questions' | 'flashcards'`) and `RegenerateKitSectionInputSchema` (`{ kit: KitSchema, section: RegenerateSectionEnum, preserved_ids: z.array(z.string()).default([]) }`).
-
-2. **`apps/api/src/modules/interview-prep/sectionRegenerator.ts`** (new file): Implement the 7-step regeneration algorithm:
-   - Step 1: Extract preserved items using the two-part predicate: `id ∈ preserved_ids` OR `id.startsWith('q_custom_') || id.startsWith('f_custom_')`.
-   - Step 2: LLM call reusing the Pass 1 prompt pattern from `pipelineOrchestrator.ts`, with ID prefix `q_regen_<ts>_<rand>` / `f_regen_<ts>_<rand>`.
-   - Step 3: Sanitize `requirement_ids` against `kit.role.requirements`.
-   - Step 4: `merge = [...preserved, ...newItems]`
-   - Step 5 (questions only): `checkRequirementCoverage` + Pass 2 if uncovered.
-   - Step 6 (questions only): `allocateSchedule` to rebuild schedule from merged questions.
-   - Step 7: `validateKit` — return `REGEN_VALIDATION_FAILED` if invalid.
-
-3. **`apps/api/src/routes/interviewPrep.routes.ts`**: Add `POST /regenerate-section` route validating with `RegenerateKitSectionInputSchema`.
-
-4. **`apps/web/src/lib/api.ts`**: Add `regenerateKitSection(payload)` helper function.
-
-5. **`apps/web/src/app/page.tsx`**: Add `editedItemIds: Set<string>` state; intercept `onUpdateKit` calls from edits to populate it; pass `editedItemIds` and `onEditedIdsChange` to `KitViewer`.
-
-6. **`apps/web/src/components/KitViewer.tsx`**: Add "Regenerate Section" buttons to Questions and Flashcards section headers; call `regenerateKitSection` with `Array.from(editedItemIds)` as `preserved_ids`; on success call `onUpdateKit(newKit)`.
-
-7. **Tests**: Add unit tests for `sectionRegenerator.ts` (preserved items survive, new items have sanitized req IDs, schedule rebuilt, validation gate fires) and integration test for the new route.
-
-8. **Validation**: `npx vitest run` (expect 70+ tests), `npm run build`, `npm run lint`.
+No further feature milestones are planned at this time.

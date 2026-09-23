@@ -4,6 +4,44 @@ All notable changes to the Rehearsa project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.0.0-m7b2] - Milestone 7B.2: Section Regeneration Implementation - 2026-09-23
+
+### Added
+- **Shared Input Schema (`packages/shared/src/schemas/input.schema.ts`)**: Added `RegenerateSectionEnum` (`'questions' | 'flashcards'`) and `RegenerateKitSectionInputSchema` (`{ kit: KitSchema, section, preserved_ids: string[] }`). Includes JSDoc trust-boundary note: the server cannot independently verify which submitted items were edited; the client is authoritative for `preserved_ids`.
+- **Section Regenerator (`apps/api/src/modules/interview-prep/sectionRegenerator.ts`)**: New pure server-side module implementing the 7-step ADR-008 algorithm. `buildPreservedSet()` enforces the two-part preservation predicate (auto-prefix `q_custom_*/f_custom_*` + explicit client-supplied IDs, validated against the submitted kit). New item IDs stamped `q_regen_*/f_regen_*` to prevent collisions. Questions path runs LLM pass 1 → sanitize `requirement_ids` → merge → `checkRequirementCoverage` → optional pass 2 → `allocateSchedule` → `validateKit`. Flashcards path skips coverage/schedule steps. Any failure returns a structured error; the original kit is never returned on failure.
+- **Regeneration API Route (`apps/api/src/routes/interviewPrep.routes.ts`)**: Added `POST /api/interview-prep/regenerate-section`. Validates request body with `RegenerateKitSectionInputSchema`; returns `{ success: true, kit }` on success or `{ success: false, error: { code, message } }` on failure. Error codes: `REGEN_INVALID_INPUT` (HTTP 400), `REGEN_LLM_FAILED` / `REGEN_VALIDATION_FAILED` (HTTP 500).
+- **Frontend API Helper (`apps/web/src/lib/api.ts`)**: Added `regenerateKitSection(payload)` function with `RegenerateKitSectionPayload` and `ApiRegenerateResponse` types. Documents that `preserved_ids` tracking is lost on browser refresh (no persistence layer).
+- **Edited Item Tracking (`apps/web/src/app/page.tsx`)**: Added `editedItemIds: Set<string>` state (separate from `generatedKit`). `handleItemEdited` adds in-place-edited original IDs; `handleItemDeleted` removes deleted IDs so they cannot reappear. `handleRegenerateSection` includes a stale-response guard (request-ID counter) to prevent a slow response from overwriting a newer user edit. All wired to `KitViewer` as `onItemEdited`, `onItemDeleted`, `onRegenerateSection`.
+- **Regenerate Section Buttons (`apps/web/src/components/KitViewer.tsx`)**: Added `onItemEdited`, `onItemDeleted`, `onRegenerateSection` props. Per-section `regenLoading`/`regenError` state drives `RegenButton` (spinner while loading) and `RegenErrorBanner` (error message on failure, kit unchanged). Edit and delete handlers now invoke `onItemEdited`/`onItemDeleted` to maintain the preserved set. Regen buttons rendered above Questions and Flashcards sections in both `all` and section-specific tab views.
+- **Unit Tests (`apps/api/src/modules/interview-prep/tests/sectionRegenerator.test.ts`)**: 15 tests covering explicit preservation, auto-prefix preservation, deleted items not reintroduced, schedule referential integrity after regen, ID collision prevention, LLM failure isolation, and `requirement_ids` sanitization — for both `questions` and `flashcards` sections.
+- **Route Integration Tests (`apps/api/src/routes/tests/regenerateSectionRoutes.test.ts`)**: 8 tests covering: HTTP 400 for empty body / invalid section / incomplete kit; HTTP 200 for both sections with valid output; preserved_id wiring; error response never contains a kit; non-existent preserved_ids silently dropped.
+
+### Verification
+- `npx vitest run` (repo root): Exit Code `0`. **89/89 tests passing** across 15 test files (3 additional regression tests added during review).
+- `npm run build`: Exit Code `0`. All three workspaces compile cleanly.
+- `npm run lint`: Exit Code `0`. All workspaces lint cleanly.
+- `npm run evaluate -- --input scratch/synthetic-benchmark-cases.json --output scratch/synthetic-benchmark-output.json`: Exit Code `0`. 5/8 cases OK, 3 invalid schemas rejected, 409ms total.
+- Changes are **NOT committed** (awaiting user instruction).
+
+### Fixes Applied During Review
+- **Stale-response guard bug (`apps/web/src/app/page.tsx`)**: The original `useState`-based request counter was broken — rapid concurrent regeneration calls both read the same stale closure value, assigning identical `thisRequestId`s so the guard never fired. Replaced with `useRef`-based counter. The ref increment is synchronous and immediately visible to all concurrent calls, correctly causing the slower response to be discarded.
+- **`RegenerateSection` type duplication (`apps/web/src/lib/api.ts`)**: The file redefined `type RegenerateSection = 'questions' | 'flashcards'` instead of importing the canonical type from `@rehearsa/shared`. Fixed by importing and re-exporting from shared.
+- **Additional regression tests (`apps/api/src/modules/interview-prep/tests/sectionRegenerator.test.ts`)**: Added 3 tests — cross-section isolation for questions regen (flashcards/role/brief unchanged), cross-section isolation for flashcards regen (questions/schedule/coverage unchanged), and a sanitization regression confirming that LLM-returned invalid `requirement_ids` are stripped without crashing.
+
+### Known Limitations
+- `editedItemIds` is held only in React session state. It is lost on browser refresh because there is no persistence layer. Users who refresh will lose the preserved-ID set; subsequent regeneration will not preserve in-place edits made before the refresh. Custom-added items (prefix `q_custom_*/f_custom_*`) are still auto-preserved regardless.
+- The server trusts the client's submitted kit and `preserved_ids` at face value (documented as the trust boundary in ADR-008 and in code comments).
+
+---
+
+## [1.0.0-m7b1] - Milestone 7B.1: Section Regeneration Contract Design - 2026-09-23
+
+### Added
+- **ADR-007 revised** (`docs/DECISIONS.md`): Updated to Accepted status with full two-part preservation predicate rationale.
+- **ADR-008** (`docs/DECISIONS.md`): New Accepted ADR documenting the complete section regeneration API contract, preservation rules, 7-step server-side algorithm, failure isolation table, input schema addition, frontend tracking approach, and Appendix A compatibility guarantee.
+
+---
+
 ## [1.0.0-m7a] - Milestone 7A: Manual Kit Editing - 2026-09-23
 
 ### Added

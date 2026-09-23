@@ -22,18 +22,52 @@ import {
   Briefcase,
   Building2,
   RotateCcw,
+  RefreshCw,
+  AlertCircle,
 } from 'lucide-react';
 
 interface Props {
   kit: Kit;
   onUpdateKit?: (updatedKit: Kit) => void;
+  /** Called when the user edits an item in-place (retains its original LLM ID). */
+  onItemEdited?: (itemId: string) => void;
+  /** Called when the user deletes an item (removes it from preserved set). */
+  onItemDeleted?: (itemId: string) => void;
+  /**
+   * Called when the user clicks a Regenerate Section button.
+   * The parent controls the async request and calls onStart/onDone callbacks
+   * to drive KitViewer's loading/error display.
+   */
+  onRegenerateSection?: (
+    section: 'questions' | 'flashcards',
+    onStart: () => void,
+    onDone: (error?: string) => void,
+  ) => void;
   onReset: () => void;
 }
 
-export const KitViewer: React.FC<Props> = ({ kit, onUpdateKit, onReset }) => {
+export const KitViewer: React.FC<Props> = ({
+  kit,
+  onUpdateKit,
+  onItemEdited,
+  onItemDeleted,
+  onRegenerateSection,
+  onReset,
+}) => {
   const [activeTab, setActiveTab] = useState<
     'all' | 'brief' | 'role' | 'questions' | 'cards' | 'schedule'
   >('all');
+
+  // Per-section regeneration loading and error state
+  const [regenLoading, setRegenLoading] = useState<{
+    questions: boolean;
+    flashcards: boolean;
+  }>({ questions: false, flashcards: false });
+
+  const [regenError, setRegenError] = useState<{
+    questions: string | null;
+    flashcards: string | null;
+  }>({ questions: null, flashcards: null });
 
   const tabs = [
     { id: 'all', label: 'Complete Kit View', icon: Sparkles },
@@ -44,11 +78,15 @@ export const KitViewer: React.FC<Props> = ({ kit, onUpdateKit, onReset }) => {
     { id: 'schedule', label: `Schedule (${kit.schedule.days_available} Days)`, icon: Calendar },
   ];
 
+  // -------------------------------------------------------------------------
   // Question editing handlers
+  // -------------------------------------------------------------------------
+
   const handleUpdateQuestion = (updatedQuestion: Question) => {
     const res = updateQuestionInKit(kit, updatedQuestion);
     if (res.success && res.kit && onUpdateKit) {
       onUpdateKit(res.kit);
+      onItemEdited?.(updatedQuestion.id);
     }
   };
 
@@ -56,6 +94,7 @@ export const KitViewer: React.FC<Props> = ({ kit, onUpdateKit, onReset }) => {
     const res = addQuestionToKit(kit, newQuestionData);
     if (res.success && res.kit && onUpdateKit) {
       onUpdateKit(res.kit);
+      // q_custom_* items are auto-preserved by the server — no need to call onItemEdited
     }
   };
 
@@ -63,14 +102,19 @@ export const KitViewer: React.FC<Props> = ({ kit, onUpdateKit, onReset }) => {
     const res = deleteQuestionFromKit(kit, questionId);
     if (res.success && res.kit && onUpdateKit) {
       onUpdateKit(res.kit);
+      onItemDeleted?.(questionId);
     }
   };
 
+  // -------------------------------------------------------------------------
   // Flashcard editing handlers
+  // -------------------------------------------------------------------------
+
   const handleUpdateFlashcard = (updatedCard: Flashcard) => {
     const res = updateFlashcardInKit(kit, updatedCard);
     if (res.success && res.kit && onUpdateKit) {
       onUpdateKit(res.kit);
+      onItemEdited?.(updatedCard.id);
     }
   };
 
@@ -85,8 +129,80 @@ export const KitViewer: React.FC<Props> = ({ kit, onUpdateKit, onReset }) => {
     const res = deleteFlashcardFromKit(kit, cardId);
     if (res.success && res.kit && onUpdateKit) {
       onUpdateKit(res.kit);
+      onItemDeleted?.(cardId);
     }
   };
+
+  // -------------------------------------------------------------------------
+  // Section regeneration handler
+  // -------------------------------------------------------------------------
+
+  const handleRegen = (section: 'questions' | 'flashcards') => {
+    if (!onRegenerateSection) return;
+    if (regenLoading[section]) return; // already in flight
+
+    onRegenerateSection(
+      section,
+      () => {
+        // onStart: enter loading state, clear previous error
+        setRegenLoading((prev) => ({ ...prev, [section]: true }));
+        setRegenError((prev) => ({ ...prev, [section]: null }));
+      },
+      (errorMsg?: string) => {
+        // onDone: leave loading state, set error if any
+        setRegenLoading((prev) => ({ ...prev, [section]: false }));
+        setRegenError((prev) => ({ ...prev, [section]: errorMsg ?? null }));
+      },
+    );
+  };
+
+  // -------------------------------------------------------------------------
+  // Regenerate button component (used for both sections)
+  // -------------------------------------------------------------------------
+
+  const RegenButton = ({
+    section,
+    label,
+  }: {
+    section: 'questions' | 'flashcards';
+    label: string;
+  }) => {
+    const isLoading = regenLoading[section];
+    return (
+      <button
+        type="button"
+        onClick={() => handleRegen(section)}
+        disabled={isLoading || !onRegenerateSection}
+        title={`Regenerate ${label} using the AI pipeline while preserving your edits`}
+        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed border border-indigo-200 rounded-lg transition-colors"
+      >
+        <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+        <span>{isLoading ? 'Regenerating…' : `Regenerate ${label}`}</span>
+      </button>
+    );
+  };
+
+  // -------------------------------------------------------------------------
+  // Regen error banner component
+  // -------------------------------------------------------------------------
+
+  const RegenErrorBanner = ({ section }: { section: 'questions' | 'flashcards' }) => {
+    const msg = regenError[section];
+    if (!msg) return null;
+    return (
+      <div className="flex items-start gap-2 p-3 text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded-xl">
+        <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+        <div>
+          <span className="font-bold">Regeneration failed. </span>
+          <span>{msg}</span>
+        </div>
+      </div>
+    );
+  };
+
+  // -------------------------------------------------------------------------
+  // Render
+  // -------------------------------------------------------------------------
 
   return (
     <div className="space-y-8 max-w-6xl mx-auto my-8 px-4 sm:px-6">
@@ -156,23 +272,43 @@ export const KitViewer: React.FC<Props> = ({ kit, onUpdateKit, onReset }) => {
         )}
 
         {(activeTab === 'all' || activeTab === 'questions') && (
-          <QuestionBankCard
-            questions={kit.questions}
-            availableRequirements={kit.role.requirements}
-            onUpdateQuestion={handleUpdateQuestion}
-            onAddQuestion={handleAddQuestion}
-            onDeleteQuestion={handleDeleteQuestion}
-          />
+          <div className="space-y-3">
+            {/* Regen controls for Questions section */}
+            <div className="flex items-center justify-between px-1">
+              <span className="text-xs text-slate-500">
+                Preserve your edits and refresh the AI-generated questions.
+              </span>
+              <RegenButton section="questions" label="Questions" />
+            </div>
+            <RegenErrorBanner section="questions" />
+            <QuestionBankCard
+              questions={kit.questions}
+              availableRequirements={kit.role.requirements}
+              onUpdateQuestion={handleUpdateQuestion}
+              onAddQuestion={handleAddQuestion}
+              onDeleteQuestion={handleDeleteQuestion}
+            />
+          </div>
         )}
 
         {(activeTab === 'all' || activeTab === 'cards') && (
-          <FlashcardDeck
-            flashcards={kit.flashcards}
-            availableRequirements={kit.role.requirements}
-            onUpdateFlashcard={handleUpdateFlashcard}
-            onAddFlashcard={handleAddFlashcard}
-            onDeleteFlashcard={handleDeleteFlashcard}
-          />
+          <div className="space-y-3">
+            {/* Regen controls for Flashcards section */}
+            <div className="flex items-center justify-between px-1">
+              <span className="text-xs text-slate-500">
+                Preserve your edits and refresh the AI-generated flashcards.
+              </span>
+              <RegenButton section="flashcards" label="Flashcards" />
+            </div>
+            <RegenErrorBanner section="flashcards" />
+            <FlashcardDeck
+              flashcards={kit.flashcards}
+              availableRequirements={kit.role.requirements}
+              onUpdateFlashcard={handleUpdateFlashcard}
+              onAddFlashcard={handleAddFlashcard}
+              onDeleteFlashcard={handleDeleteFlashcard}
+            />
+          </div>
         )}
 
         {(activeTab === 'all' || activeTab === 'schedule') && (
