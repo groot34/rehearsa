@@ -12,7 +12,8 @@
 - **Commit 8 (E2E audit)**: `54a2b9b` — `docs: record end-to-end journey audit`
 - **Commit 9 (M10 state restore)**: `a4cbbc0` — `feat: restore persisted kit state on fetch`
 - **Commit 10 (M11)**: `342e4fd` — `feat: add public interview discussion search`
-- **Branch**: `main`, 4 ahead of `origin/main` (not yet pushed).
+- **Commit 11 (M11 docs)**: `b2a5628` — `docs: update handoff and progress for M11 commit`
+- **Branch**: `main`, 5 ahead of `origin/main` (not yet pushed).
 
 ---
 
