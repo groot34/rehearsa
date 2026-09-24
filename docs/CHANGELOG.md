@@ -4,6 +4,41 @@ All notable changes to the Rehearsa project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [test] - End-to-End Journey Audit — 2026-09-24
+
+### Added
+- **E2E Journey Test (`apps/api/src/routes/tests/e2eJourney.test.ts`)**: New 59-test API-level sequential journey audit exercising the complete user workflow in a single vitest suite against one Express server + mongodb-memory-server instance (MockLlmProvider for generation). No new dependencies introduced.
+
+### Journey steps verified (30 labelled steps, 59 assertions)
+1. Health check (public, no auth)
+2–4. Registration (Alice+Bob) including duplicate-email rejection (409 `EMAIL_TAKEN`)
+5–6. Login: correct credentials (200+JWT); wrong password + unknown email both → 401 `INVALID_CREDENTIALS` (no user enumeration confirmed)
+7. Authenticated session: `GET /auth/me` with/without token
+8. Unauthenticated rejection of kit endpoints
+9–10. Kit generation (MockLlmProvider, public) + Appendix A structure validation (source/role/requirements/questions/flashcards/schedule/coverage/referential integrity)
+11–13. Save kit (201), list kits, open kit by ID
+14–15. Edit+update kit, verify edit persisted on reload
+16. Question confidence (all 4 tiers + invalid rejection)
+17. Question reorder (reverse + empty rejection + duplicate rejection)
+18. Flashcard confidence (easy/medium/hard + `unknown` rejection + unknown ID rejection)
+19–20. Section regeneration: questions (schedule rebuilt, day count preserved); flashcards with `preserved_ids` (preserved card present, questions unchanged)
+21–25. Multiple kits + full ownership isolation (Bob: list empty, GET/PUT/DELETE on Alice's kit all 404, no disclosure)
+26–28. Delete both kits; deleted kit returns 404 on GET/PUT/DELETE
+29–30. Logout (Alice + Bob)
+
+### Verification
+- `npx vitest run apps/api/src/routes/tests/e2eJourney.test.ts`: Exit Code `0`. **59/59 tests passing** in 6.2s.
+- `npm test`: Exit Code `0`. **239/239 tests passing** across 19 test files.
+- `npm run build`: Exit Code `0`. All three workspaces compile cleanly.
+- `npm run lint`: Exit Code `0`. All workspaces lint cleanly.
+- `npm run evaluate`: Exit Code `0`. 5/8 OK, 3 invalid isolated, 572ms.
+
+### Limitations
+- Verification is API-level only. No browser/UI E2E framework (Playwright/Cypress) is installed. Frontend component behaviour is not exercised by this audit.
+- MockLlmProvider is used for generation (deterministic, no real API key needed). Live Gemini generation was verified separately in the live MongoDB verification session.
+
+---
+
 ## [docs] - Live MongoDB Verification — 2026-09-24
 
 ### Verified

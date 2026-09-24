@@ -62,12 +62,12 @@ Must verify:
 |---|---|---|---|
 | `npm run lint` | Monorepo root | Runs linter across all workspaces | Verified |
 | `npm run build` | Monorepo root | TypeScript compilation across packages & Next.js build | Verified |
-| `npm test` or `npx vitest run` | Monorepo root | Runs Vitest unit & integration test suite | Verified (180/180 passing) |
+| `npm test` or `npx vitest run` | Monorepo root | Runs Vitest unit & integration test suite | Verified (239/239 passing) |
 | `npm run evaluate -- --input <cases.json> --output <kits.json>` | Monorepo root | Runs batch evaluator CLI with Appendix B output | Verified (8 cases, 782ms) |
 
 **Note**: Auth and kit CRUD tests use `mongodb-memory-server` — no real MongoDB connection required.
 
-### Test Suite Breakdown (`Vitest v5.0.1` — 18 test files, 180 tests)
+### Test Suite Breakdown (`Vitest v5.0.1` — 19 test files, 239 tests)
 - `packages/shared/src/tests/coverageChecker.test.ts`: 7 tests — coverage set difference, partial coverage, empty arrays, invalid refs, duplicates, stable ordering.
 - `packages/shared/src/tests/scheduleAllocator.test.ts`: 6 tests — 1-day, multi-day, 0 questions, contiguous block, deterministic reproducibility, error handling.
 - `packages/shared/src/tests/kitValidator.test.ts`: 13 tests — Appendix A valid kit, missing fields, enum errors, difficulty limits, invalid refs, duplicate IDs, coverage consistency.
@@ -86,6 +86,7 @@ Must verify:
 - `apps/web/src/tests/kitGenerator.test.ts`: 2 tests — frontend API client request formatting and error propagation.
 - `apps/web/src/tests/kitEditing.test.ts`: 9 tests — update/add/delete questions and flashcards, referential integrity, schedule cleanup, coverage recalculation.
 - `scripts/tests/evaluator.test.ts`: 2 tests — CLI batch evaluation, Appendix B envelope formatting, per-case failure isolation, error exit codes.
+- `apps/api/src/routes/tests/e2eJourney.test.ts`: **59 tests (NEW — E2E Journey Audit)** — Full sequential user journey: health check, registration, duplicate-email rejection, second-user registration, login, wrong-password/unknown-email rejection (no enumeration), authenticated session (`/auth/me`), unauthenticated rejection, kit generation (MockLlmProvider), Appendix A structure validation (source/role/questions/flashcards/schedule/coverage/referential integrity), save kit, list kits, open kit by ID, edit+update kit, verify edit persisted, question confidence (all 4 tiers + invalid rejection), question reorder (reverse + empty rejection + duplicate rejection), flashcard confidence (easy/medium/hard + `unknown` rejection + unknown ID rejection), section regeneration (questions), section regeneration (flashcards + preserved_ids), multiple kits, ownership isolation (Bob cannot list/GET/PUT/DELETE Alice's kits), delete kit 2, delete kit 1, access deleted kit returns 404, logout Alice, logout Bob.
 
 Automated auth and kit persistence tests use `mongodb-memory-server`; they do not verify connectivity to a real MongoDB deployment. Live MongoDB verification was completed on 2026-09-24 against a Docker MongoDB instance with real credentials — results are recorded in the Test Execution Log above. Deployment verification (production cloud environment) has not been performed.
 
@@ -133,3 +134,8 @@ Automated auth and kit persistence tests use `mongodb-memory-server`; they do no
 | 2026-09-24 | M10.3 flashcard confidence | npm run lint | Passed | All workspaces lint cleanly (Exit Code 0) |
 | 2026-09-24 | M10.3 flashcard confidence | git commit | Passed | Commit `085cc0f` (impl, 8 files); Commit `d947b87` (docs, 5 files) |
 | 2026-09-24 | Live MongoDB verification | Manual — Docker MongoDB + real Gemini API key | Passed | Full live verification against real MongoDB (Docker). Auth: registration (201), duplicate rejected (409 EMAIL_TAKEN), login correct creds (200 + JWT), login wrong password (401 INVALID_CREDENTIALS), login unknown email (401 INVALID_CREDENTIALS, no enumeration), GET /auth/me (200 user), logout (200 stateless). Kit CRUD: live Gemini generation succeeded, POST /api/kits (201), GET /api/kits (200), PUT /api/kits/:id (200, edit preserved), PUT /api/kits/:id/confidence (200), PUT /api/kits/:id/reorder (200), PUT /api/kits/:id/flashcard-confidence easy/medium/hard (200 each), multiple kits listed correctly, DELETE (200). Ownership isolation: User B GET/PUT/DELETE on User A's kit all returned 404 NOT_FOUND; User A's kits not visible in User B's list. No secrets recorded in documentation. |
+| 2026-09-24 | E2E Journey Audit | `npx vitest run apps/api/src/routes/tests/e2eJourney.test.ts` | Passed | **59/59 tests passing** — API-level sequential journey: health check, registration (Alice+Bob), duplicate rejection (409 EMAIL_TAKEN), login (200+JWT), wrong-password/unknown-email rejection (401 INVALID_CREDENTIALS, no enumeration), GET /auth/me (200), unauthenticated rejection (401), kit generation with MockLlmProvider (200), Appendix A structure validation (source/role/questions/flashcards/schedule/coverage/referential integrity), save kit (201), list kits (1 kit), open kit by ID (200), edit+update (200), edit persisted on reload, question confidence all 4 tiers + invalid rejection, question reorder (reverse order + empty rejection + duplicate rejection), flashcard confidence easy/medium/hard + `unknown` rejection + unknown ID rejection, section regen questions (200, schedule rebuilt), section regen flashcards + preserved_ids (200, preserved card present), multiple kits (Alice 2, Bob 0), ownership isolation (Bob: 404 on GET/PUT/DELETE Alice's kit), delete kit 2 (200, Alice sees 1), delete kit 1 (200, Alice sees 0), deleted kit 404 on GET/PUT/DELETE, logout Alice (200), logout Bob (200). No browser/UI verification performed. |
+| 2026-09-24 | E2E Journey Audit — full suite | `npm test` | Passed | **239/239 tests passing** across 19 test files (Exit Code 0) |
+| 2026-09-24 | E2E Journey Audit — build | `npm run build` | Passed | All three workspaces compile cleanly (Exit Code 0) |
+| 2026-09-24 | E2E Journey Audit — lint | `npm run lint` | Passed | All workspaces lint cleanly (Exit Code 0) |
+| 2026-09-24 | E2E Journey Audit — evaluator | `npm run evaluate -- --input scratch/synthetic-benchmark-cases.json --output scratch/synthetic-benchmark-output.json` | Passed | 8 cases: 5 valid kits, 3 isolated invalid, 572ms (Exit Code 0) |

@@ -8,16 +8,17 @@
 
 * **Project**: Rehearsa — Full-Stack AI-Powered Interview Preparation Platform
 * **Assessment ID**: `FS-AI-INTERVIEW-01` (Trao Assessment)
-* **Active Milestone**: `Milestone 10.3 — Flashcard Confidence Tiers` (Implemented, tested, committed, and live MongoDB verified)
+* **Active Milestone**: `End-to-End Journey Audit` (Completed — pending commit)
 
 ---
 
 ## 2. Latest Known Repository State
 
 * **Branch**: `main`
-* **HEAD Commit**: `d947b87` — `docs: record flashcard confidence tiers implementation`
-* **Sync status**: `main` is synced with `origin/main` (no unpushed commits as of last check; verify with `git status` before proceeding).
+* **HEAD Commit**: `1981ab6` — `docs: record live MongoDB verification`
+* **Sync status**: `main` is 1 ahead of `origin/main` (E2E audit commit pending; verify with `git status` before proceeding).
 * **Commit history (most recent first)**:
+  - `1981ab6` — `docs: record live MongoDB verification`
   - `d947b87` — `docs: record flashcard confidence tiers implementation` (M10.3 docs)
   - `085cc0f` — `feat: add persisted flashcard confidence tiers` (M10.3 impl)
   - `c2783c2` — `docs: record question confidence and reordering implementation`
@@ -25,20 +26,52 @@
   - `2bbd21e` — `feat: add persisted question confidence tracking` (M10.1)
   - `9c85498` — `docs: record live M8+M9 verification`
   - `9797d33` — `docs: sync post-commit repository status`
-  - `e1b7516` — `docs: update project memory to reflect M8+M9 commit hashes`
   - `8a94003` — `feat(api,web): add persistent user-owned interview kits` (M9)
   - `1a0dfc7` — `feat(api): add user authentication and MongoDB connection` (M8)
-* **Working Tree**: A documentation-only commit (`docs: record live MongoDB verification`) is pending. After that commit, the working tree should be clean.
+* **Working Tree**: E2E journey audit commit (`docs: record end-to-end journey audit`) is pending — includes `apps/api/src/routes/tests/e2eJourney.test.ts` (new, 59 tests) and 5 documentation files.
 
 ---
 
 ## 3. Completed Verification Evidence
 
 ### Automated Tests (mongodb-memory-server — no real DB required)
-- `npm test` → Exit Code `0`. **180/180 tests passing** across 18 test files.
+- `npm test` → Exit Code `0`. **239/239 tests passing** across 19 test files.
 - `npm run build` → Exit Code `0`. All three workspaces compile cleanly.
 - `npm run lint` → Exit Code `0`. All workspaces lint cleanly.
 - `npm run evaluate -- --input scratch/synthetic-benchmark-cases.json --output scratch/synthetic-benchmark-output.json` → Exit Code `0`. 8 cases: 5 valid kits, 3 isolated invalid, <3s total.
+
+### E2E Journey Audit — completed 2026-09-24
+**File**: `apps/api/src/routes/tests/e2eJourney.test.ts` — 59 tests, 30 labelled steps.
+All verification is API-level (Express + mongodb-memory-server + MockLlmProvider). No browser/UI verification.
+
+Journey steps covered and passing:
+1. Health check — `GET /api/health` → 200 (no auth)
+2. Registration (Alice) — `POST /auth/register` → 201, token+user, no passwordHash
+3. Duplicate registration → 409 `EMAIL_TAKEN`
+4. Registration (Bob) → 201
+5. Login (Alice, correct) → 200, fresh JWT
+6. Login rejection: wrong password + unknown email both → 401 `INVALID_CREDENTIALS` (no enumeration)
+7. `GET /auth/me` with token → 200 identity; without token → 401 `MISSING_TOKEN`
+8. Kit list + kit save without token → 401
+9. Kit generation (MockLlmProvider, public) → 200, full Appendix A kit
+10. Appendix A structure validation (source/role/requirements/questions/flashcards/schedule/coverage/referential integrity — 9 assertions)
+11. Save kit → 201, `id` returned, no `userId` in response
+12. List kits: Alice sees 1; Bob sees 0
+13. Open kit by ID → 200, full payload, no internal fields
+14. Edit + update kit → 200, new title returned
+15. Reload: edited title persisted
+16. Question confidence: all 4 tiers + invalid value rejection
+17. Question reorder: reverse order success; empty array rejection; duplicate ID rejection
+18. Flashcard confidence: easy/medium/hard success; `unknown` rejection; unknown flashcard ID rejection
+19. Section regeneration (questions): valid Appendix A kit returned, schedule rebuilt, day count preserved
+20. Section regeneration (flashcards + `preserved_ids`): preserved flashcard present, questions unchanged
+21. Second kit saved; Alice sees 2 kits
+22–25. Ownership isolation: Bob list=0; Bob GET Alice kit=404; Bob PUT=404; Bob DELETE=404; Alice kit intact after all attempts
+26. Delete kit 2 → 200; Alice sees 1
+27. Delete kit 1 → 200; Alice sees 0
+28. Deleted kit → 404 on GET/PUT/DELETE
+29. Logout Alice → 200; logout without token → 401 `MISSING_TOKEN`
+30. Logout Bob → 200
 
 ### Live MongoDB Verification (real Docker MongoDB, real Gemini API key) — completed 2026-09-24
 All items below were verified against a live MongoDB instance (Docker) with `MONGODB_URI` and `JWT_SECRET` set in `.env`. No secrets are recorded here.
@@ -105,7 +138,7 @@ The following items are genuinely outstanding as of 2026-09-24:
 
 3. **Public interview discussion search (ASSESSMENT.md §2)**: Marked `In progress`. The multi-page crawler fetches about/careers/culture pages but there is no dedicated search-engine integration for external interview discussion sites (e.g. Glassdoor, Blind). This item requires a decision on whether the crawler alone satisfies the requirement or whether a dedicated search integration is needed.
 
-4. **Final project audit**: End-to-end manual walkthrough of the full user journey (register → generate → save → edit → regenerate section → flashcard practice → delete) has not been formally documented as a completed test.
+4. ~~**Final project audit**~~: **Resolved** — `apps/api/src/routes/tests/e2eJourney.test.ts` provides a 59-test API-level sequential journey audit. No browser/UI E2E test exists (no Playwright or Cypress in the project). The API-level audit covers all 16 documented journey steps.
 
 ---
 

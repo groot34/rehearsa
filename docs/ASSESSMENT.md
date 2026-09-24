@@ -17,7 +17,7 @@
 | User registration with email and password | Mandatory | Verified (live MongoDB verification) | `POST /auth/register` — bcrypt hashing, Zod validation, 201 on success. Tested with mongodb-memory-server (132/132 tests). Live MongoDB verification: registration successful, duplicate email rejected, passwordHash never returned. |
 | User login and session management (JWT / Cookie) | Mandatory | Verified (live MongoDB verification) | `POST /auth/login` — bcrypt compare, JWT signed with env secret. `GET /auth/me` returns identity. Tested with mongodb-memory-server (132/132 tests). Live MongoDB verification: login successful with correct credentials, wrong password rejected, unknown email rejected (same error code, no enumeration), JWT issued, `/auth/me` returns authenticated user. |
 | User logout functionality | Mandatory | Verified (live MongoDB verification) | `POST /auth/logout` — requires valid token, returns 200. **Stateless JWT**: token remains valid until expiry after client discards it. Behaviour documented in code and response body. Live MongoDB verification: logout endpoint accepts valid token and returns 200 with documented stateless behaviour. |
-| Strict kit ownership isolation (users only access own kits) | Mandatory | Verified (live MongoDB verification) | All kit queries scoped to `{ _id, userId }`. 404 returned for both missing and non-owned kits. 30 integration tests covering user isolation, ownership-non-change, cross-user access rejection. Live MongoDB verification: User B cannot see User A's kits in list, cannot GET User A's kit by ID (404), cannot PUT/update User A's kit (404), cannot DELETE User A's kit (404). API does not disclose whether another user's kit exists. |
+| Strict kit ownership isolation (users only access own kits) | Mandatory | Verified (live MongoDB verification + E2E journey audit) | All kit queries scoped to `{ _id, userId }`. 404 returned for both missing and non-owned kits. 30 integration tests covering user isolation, ownership-non-change, cross-user access rejection. Live MongoDB verification: User B cannot see User A's kits in list, cannot GET User A's kit by ID (404), cannot PUT/update User A's kit (404), cannot DELETE User A's kit (404). API does not disclose whether another user's kit exists. **E2E journey audit steps 22–25**: Bob list empty (0 kits), Bob GET/PUT/DELETE on Alice's kit all returned 404 NOT_FOUND with no kit disclosure; Alice's kit verified intact after all failed access attempts. |
 
 ---
 
@@ -26,7 +26,7 @@
 | Requirement | Scope | Status | Notes / Evidence |
 |---|---|---|---|
 | Create kit from pasted Job Description (JD), Company URL, Days | Mandatory | Verified | `POST /api/interview-prep/generate` with Zod input schema. Integration test passing. |
-| Support multiple roles / multiple kit submissions per user | Mandatory | Verified (automated tests) | `GET /api/kits` lists all user kits; `POST /api/kits` creates new documents each time. 30 kit tests include multi-kit save + list verification. |
+| Support multiple roles / multiple kit submissions per user | Mandatory | Verified (automated tests + E2E journey audit) | `GET /api/kits` lists all user kits; `POST /api/kits` creates new documents each time. 30 kit tests include multi-kit save + list verification. E2E journey audit step 21: Alice saved 2 kits with different roles, both appeared in list. |
 | Seed page retrieval and HTML sanitization / text cleaning | Mandatory | Verified | `safeFetcher.ts` + `htmlCleaner.ts`. 2 htmlCleaner tests passing. |
 | Dynamic crawler with intelligent link ranking | Mandatory | Verified | `companyCrawler.ts` scores links by keyword relevance. |
 | Public interview discussion and hiring info search | Mandatory | In progress | Multi-page crawler fetches about/careers/culture pages. Full search engine integration planned. |
@@ -84,7 +84,7 @@
 | Requirement | Scope | Status | Notes |
 |---|---|---|---|
 | View company brief, role breakdown, questions, flashcards, schedule | Mandatory | Verified | `KitViewer.tsx`, `CompanyBriefCard.tsx`, `RoleBreakdownCard.tsx`, `QuestionBankCard.tsx`, `FlashcardDeck.tsx`, `StudyScheduleTimeline.tsx` |
-| Edit, reorder, add, and delete kit content (questions, cards, schedule) | Mandatory | Verified | **Edit/add/delete**: Verified — `kitEditing.ts`, 9 unit tests. **Reorder**: Verified — `questionOrder` field in KitDocument, `PUT /api/kits/:id/reorder` endpoint, up/down UI buttons, 5 integration tests. |
+| Edit, reorder, add, and delete kit content (questions, cards, schedule) | Mandatory | Verified (E2E journey audit) | **Edit/add/delete**: Verified — `kitEditing.ts`, 9 unit tests. **Reorder**: Verified — `questionOrder` field in KitDocument, `PUT /api/kits/:id/reorder` endpoint, up/down UI buttons, 5 integration tests. **E2E journey audit**: edit+update (step 14, verified persisted step 15), question reorder (step 17 — reverse, empty rejection, duplicate rejection), section regeneration (steps 19–20). |
 | Regenerate single section without destroying edits elsewhere | Mandatory | Verified (automated tests) | `POST /api/interview-prep/regenerate-section`. 18 unit + 8 route tests with MockProvider. Live Gemini not yet re-verified post-M7B. |
 | Preserve manually edited questions when regenerating their category | Mandatory | Verified (automated tests) | Two-part preservation predicate (q_custom_*/f_custom_* prefix + explicit `preserved_ids`). Tested. |
 | Real-time progress updates & meaningful failure states during generation | Mandatory | Verified | `GenerationProgressTracker.tsx` & error banner in `KitGeneratorForm.tsx` |
@@ -96,7 +96,7 @@
 | Requirement | Scope | Status | Notes |
 |---|---|---|---|
 | Interactive flip-card interface | Mandatory | Verified | `FlashcardDeck.tsx` card flip animation & front/back toggle |
-| Record confidence levels per card (e.g., easy, medium, hard) | Mandatory | Verified | Persisted `flashcardConfidence` field in `KitDocumentModel` (outside Appendix A). `PUT /api/kits/:id/flashcard-confidence` endpoint with Zod validation. Three tiers: `easy`, `medium`, `hard`. FlashcardDeck UI replaced binary mastered toggle with three confidence buttons. 9 integration tests passing. |
+| Record confidence levels per card (e.g., easy, medium, hard) | Mandatory | Verified (E2E journey audit) | Persisted `flashcardConfidence` field in `KitDocumentModel` (outside Appendix A). `PUT /api/kits/:id/flashcard-confidence` endpoint with Zod validation. Three tiers: `easy`, `medium`, `hard`. FlashcardDeck UI replaced binary mastered toggle with three confidence buttons. 9 integration tests passing. **E2E journey audit step 18**: easy/medium/hard set successfully; `unknown` correctly rejected (400); unknown flashcard ID correctly rejected (404). |
 | Track session progress & mastery summary | Mandatory | Verified | `FlashcardDeck.tsx` confidence distribution summary (easy/medium/hard counts) replaces binary mastered counter. |
 
 ---
