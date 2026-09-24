@@ -15,9 +15,10 @@
 ## 2. Latest Known Repository State
 
 * **Branch**: `main`
-* **HEAD Commit**: `b2a5628` — `docs: update handoff and progress for M11 commit`
-* **Sync status**: `main` is 5 ahead of `origin/main`. M11 public interview search implementation is committed.
+* **HEAD Commit**: `240fdf2` — `docs: final handoff/progress update for M11`
+* **Sync status**: `main` is 6 ahead of `origin/main`. M11 public interview search implementation is committed.
 * **Commit history (most recent first)**:
+  - `240fdf2` — `docs: final handoff/progress update for M11`
   - `b2a5628` — `docs: update handoff and progress for M11 commit`
   - `342e4fd` — `feat: add public interview discussion search`
   - `a4cbbc0` — `feat: restore persisted kit state on fetch`

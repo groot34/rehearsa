@@ -13,7 +13,8 @@
 - **Commit 9 (M10 state restore)**: `a4cbbc0` — `feat: restore persisted kit state on fetch`
 - **Commit 10 (M11)**: `342e4fd` — `feat: add public interview discussion search`
 - **Commit 11 (M11 docs)**: `b2a5628` — `docs: update handoff and progress for M11 commit`
-- **Branch**: `main`, 5 ahead of `origin/main` (not yet pushed).
+- **Commit 12 (M11 docs final)**: `240fdf2` — `docs: final handoff/progress update for M11`
+- **Branch**: `main`, 6 ahead of `origin/main` (not yet pushed).
 
 ---
 
