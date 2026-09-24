@@ -3,6 +3,7 @@ import path from 'path';
 import { parseArgs } from 'util';
 import { BatchCaseInputSchema, BatchOutputEnvelope, BatchKitResult } from '../packages/shared/src';
 import { executeGenerationPipeline } from '../apps/api/src/modules/interview-prep';
+import { MockPublicInterviewSearchProvider } from '../apps/api/src/modules/research/mockInterviewSearchProvider';
 
 async function main() {
   const { values } = parseArgs({
@@ -78,6 +79,7 @@ async function main() {
         companyUrl: company_url,
         daysAvailable: days,
         allowLoopbackInDev: true,
+        interviewSearchProvider: new MockPublicInterviewSearchProvider(),
       });
 
       const elapsed = Date.now() - caseStartTime;

@@ -29,7 +29,7 @@
 | Support multiple roles / multiple kit submissions per user | Mandatory | Verified (automated tests + E2E journey audit) | `GET /api/kits` lists all user kits; `POST /api/kits` creates new documents each time. 30 kit tests include multi-kit save + list verification. E2E journey audit step 21: Alice saved 2 kits with different roles, both appeared in list. |
 | Seed page retrieval and HTML sanitization / text cleaning | Mandatory | Verified | `safeFetcher.ts` + `htmlCleaner.ts`. 2 htmlCleaner tests passing. |
 | Dynamic crawler with intelligent link ranking | Mandatory | Verified | `companyCrawler.ts` scores links by keyword relevance. |
-| Public interview discussion and hiring info search | Mandatory | In progress | Multi-page crawler fetches about/careers/culture pages. Full search engine integration planned. |
+| Public interview discussion and hiring info search | Mandatory | Implemented (mock provider, graceful degradation) | Multi-page crawler fetches about/careers/culture pages (internal). Added `IPublicInterviewSearchProvider` abstraction with `MockPublicInterviewSearchProvider` for tests and `GoogleCustomSearchProvider` for production (optional). Search results integrated into company brief prompt; graceful degradation if provider unavailable. Live external search not yet verified. |
 | Robots.txt compliance and rate limiting | Mandatory | Verified | `robotsParser.ts` enforces `robots.txt` disallow rules. |
 | Treat retrieved pages and pasted JD as untrusted input | Mandatory | Verified | LLM prompts wrap content in `<untrusted_...>` XML tags. Never executed as system instructions. |
 
@@ -43,7 +43,7 @@
 | 2 | Retrieve & clean individual seed pages | Crawler/Fetcher | Mandatory | Verified (Live crawler tested) |
 | 3 | Crawl company site & rank useful links dynamically | Dynamic Crawler | Mandatory | Verified (Live multi-page crawl) |
 | 4 | Search for company hiring information | Search/Research | Mandatory | Verified (Crawl extracted about/culture info) |
-| 5 | Search public interview discussions | Search/Research | Mandatory | Verified (Crawl extracted hiring context) |
+| 5 | Search public interview discussions | Search/Research | Mandatory | Implemented (Mock provider, graceful degradation) |
 | 6 | Generate category-specific questions for requirements | AI Generation | Mandatory | Verified (Live Gemini tested) |
 | 7 | Generate flashcards & company brief | AI Generation | Mandatory | Verified (Live Gemini tested) |
 | 8 | Detect uncovered requirements via set-difference | **Deterministic Code** | Mandatory | Verified (Deterministic set difference) |

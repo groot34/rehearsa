@@ -67,7 +67,7 @@ Must verify:
 
 **Note**: Auth and kit CRUD tests use `mongodb-memory-server` — no real MongoDB connection required.
 
-### Test Suite Breakdown (`Vitest v5.0.1` — 19 test files, 246 tests)
+### Test Suite Breakdown (`Vitest v5.0.1` — 20 test files, 257 tests)
 - `packages/shared/src/tests/coverageChecker.test.ts`: 7 tests — coverage set difference, partial coverage, empty arrays, invalid refs, duplicates, stable ordering.
 - `packages/shared/src/tests/scheduleAllocator.test.ts`: 6 tests — 1-day, multi-day, 0 questions, contiguous block, deterministic reproducibility, error handling.
 - `packages/shared/src/tests/kitValidator.test.ts`: 13 tests — Appendix A valid kit, missing fields, enum errors, difficulty limits, invalid refs, duplicate IDs, coverage consistency.
@@ -75,6 +75,7 @@ Must verify:
 - `apps/api/src/modules/research/tests/ssrfGuard.test.ts`: 6 tests — SSRF protection, private IP blocking, DNS rebinding, loopback dev override.
 - `apps/api/src/modules/research/tests/htmlCleaner.test.ts`: 2 tests — script stripping, clean text extraction, link discovery.
 - `apps/api/src/modules/research/tests/robotsParser.test.ts`: 2 tests — robots.txt parsing and allow/disallow rule enforcement.
+- `apps/api/src/modules/research/tests/interviewSearchProvider.test.ts`: 11 tests **(NEW — Milestone 11)** — Mock provider returns results for Google/Amazon/generic, handles role parameter, Google provider configuration check, throws error without credentials, URL source extraction, factory returns mock by default/when google unconfigured.
 - `apps/api/src/modules/llm/tests/llmProvider.test.ts`: 6 tests — provider interface, mock generation, key normalisation, missing key handling.
 - `apps/api/src/modules/interview-prep/tests/pipelineOrchestrator.test.ts`: 4 tests — end-to-end pipeline with MockLlmProvider, SSRF rejection.
 - `apps/api/src/modules/interview-prep/tests/sectionRegenerator.test.ts`: 18 tests — preservation, cross-section isolation, ID collision prevention, LLM failure, sanitisation.
@@ -143,3 +144,8 @@ Automated auth and kit persistence tests use `mongodb-memory-server`; they do no
 | 2026-09-24 | M10 state restoration | `npm run build` | Passed | All three workspaces compile cleanly (Exit Code 0) |
 | 2026-09-24 | M10 state restoration | `npm run lint` | Passed | All workspaces lint cleanly (Exit Code 0) |
 | 2026-09-24 | M10 state restoration | `npm run evaluate -- --input scratch/synthetic-benchmark-cases.json --output scratch/synthetic-benchmark-output.json` | Passed | 8 cases: 5 valid kits, 3 isolated invalid, 706ms (Exit Code 0) |
+| 2026-09-24 | M11 public interview search | `npm test` | Passed | **257/257 tests passing** across 20 test files (Exit Code 0) — 11 new tests for interview search provider |
+| 2026-09-24 | M11 public interview search | `npm run build` | Passed | All three workspaces compile cleanly (Exit Code 0) |
+| 2026-09-24 | M11 public interview search | `npm run lint` | Passed | All workspaces lint cleanly (Exit Code 0) |
+| 2026-09-24 | M11 public interview search | `npm run evaluate -- --input scratch/synthetic-benchmark-cases.json --output scratch/synthetic-benchmark-output.json` | Passed | 8 cases: 5 valid kits, 3 isolated invalid, 1519ms (Exit Code 0) — Mock provider used, no external API calls |
+| 2026-09-24 | M11 public interview search | `git diff --check` | Passed | Exit Code 0, stdout clean; LF→CRLF warnings on stderr are expected on Windows |

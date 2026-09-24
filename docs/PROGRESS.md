@@ -1,7 +1,7 @@
 # Project Progress & Status — Rehearsa
 
 ## 1. Current Milestone
-**Milestone 10.3 — Flashcard Confidence Tiers (COMMITTED, TESTED, live MongoDB verified) + E2E Journey Audit (COMPLETED) + M10 State Restoration Fix (IMPLEMENTED)**
+**Milestone 11: Public Interview Discussion Search (COMMITTED)**
 - **Commit 1 (M8)**: `1a0dfc7` — `feat(api): add user authentication and MongoDB connection`
 - **Commit 2 (M9)**: `8a94003` — `feat(api,web): add persistent user-owned interview kits`
 - **Commit 3 (M10.1)**: `2bbd21e` — `feat: add persisted question confidence tracking`
@@ -10,8 +10,9 @@
 - **Commit 6 (M10.3 docs)**: `d947b87` — `docs: record flashcard confidence tiers implementation`
 - **Commit 7 (live verify docs)**: `1981ab6` — `docs: record live MongoDB verification`
 - **Commit 8 (E2E audit)**: `54a2b9b` — `docs: record end-to-end journey audit`
-- **Commit 9 (M10 state restore)**: pending — `feat: restore persisted kit state on fetch`
-- **Branch**: `main`, 2 ahead of `origin/main` (not yet pushed).
+- **Commit 9 (M10 state restore)**: `a4cbbc0` — `feat: restore persisted kit state on fetch`
+- **Commit 10 (M11)**: pending — `feat: add public interview discussion search`
+- **Branch**: `main`, 3 ahead of `origin/main` (not yet pushed).
 
 ---
 
@@ -169,6 +170,23 @@
   - **Build**: `npm run build` → Exit Code `0`.
   - **Lint**: `npm run lint` → Exit Code `0`.
   - **ADR-012**: Documented in `docs/DECISIONS.md`.
+- [x] **Milestone 11: Public Interview Discussion Search (IMPLEMENTED, TESTED, pending commit)**:
+  - **`apps/api/src/modules/research/interviewSearchProvider.ts`** (new): `IPublicInterviewSearchProvider` interface with `searchInterviewDiscussions(companyName, role?)` method. Returns `InterviewSearchResult[]` with title, URL, snippet, source.
+  - **`apps/api/src/modules/research/mockInterviewSearchProvider.ts`** (new): Mock implementation returning deterministic results for Google/Amazon/generic companies. No external API calls. Used by default in tests and when credentials unavailable.
+  - **`apps/api/src/modules/research/googleCustomSearchProvider.ts`** (new): Google Custom Search API provider. Requires `GOOGLE_SEARCH_API_KEY` and `GOOGLE_SEARCH_CX` env vars. Executes focused queries (`interview questions`, `interview experience`, `hiring process`). Deduplicates URLs, extracts source domain. Graceful degradation if credentials missing.
+  - **`apps/api/src/modules/research/interviewSearchFactory.ts`** (new): `createInterviewSearchProvider(overrideProvider?)` factory. Returns Google provider if configured and requested, otherwise returns Mock provider. Logs warning if Google requested but credentials missing.
+  - **`apps/api/src/modules/research/index.ts`**: Added exports for all interview search modules.
+  - **`apps/api/src/modules/interview-prep/pipelineOrchestrator.ts`**: Added `interviewSearchProvider` to `PipelineInput`. Integrated Step 5 after internal crawler: calls `searchInterviewDiscussions`, formats results as text context, appends to internal research text. Try/catch ensures graceful degradation on provider failure. Combined research text used for company brief generation.
+  - **`scripts/evaluator.ts`**: Imports `MockPublicInterviewSearchProvider`, passes it to pipeline to ensure deterministic evaluator behavior without external API credentials.
+  - **`.env.example`**: Added `INTERVIEW_SEARCH_PROVIDER`, `GOOGLE_SEARCH_API_KEY`, `GOOGLE_SEARCH_CX` placeholders with documentation.
+  - **`apps/api/src/modules/research/tests/interviewSearchProvider.test.ts`** (new): 11 tests — Mock provider returns results for Google/Amazon/generic, handles role parameter, Google provider configuration check, throws error without credentials, URL source extraction, factory returns mock by default/when google unconfigured.
+  - **Test result**: `npx vitest run` → Exit Code `0`. **257/257 tests passing** (11 new tests added, 20 test files).
+  - **Build**: `npm run build` → Exit Code `0`. All three workspaces compile cleanly.
+  - **Lint**: `npm run lint` → Exit Code `0`.
+  - **Evaluator**: `npm run evaluate` → Exit Code `0`. 8 cases: 5 valid kits, 3 isolated invalid, 1273ms. Mock provider used, no external API calls.
+  - **Graceful degradation**: Pipeline continues with internal research if search provider fails or unavailable. No fabricated data.
+  - **Appendix A**: No schema changes. `source.pages_used` already supports URLs. Search results currently used only for LLM context, not added to `pages_used` (design decision: search results are not fetched pages, only search metadata).
+  - **Live external search**: Not verified. Google Custom Search requires real API key and Custom Search Engine ID configuration.
 
 ---
 

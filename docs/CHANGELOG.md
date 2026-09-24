@@ -4,6 +4,45 @@ All notable changes to the Rehearsa project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [feat] - M11 Public Interview Discussion Search — 2026-09-24
+
+### Added
+- **`IPublicInterviewSearchProvider` interface** (`apps/api/src/modules/research/interviewSearchProvider.ts`): Abstracts external search for public interview discussions (Glassdoor, Blind, Reddit, etc.). Implementations must mock gracefully for tests and degrade gracefully if unavailable.
+- **`MockPublicInterviewSearchProvider`** (`apps/api/src/modules/research/mockInterviewSearchProvider.ts`): Deterministic mock implementation returning company-specific results (Google, Amazon, generic). No external API calls. Used by default in tests and when credentials unavailable.
+- **`GoogleCustomSearchProvider`** (`apps/api/src/modules/research/googleCustomSearchProvider.ts`): Google Custom Search API provider. Requires `GOOGLE_SEARCH_API_KEY` and `GOOGLE_SEARCH_CX` environment variables. Executes focused queries (`interview questions`, `interview experience`, `hiring process`, + role-specific). Deduplicates URLs, extracts source domain. Graceful degradation if credentials missing.
+- **`createInterviewSearchProvider` factory** (`apps/api/src/modules/research/interviewSearchFactory.ts`): Returns Google provider if configured and requested, otherwise returns Mock provider. Logs warning if Google requested but credentials missing.
+- **Pipeline integration** (`apps/api/src/modules/interview-prep/pipelineOrchestrator.ts`): Added `interviewSearchProvider` to `PipelineInput`. Integrated Step 5 after internal crawler: calls `searchInterviewDiscussions`, formats results as text context, appends to internal research text. Try/catch ensures graceful degradation on provider failure. Combined research text used for company brief generation.
+- **Evaluator injection** (`scripts/evaluator.ts`): Explicitly passes `MockPublicInterviewSearchProvider` to pipeline to ensure deterministic evaluator behavior without external API credentials.
+- **Environment configuration** (`.env.example`): Added `INTERVIEW_SEARCH_PROVIDER`, `GOOGLE_SEARCH_API_KEY`, `GOOGLE_SEARCH_CX` placeholders with documentation.
+
+### Tests added
+- **`apps/api/src/modules/research/tests/interviewSearchProvider.test.ts`**: 11 new tests — Mock provider returns results for Google/Amazon/generic, handles role parameter, Google provider configuration check, throws error without credentials, URL source extraction, factory returns mock by default/when google unconfigured.
+
+### Architecture
+- **Provider abstraction**: Clean interface allows future providers (e.g., Bing, DuckDuckGo) without pipeline changes.
+- **Graceful degradation**: Pipeline continues with internal research if search provider fails or unavailable. No fabricated data.
+- **Source attribution semantics**: Search results are metadata snippets from external sources, not fetched pages. Used for LLM context only, NOT added to `source.pages_used` (Appendix A unchanged).
+- **SSRF protection**: Google provider calls trusted Google API endpoint, not arbitrary URLs. Internal crawler's SSRF protection unchanged.
+- **Batch evaluator isolation**: Evaluator never requires real external search API credentials.
+
+### Verification
+- `npm test`: Exit Code `0`. **257/257 tests passing** (11 new tests added, 20 test files).
+- `npm run build`: Exit Code `0`. All three workspaces compile cleanly.
+- `npm run lint`: Exit Code `0`. All workspaces lint cleanly.
+- `npm run evaluate`: Exit Code `0`. 8 cases: 5 valid kits, 3 isolated invalid, 1519ms. Mock provider used, no external API calls.
+- `git diff --check`: Exit Code `0`. No trailing whitespace issues.
+
+### Known limitations
+- **Live external search NOT verified**: Google Custom Search requires real API key and Custom Search Engine ID configuration. Implementation is designed for optional production use but has not been tested with live credentials.
+- **No URL fetching**: Search results are snippets only. Underlying pages are not fetched via `safeFetcher`. This is by design (separates search metadata from page content).
+
+### Security
+- No real credentials committed to repository.
+- External search content wrapped in `<untrusted_web_content>` XML tags before LLM ingestion.
+- Provider factory ensures mock provider is used by default unless explicitly configured with credentials.
+
+---
+
 ## [feat] - M10 State Restoration Fix — 2026-09-24
 
 ### Fixed

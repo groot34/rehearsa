@@ -22,6 +22,7 @@ This document records the architectural and engineering decisions made for the R
 | [ADR-012](#adr-012-question-reordering-persistence) | Question Reordering Persistence | Accepted | 2026-09-24 |
 | [ADR-013](#adr-013-flashcard-confidence-tiers-persistence) | Flashcard Confidence Tiers Persistence | Accepted | 2026-09-24 |
 | [ADR-014](#adr-014-return-m10-persistence-metadata-in-get-apikitsid-response) | Return M10 Persistence Metadata in GET /api/kits/:id Response | Accepted | 2026-09-24 |
+| [ADR-015](#adr-015-public-interview-discussion-search-provider-abstraction) | Public Interview Discussion Search Provider Abstraction | Accepted | 2026-09-24 |
 
 ---
 
@@ -565,3 +566,52 @@ This is an accepted trade-off for a client-rendered SPA without a BFF. An `httpO
   - All three fields present simultaneously, Appendix A `kit.*` uncontaminated.
   - Ownership isolation: User B receives 404, not M10 data.
   - M10 fields absent from list summary response.
+
+---
+
+### ADR-015: Public Interview Discussion Search Provider Abstraction
+
+* **Status**: Accepted
+* **Date**: 2026-09-24
+* **Context**:
+  Assessment requirement (Step 5 of 11-step pipeline) specifies searching for public interview discussions (Glassdoor, Blind, Reddit, etc.). The existing internal crawler only searches company website pages (about/careers/culture). External search requires an abstraction that can be mocked for tests and optionally configured for production without breaking deterministic batch evaluation.
+
+* **Alternatives Considered**:
+  - Hard-coding direct Google Custom Search API calls without abstraction: Rejected — breaks test determinism and requires real credentials for all environments.
+  - Using a paid third-party crawling API (e.g., Firecrawl, Apify): Rejected — violates assessment constraint against paid-only services.
+  - Skipping external search entirely: Rejected — assessment explicitly requires public interview discussion search.
+
+* **Decision**:
+  Implement a `IPublicInterviewSearchProvider` interface with two implementations:
+  - `MockPublicInterviewSearchProvider`: Deterministic mock returning company-specific results (Google, Amazon, generic). No external API calls. Used by default in tests and when credentials unavailable.
+  - `GoogleCustomSearchProvider`: Google Custom Search API provider. Requires `GOOGLE_SEARCH_API_KEY` and `GOOGLE_SEARCH_CX` environment variables. Executes focused queries, deduplicates URLs, extracts source domain. Graceful degradation if credentials missing.
+  - `createInterviewSearchProvider` factory: Returns Google provider if configured and requested, otherwise returns Mock provider.
+
+* **Reasoning**:
+  - Clean abstraction allows future providers (Bing, DuckDuckGo) without pipeline changes.
+  - Mock provider ensures test determinism and batch evaluator never requires external API credentials.
+  - Graceful degradation ensures pipeline continues with internal research if external search fails or unavailable.
+  - Factory pattern with configuration check prevents accidental production calls without credentials.
+
+* **Trade-offs**:
+  - Search results are metadata snippets only, not fetched pages. Underlying pages are not fetched via `safeFetcher`. This is by design (separates search metadata from page content).
+  - Live external search not verified — requires real API key and Custom Search Engine ID configuration.
+  - Search results are NOT added to `source.pages_used` (Appendix A) because they are not fetched pages, only search metadata.
+
+* **Implementation Details**:
+  - Pipeline Step 5 (after internal crawler): calls `searchInterviewDiscussions(companyName, role)`, formats results as text context, appends to internal research text.
+  - Try/catch ensures graceful degradation on provider failure.
+  - Combined research text used for company brief generation.
+  - Batch evaluator explicitly passes `MockPublicInterviewSearchProvider` to pipeline.
+  - External search content wrapped in `<untrusted_web_content>` XML tags before LLM ingestion.
+
+* **Tests added**:
+  11 unit tests in `apps/api/src/modules/research/tests/interviewSearchProvider.test.ts`:
+  - Mock provider returns results for Google/Amazon/generic.
+  - Mock provider handles role parameter.
+  - Google provider configuration check (`isConfigured()`).
+  - Google provider throws error without credentials.
+  - URL source extraction (Glassdoor, Reddit, Blind, Indeed, LeetCode).
+  - Factory returns mock by default.
+  - Factory returns mock when Google requested but not configured.
+  - Factory returns mock when mock explicitly requested.
