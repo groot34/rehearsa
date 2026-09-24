@@ -67,7 +67,7 @@ Must verify:
 
 **Note**: Auth and kit CRUD tests use `mongodb-memory-server` — no real MongoDB connection required.
 
-### Test Suite Breakdown (`Vitest v5.0.1` — 18 test files, 161 tests)
+### Test Suite Breakdown (`Vitest v5.0.1` — 18 test files, 171 tests)
 - `packages/shared/src/tests/coverageChecker.test.ts`: 7 tests — coverage set difference, partial coverage, empty arrays, invalid refs, duplicates, stable ordering.
 - `packages/shared/src/tests/scheduleAllocator.test.ts`: 6 tests — 1-day, multi-day, 0 questions, contiguous block, deterministic reproducibility, error handling.
 - `packages/shared/src/tests/kitValidator.test.ts`: 13 tests — Appendix A valid kit, missing fields, enum errors, difficulty limits, invalid refs, duplicate IDs, coverage consistency.
@@ -82,7 +82,7 @@ Must verify:
 - `apps/api/src/routes/tests/interviewPrepRoutes.test.ts`: 3 tests — Express REST API endpoints, validation errors, success payloads.
 - `apps/api/src/routes/tests/regenerateSectionRoutes.test.ts`: 8 tests — section regeneration input validation, happy paths, preserved IDs, error response shape.
 - `apps/api/src/routes/tests/authRoutes.test.ts`: 30 tests **(NEW — Milestone 8)** — register, login, logout, /me endpoints; all validation error paths; no-passwordHash-in-response; public endpoint accessibility without auth.
-- `apps/api/src/routes/tests/kitsRoutes.test.ts`: 30 tests **(NEW — Milestone 9)** — POST save (auth, 201, 400 invalid/missing, no internal fields), GET list (auth, empty, per-user isolation, summary shape, sort), GET :id (auth, owned, 404 non-owned/non-existent/malformed, no userId), PUT :id (auth, update owned, 404 non-owned, 400 invalid, ownership not changeable), DELETE :id (auth, owned+verify gone, 404 non-owned+original intact, 404 non-existent/malformed), edit survival cycle, multiple kits per user.
+- `apps/api/src/routes/tests/kitsRoutes.test.ts`: 40 tests — POST save (auth, 201, 400 invalid/missing, no internal fields), GET list (auth, empty, per-user isolation, summary shape, sort), GET :id (auth, owned, 404 non-owned/non-existent/malformed, no userId), PUT :id (auth, update owned, 404 non-owned, 400 invalid, ownership not changeable), DELETE :id (auth, owned+verify gone, 404 non-owned+original intact, 404 non-existent/malformed), edit survival cycle, multiple kits per user, question confidence tracking (5 tests), question reordering (5 tests).
 - `apps/web/src/tests/kitGenerator.test.ts`: 2 tests — frontend API client request formatting and error propagation.
 - `apps/web/src/tests/kitEditing.test.ts`: 9 tests — update/add/delete questions and flashcards, referential integrity, schedule cleanup, coverage recalculation.
 - `scripts/tests/evaluator.test.ts`: 2 tests — CLI batch evaluation, Appendix B envelope formatting, per-case failure isolation, error exit codes.
@@ -120,3 +120,11 @@ Automated auth and kit persistence tests use `mongodb-memory-server`; they do no
 | 2026-09-24 | M8+M9 final pre-commit | `npm run evaluate -- --input scratch/synthetic-benchmark-cases.json --output scratch/synthetic-benchmark-output.json` | Passed | 8 cases: 5 valid kits, 3 isolated invalid, 2586ms (Exit Code 0) |
 | 2026-09-24 | M8+M9 final pre-commit | `git diff --check` | Passed | Exit Code 0, stdout clean; LF→CRLF warnings on stderr are expected on Windows |
 | 2026-09-24 | M8+M9 commit | git commit | Passed | Commit 1 `1a0dfc7` (M8, 19 files); Commit 2 `8a94003` (M9, 22 files); working tree clean |
+| 2026-09-24 | M10.1 confidence | `npx vitest run` | Passed | 18 test files, **166/166 tests passing** (Exit Code 0) |
+| 2026-09-24 | M10.1 confidence | `npm run build` | Passed | All three workspaces compile cleanly (Exit Code 0) |
+| 2026-09-24 | M10.1 confidence | `npm run lint` | Passed | All workspaces lint cleanly (Exit Code 0) |
+| 2026-09-24 | M10.1 confidence | git commit | Passed | Commit `2bbd21e` (8 files) |
+| 2026-09-24 | M10.2 reorder | `npx vitest run` | Passed | 18 test files, **171/171 tests passing** (Exit Code 0) |
+| 2026-09-24 | M10.2 reorder | `npm run build` | Passed | All three workspaces compile cleanly (Exit Code 0) |
+| 2026-09-24 | M10.2 reorder | `npm run lint` | Passed | All workspaces lint cleanly (Exit Code 0) |
+| 2026-09-24 | M10.2 reorder | git commit | Passed | Commit `e5cd02c` (8 files) |

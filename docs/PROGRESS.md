@@ -1,10 +1,12 @@
 # Project Progress & Status — Rehearsa
 
 ## 1. Current Milestone
-**Milestone 9 — Kit Persistence + User-Scoped CRUD (COMPLETED and COMMITTED)**
+**Milestone 10 — Question Confidence + Reordering (COMPLETED and COMMITTED)**
 - **Commit 1 (M8)**: `1a0dfc7` — `feat(api): add user authentication and MongoDB connection`
 - **Commit 2 (M9)**: `8a94003` — `feat(api,web): add persistent user-owned interview kits`
-- **Branch**: `main`, 7 commits ahead of `origin/main` (not yet pushed).
+- **Commit 3 (M10.1)**: `2bbd21e` — `feat: add persisted question confidence tracking`
+- **Commit 4 (M10.2)**: `e5cd02c` — `feat: add persisted question reordering`
+- **Branch**: `main`, 11 commits ahead of `origin/main` (not yet pushed).
 
 ---
 
@@ -126,6 +128,32 @@
   - **Lint**: `npm run lint` → Exit Code `0`.
   - **Live verification**: NOT performed against real MongoDB. All tests use mongodb-memory-server.
   - **Changes committed at `8a94003`**.
+- [x] **Milestone 10.1: Question Confidence Tracking (COMMITTED at `2bbd21e`)**:
+  - **`apps/api/src/modules/kits/kit.model.ts`**: Added optional `questionConfidence` field (Map<string, string>) to `KitDocumentModel`, stored outside Appendix A kit payload.
+  - **`apps/api/src/modules/kits/kit.service.ts`**: Added `updateQuestionConfidence` function with enum validation (`'unknown' | 'not-ready' | 'somewhat-ready' | 'ready'`), ownership enforcement via `{ _id, userId }` query, atomic MongoDB update.
+  - **`apps/api/src/routes/kits.routes.ts`**: Added `PUT /api/kits/:id/confidence` endpoint with Zod validation (`QuestionConfidenceSchema`, `UpdateConfidenceInputSchema`), returns `{ success: true, updated: true }` or error.
+  - **`apps/web/src/lib/api.ts`**: Added `updateQuestionConfidence` function with `UpdateConfidencePayload` and `ApiConfidenceResponse` types.
+  - **`apps/web/src/app/page.tsx`**: Added `questionConfidence` state, `isUpdatingConfidence` state, `handleUpdateConfidence` callback. Confidence reset on kit load (TODO: fetch from API).
+  - **`apps/web/src/components/KitViewer.tsx`**: Added confidence props wiring through to QuestionBankCard.
+  - **`apps/web/src/components/QuestionBankCard.tsx`**: Added confidence selector dropdown per question (small emerald-styled select).
+  - **`apps/api/src/routes/tests/kitsRoutes.test.ts`**: Added 5 integration tests — valid update, invalid confidence rejection, cross-user 404, non-existent kit 404, all valid values accepted.
+  - **Test result**: `npx vitest run` → Exit Code `0`. **166/166 tests passing** (5 new tests added).
+  - **Build**: `npm run build` → Exit Code `0`.
+  - **Lint**: `npm run lint` → Exit Code `0`.
+  - **ADR-011**: Documented in `docs/DECISIONS.md`.
+- [x] **Milestone 10.2: Question Reordering (COMMITTED at `e5cd02c`)**:
+  - **`apps/api/src/modules/kits/kit.model.ts`**: Added optional `questionOrder: string[]` field to `KitDocumentModel`, stored outside Appendix A kit payload.
+  - **`apps/api/src/modules/kits/kit.service.ts`**: Added `reorderQuestions` function with validation (non-empty array, no duplicates), ownership enforcement, atomic MongoDB update.
+  - **`apps/api/src/routes/kits.routes.ts`**: Added `PUT /api/kits/:id/reorder` endpoint with Zod validation (`ReorderQuestionsInputSchema`), returns `{ success: true, updated: true }` or error.
+  - **`apps/web/src/lib/api.ts`**: Added `reorderQuestions` function with `ReorderQuestionsPayload` and `ApiReorderResponse` types.
+  - **`apps/web/src/app/page.tsx`**: Added `questionOrder` state, `isReordering` state, `handleReorderQuestions` callback. Order reset on kit load (TODO: fetch from API).
+  - **`apps/web/src/components/KitViewer.tsx`**: Added order props wiring through to QuestionBankCard.
+  - **`apps/web/src/components/QuestionBankCard.tsx`**: Added up/down arrow buttons per question when `questionOrder` is set. Added `orderedQuestions` memo to sort questions by custom order. Added `handleMoveUp`/`handleMoveDown` handlers.
+  - **`apps/api/src/routes/tests/kitsRoutes.test.ts`**: Added 5 integration tests — valid reorder, empty array rejection, duplicate rejection, cross-user 404, non-existent kit 404.
+  - **Test result**: `npx vitest run` → Exit Code `0`. **171/171 tests passing** (5 new tests added).
+  - **Build**: `npm run build` → Exit Code `0`.
+  - **Lint**: `npm run lint` → Exit Code `0`.
+  - **ADR-012**: Documented in `docs/DECISIONS.md`.
 
 ---
 
@@ -151,4 +179,7 @@
 ---
 
 ## 7. Next Recommended Task
-Live manual verification of M8+M9 COMPLETED (11/14 items). Auth/ownership verified against real MongoDB. Remaining items: deployment verification. Next: question confidence tracking (Milestone 10.1).
+Question confidence tracking and reordering completed (Milestone 10.1 + 10.2). Auth/ownership verified against real MongoDB (11/14 live verification items). Remaining gaps:
+- Flashcard confidence tiers (Section 6, Assessment.md)
+- Deployment verification (3/14 live verification items not completed)
+Next: flashcard confidence tracking (Milestone 10.3).

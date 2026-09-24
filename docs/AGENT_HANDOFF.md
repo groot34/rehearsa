@@ -8,18 +8,20 @@
 
 * **Project**: Rehearsa — Full-Stack AI-Powered Interview Preparation Platform
 * **Assessment ID**: `FS-AI-INTERVIEW-01` (Trao Assessment)
-* **Active Milestone**: `Milestone 9 — Kit Persistence + User-Scoped CRUD` (Completed and committed)
+* **Active Milestone**: `Milestone 10 — Question Confidence + Reordering` (Completed and committed)
 
 ---
 
 ## 2. Latest Known Repository State
 
 * **Branch**: `main`
-* **Latest Committed Baseline**: `e1b7516` (`docs: update project memory to reflect M8+M9 commit hashes`)
+* **Latest Committed Baseline**: `e5cd02c` (`feat: add persisted question reordering`)
 * **Previous Commits (this session)**:
   - `1a0dfc7` — `feat(api): add user authentication and MongoDB connection` (Milestone 8)
   - `8a94003` — `feat(api,web): add persistent user-owned interview kits` (Milestone 9)
-* **Working Tree**: Clean — nothing uncommitted. The branch is 7 commits ahead of `origin/main`; nothing has been pushed.
+  - `2bbd21e` — `feat: add persisted question confidence tracking` (Milestone 10.1)
+  - `e5cd02c` — `feat: add persisted question reordering` (Milestone 10.2)
+* **Working Tree**: Clean — nothing uncommitted. The branch is 11 commits ahead of `origin/main`; nothing has been pushed.
 * **Workspace Structure**:
   - `packages/shared`: Zod schemas, types, coverageChecker.ts, scheduleAllocator.ts, kitValidator.ts, full test suite.
   - `apps/api/src/modules/research/`: SSRF-safe fetcher, HTML cleaner, robots parser, multi-page crawler.
@@ -69,13 +71,15 @@ npm run evaluate -- --input scratch/synthetic-benchmark-cases.json --output scra
 
 ## 6. Exact Next Task / Milestone
 
-**Question Confidence Tracking (Milestone 10.1)**
+**Flashcard Confidence Tiers (Milestone 10.3)**
 
-M8+M9 live verification completed (11/14 items): auth/ownership verified against real MongoDB. Documentation updated. The next action is:
+Question confidence tracking and reordering are now complete. The next remaining assessment item from Section 6 (Flashcard Practice Mode) is:
 
-1. Implement question confidence tracking (persisted enum state per question, scoped to user's kit).
-2. Design must not break Appendix A schema.
+1. Implement flashcard confidence tiers (persisted enum state per card, scoped to user's kit).
+2. Design must not break Appendix A schema (similar pattern to question confidence).
 3. Must survive page refresh, kit reload, and be user-scoped.
 4. API validation must reject invalid confidence values.
 5. Tests must cover persistence and validation.
-6. Small UI to change confidence (no major redesign).
+6. Small UI to change confidence during practice (no major redesign).
+
+After flashcard confidence, the remaining gaps are deployment verification and live M8+M9 documentation (3/14 live verification items not completed).

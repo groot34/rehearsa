@@ -4,6 +4,41 @@ All notable changes to the Rehearsa project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.0.0-m10] - Milestone 10: Question Confidence + Reordering - 2026-09-24
+
+### Added
+- **Question Confidence Persistence (`apps/api/src/modules/kits/kit.model.ts`)**: Optional `questionConfidence` field (Map) to `KitDocumentModel`, stored outside Appendix A kit payload to preserve schema compliance.
+- **Confidence Service (`apps/api/src/modules/kits/kit.service.ts`)**: `updateQuestionConfidence` function with enum validation (`'unknown' | 'not-ready' | 'somewhat-ready' | 'ready'`), ownership enforcement via `{ _id, userId }` query, atomic MongoDB update.
+- **Confidence API Route (`apps/api/src/routes/kits.routes.ts`)**: `PUT /api/kits/:id/confidence` endpoint with Zod validation, returns `{ success: true, updated: true }` or error.
+- **Confidence Frontend API (`apps/web/src/lib/api.ts`)**: `updateQuestionConfidence` function with typed payload/response.
+- **Confidence UI (`apps/web/src/components/QuestionBankCard.tsx`)**: Small emerald-styled dropdown selector per question for confidence levels.
+- **Confidence State (`apps/web/src/app/page.tsx`)**: `questionConfidence` state tracking, `handleUpdateConfidence` callback. Reset on kit load (TODO: fetch from API).
+- **Question Reordering Persistence (`apps/api/src/modules/kits/kit.model.ts`)**: Optional `questionOrder: string[]` field to `KitDocumentModel`, stored outside Appendix A kit payload.
+- **Reorder Service (`apps/api/src/modules/kits/kit.service.ts`)**: `reorderQuestions` function with validation (non-empty array, no duplicates), ownership enforcement, atomic MongoDB update.
+- **Reorder API Route (`apps/api/src/routes/kits.routes.ts`)**: `PUT /api/kits/:id/reorder` endpoint with Zod validation, returns `{ success: true, updated: true }` or error.
+- **Reorder Frontend API (`apps/web/src/lib/api.ts`)**: `reorderQuestions` function with typed payload/response.
+- **Reorder UI (`apps/web/src/components/QuestionBankCard.tsx`)**: Up/down arrow buttons per question when `questionOrder` is set. `orderedQuestions` memo sorts by custom order.
+- **Reorder State (`apps/web/src/app/page.tsx`)**: `questionOrder` state tracking, `handleReorderQuestions` callback. Reset on kit load (TODO: fetch from API).
+- **Confidence Tests (`apps/api/src/routes/tests/kitsRoutes.test.ts`)**: 5 integration tests — valid update, invalid rejection, cross-user 404, non-existent kit 404, all valid values.
+- **Reorder Tests (`apps/api/src/routes/tests/kitsRoutes.test.ts`)**: 5 integration tests — valid reorder, empty array rejection, duplicate rejection, cross-user 404, non-existent kit 404.
+
+### Architecture decisions
+- **ADR-011**: Confidence stored outside Appendix A via optional `questionConfidence` field. Preserves schema compliance. Dedicated endpoint for atomic updates.
+- **ADR-012**: Order stored outside Appendix A via optional `questionOrder: string[]` field. Simple ID array representation. Up/down UI avoids drag-and-drop dependency.
+
+### Verification
+- `npx vitest run`: Exit Code `0`. **171/171 tests passing** (10 new tests added for confidence + reordering).
+- `npm run build`: Exit Code `0`. All three workspaces compile cleanly.
+- `npm run lint`: Exit Code `0` (with pre-existing TS deprecation warning on moduleResolution).
+- Changes committed at `2bbd21e` (confidence) and `e5cd02c` (reorder).
+
+### Known limitations
+- Confidence and order are not returned in `GET /api/kits/:id` response. Frontend tracks in session state; full implementation would fetch on kit load.
+- If a question is deleted, its ID remains in `questionOrder` array (cleanup needed on regeneration or explicit reordering).
+- Frontend falls back to default array order when `questionOrder` is empty/undefined.
+
+---
+
 ## [1.0.0-m9] - Milestone 9: Kit Persistence + User-Scoped CRUD - 2026-09-23
 
 ### Added

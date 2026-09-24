@@ -84,7 +84,7 @@
 | Requirement | Scope | Status | Notes |
 |---|---|---|---|
 | View company brief, role breakdown, questions, flashcards, schedule | Mandatory | Verified | `KitViewer.tsx`, `CompanyBriefCard.tsx`, `RoleBreakdownCard.tsx`, `QuestionBankCard.tsx`, `FlashcardDeck.tsx`, `StudyScheduleTimeline.tsx` |
-| Edit, reorder, add, and delete kit content (questions, cards, schedule) | Mandatory | Partially implemented | **Edit/add/delete**: Verified — `kitEditing.ts`, 9 unit tests. **Reorder (drag-and-drop)**: Not implemented. |
+| Edit, reorder, add, and delete kit content (questions, cards, schedule) | Mandatory | Verified | **Edit/add/delete**: Verified — `kitEditing.ts`, 9 unit tests. **Reorder**: Verified — `questionOrder` field in KitDocument, `PUT /api/kits/:id/reorder` endpoint, up/down UI buttons, 5 integration tests. |
 | Regenerate single section without destroying edits elsewhere | Mandatory | Verified (automated tests) | `POST /api/interview-prep/regenerate-section`. 18 unit + 8 route tests with MockProvider. Live Gemini not yet re-verified post-M7B. |
 | Preserve manually edited questions when regenerating their category | Mandatory | Verified (automated tests) | Two-part preservation predicate (q_custom_*/f_custom_* prefix + explicit `preserved_ids`). Tested. |
 | Real-time progress updates & meaningful failure states during generation | Mandatory | Verified | `GenerationProgressTracker.tsx` & error banner in `KitGeneratorForm.tsx` |

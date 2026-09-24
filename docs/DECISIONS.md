@@ -18,6 +18,8 @@ This document records the architectural and engineering decisions made for the R
 | [ADR-008](#adr-008-section-regeneration-api-contract) | Section Regeneration API Contract | Accepted | 2026-09-23 |
 | [ADR-009](#adr-009-authentication-and-database-architecture) | Authentication and Database Architecture | Accepted | 2026-09-23 |
 | [ADR-010](#adr-010-kit-persistence-ownership-and-generation-auth-strategy) | Kit Persistence, Ownership, and Generation Auth Strategy | Accepted | 2026-09-23 |
+| [ADR-011](#adr-011-question-confidence-tracking-persistence) | Question Confidence Tracking Persistence | Accepted | 2026-09-24 |
+| [ADR-012](#adr-012-question-reordering-persistence) | Question Reordering Persistence | Accepted | 2026-09-24 |
 
 ---
 
@@ -442,3 +444,51 @@ JWT is stored in `sessionStorage` rather than `localStorage` or a server-set `ht
 - A new tab opened from the page does not inherit the session (per-tab storage).
 
 This is an accepted trade-off for a client-rendered SPA without a BFF. An `httpOnly` cookie approach would be preferred in a production hardening pass. Documented in `apps/web/src/lib/auth.tsx`.
+
+---
+
+### ADR-011: Question Confidence Tracking Persistence
+
+* **Status**: Accepted
+* **Date**: 2026-09-24
+* **Context**:
+  Users need to track their confidence/readiness for individual interview questions. This state must persist across page refreshes and kit reloads, remain scoped to the authenticated user's kit, and not break the Appendix A schema or existing kits without confidence data.
+* **Alternatives Considered**:
+  - Adding confidence field directly to `QuestionSchema` in Appendix A.
+  - Storing confidence in a separate collection with foreign keys.
+  - Frontend-only localStorage (not user-scoped, not shared across devices).
+* **Decision**:
+  Add an optional `questionConfidence` field to `KitDocumentModel` (outside the Appendix A `kit` payload). Use a small explicit enum: `'unknown' | 'not-ready' | 'somewhat-ready' | 'ready'`. Provide a dedicated authenticated API endpoint `PUT /api/kits/:id/confidence` for updates.
+* **Reasoning**:
+  - Storing outside Appendix A preserves schema compliance and batch evaluation compatibility.
+  - Optional field ensures existing kits without confidence remain valid.
+  - Dedicated endpoint enables targeted atomic updates without replacing the full kit.
+  - Ownership enforced at the service layer via `{ _id, userId }` query filter.
+* **Trade-offs**:
+  - Confidence is not returned in the current `GET /api/kits/:id` response (requires extending the response schema to include it).
+  - Frontend tracks confidence in React state during the session; a full implementation would fetch it on kit load.
+
+---
+
+### ADR-012: Question Reordering Persistence
+
+* **Status**: Accepted
+* **Date**: 2026-09-24
+* **Context**:
+  Users need to change the order of questions in their interview kits. The order must persist across reloads, remain user-scoped, and not break Appendix A or existing kits without explicit order.
+* **Alternatives Considered**:
+  - Modifying the order of the `questions` array in Appendix A (breaks schema invariants).
+  - Adding an `order` field to each question object (pollutes schema).
+  - Using drag-and-drop libraries (adds dependency weight).
+* **Decision**:
+  Add an optional `questionOrder: string[]` field to `KitDocumentModel` (outside the Appendix A `kit` payload). Store an ordered array of question IDs. Provide a dedicated authenticated API endpoint `PUT /api/kits/:id/reorder` that validates the order (non-empty, no duplicates) and persists it atomically. Frontend provides simple up/down buttons per question.
+* **Reasoning**:
+  - Storing order outside Appendix A preserves schema compliance.
+  - Array of IDs is a simple, deterministic representation.
+  - Dedicated endpoint validates integrity before persistence.
+  - Simple up/down UI avoids drag-and-drop library dependency.
+  - Ownership enforced at the service layer.
+* **Trade-offs**:
+  - Order is not currently returned in `GET /api/kits/:id` (frontend tracks it in session state).
+  - If a question is deleted from the kit, its ID remains in the order array (a cleanup step would be needed on regeneration or explicit reordering).
+  - Frontend falls back to default array order when `questionOrder` is empty or undefined.
