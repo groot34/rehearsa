@@ -1,0 +1,42 @@
+services:
+  - type: web
+    name: rehearsa-api
+    env: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: node apps/api/dist/server.js
+    healthCheckPath: /api/health
+    autoDeploy: false
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: CORS_ORIGIN
+        sync: false
+      - key: LLM_PROVIDER
+        value: gemini
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-1.5-flash
+      - key: ALLOW_LOOPBACK_IN_DEV
+        value: false
+      - key: CRAWL_MAX_PAGES_PER_SITE
+        value: 5
+      - key: CRAWL_TIMEOUT_MS
+        value: 10000
+      - key: CRAWL_MAX_BODY_SIZE_BYTES
+        value: 2097152
+      - key: INTERVIEW_SEARCH_PROVIDER
+        value: mock
+      - key: GOOGLE_SEARCH_API_KEY
+        sync: false
+      - key: GOOGLE_SEARCH_CX
+        sync: false

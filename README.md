@@ -84,6 +84,83 @@ npm run evaluate -- --input cases.json --output kits.json
 
 ---
 
+## Production Deployment
+
+### Deployment Architecture
+
+Rehearsa is designed for deployment across separate platforms:
+
+- **Frontend**: Vercel (Next.js)
+- **Backend**: Render (Express API)
+- **Database**: MongoDB Atlas
+
+### Deployment Files
+
+- `vercel.json`: Vercel configuration for Next.js frontend
+- `render.yaml`: Render configuration for Express API backend
+
+### Environment Variables
+
+#### Vercel (Frontend)
+```bash
+API_URL=<Render API URL, e.g., https://rehearsa-api.onrender.com>
+```
+
+#### Render (Backend)
+```bash
+NODE_ENV=production
+PORT=10000
+MONGODB_URI=<MongoDB Atlas connection string>
+JWT_SECRET=<cryptographically random string, minimum 32 characters>
+JWT_EXPIRES_IN=7d
+CORS_ORIGIN=<Vercel frontend URL, e.g., https://rehearsa.vercel.app>
+LLM_PROVIDER=gemini
+GEMINI_API_KEY=<Gemini API key>
+GEMINI_MODEL=gemini-1.5-flash
+ALLOW_LOOPBACK_IN_DEV=false
+INTERVIEW_SEARCH_PROVIDER=mock
+GOOGLE_SEARCH_API_KEY=<optional Google Search API key>
+GOOGLE_SEARCH_CX=<optional Custom Search Engine ID>
+```
+
+#### MongoDB Atlas
+- Create free M0 cluster
+- Create database user with read/write permissions
+- Network access: Allow access from Render (0.0.0.0/0 or specific Render IP ranges)
+- Copy connection string (contains user/password)
+
+### Deployment Steps
+
+1. **MongoDB Atlas Setup**
+   - Create free M0 cluster
+   - Create database user
+   - Configure network access
+   - Copy connection string
+
+2. **Render Deployment**
+   - Connect GitHub repository
+   - Use `render.yaml` configuration
+   - Set environment variables (all except `NODE_ENV`, `PORT`, `LLLM_PROVIDER`, `ALLOW_LOOPBACK_IN_DEV`, `INTERVIEW_SEARCH_PROVIDER`)
+   - Deploy
+   - Copy Render API URL
+
+3. **Vercel Deployment**
+   - Connect GitHub repository
+   - Use `vercel.json` configuration
+   - Set `API_URL` to Render API URL
+   - Deploy
+
+4. **CORS Configuration**
+   - Set `CORS_ORIGIN` on Render to Vercel domain
+   - This allows frontend to call backend API
+
+### Health Check
+
+- Render health endpoint: `https://rehearsa-api.onrender.com/api/health`
+- Should return: `{ status: "ok", service: "rehearsa-api", timestamp: "...", uptimeSeconds: ... }`
+
+---
+
 ## Documentation Index
 
 - [`AGENTS.md`](file:///d:/Assignemt/Rehearsa/AGENTS.md): Mandatory operating rules for AI coding agents.
