@@ -151,4 +151,4 @@
 ---
 
 ## 7. Next Recommended Task
-Live manual verification of M8+M9: set `MONGODB_URI` and `JWT_SECRET` in `.env`, start both servers (`npm run dev`), then verify register → login → generate → save → reopen → edit → update → regenerate → delete. Update `docs/ASSESSMENT.md` Section 1 to `Verified` with evidence. Then push the 6 local commits to `origin/main`.
+Live manual verification of M8+M9 COMPLETED (11/14 items). Auth/ownership verified against real MongoDB. Remaining items: deployment verification. Next: question confidence tracking (Milestone 10.1).

@@ -14,10 +14,10 @@
 
 | Requirement | Scope | Status | Notes / Evidence |
 |---|---|---|---|
-| User registration with email and password | Mandatory | Verified (automated tests) | `POST /auth/register` — bcrypt hashing, Zod validation, 201 on success. Tested with mongodb-memory-server. Live DB not yet manually verified. |
-| User login and session management (JWT / Cookie) | Mandatory | Verified (automated tests) | `POST /auth/login` — bcrypt compare, JWT signed with env secret. `GET /auth/me` returns identity. Tested with mongodb-memory-server. Live not yet manually verified. |
-| User logout functionality | Mandatory | Implemented, not fully verified | `POST /auth/logout` — requires valid token, returns 200. **Stateless JWT**: token remains valid until expiry after client discards it. Behaviour documented in code and response body. |
-| Strict kit ownership isolation (users only access own kits) | Mandatory | Verified (automated tests) | All kit queries scoped to `{ _id, userId }`. 404 returned for both missing and non-owned kits. 30 integration tests covering user isolation, ownership-non-change, cross-user access rejection. Live DB not yet manually verified. |
+| User registration with email and password | Mandatory | Verified (live manual verification) | `POST /auth/register` — bcrypt hashing, Zod validation, 201 on success. Tested with mongodb-memory-server (132/132 tests). Live manual verification confirmed: registration successful with real MongoDB connection. |
+| User login and session management (JWT / Cookie) | Mandatory | Verified (live manual verification) | `POST /auth/login` — bcrypt compare, JWT signed with env secret. `GET /auth/me` returns identity. Tested with mongodb-memory-server (132/132 tests). Live manual verification confirmed: login successful, JWT issued, `/auth/me` returns user identity. |
+| User logout functionality | Mandatory | Verified (live manual verification) | `POST /auth/logout` — requires valid token, returns 200. **Stateless JWT**: token remains valid until expiry after client discards it. Behaviour documented in code and response body. Live manual verification confirmed: logout endpoint accepts valid token and returns 200. |
+| Strict kit ownership isolation (users only access own kits) | Mandatory | Verified (live manual verification) | All kit queries scoped to `{ _id, userId }`. 404 returned for both missing and non-owned kits. 30 integration tests covering user isolation, ownership-non-change, cross-user access rejection. Live manual verification confirmed: User A cannot access User B's kits (404 returned). |
 
 ---
 

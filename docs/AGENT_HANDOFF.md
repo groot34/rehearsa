@@ -69,12 +69,13 @@ npm run evaluate -- --input scratch/synthetic-benchmark-cases.json --output scra
 
 ## 6. Exact Next Task / Milestone
 
-**Live manual verification + ASSESSMENT.md update (Milestone 10 prep)**
+**Question Confidence Tracking (Milestone 10.1)**
 
-Milestones 8 and 9 are committed (`1a0dfc7`, `8a94003`). The next actions are:
+M8+M9 live verification completed (11/14 items): auth/ownership verified against real MongoDB. Documentation updated. The next action is:
 
-1. Set `MONGODB_URI` and `JWT_SECRET` in `.env`, then start both servers (`npm run dev`).
-2. Manually verify the full authenticated flow: register → login → generate a kit → save it → refresh the page → reopen the kit → edit a question → update the saved kit → regenerate a section → delete the kit.
-3. Update `docs/ASSESSMENT.md` Section 1 (Auth) entries to `Verified` with live evidence.
-4. Push the 6 unpushed commits to `origin/main` once live verification is confirmed.
-5. Consider Milestone 10: flashcard confidence tiers (easy/medium/hard), drag-to-reorder questions, and final project audit.
+1. Implement question confidence tracking (persisted enum state per question, scoped to user's kit).
+2. Design must not break Appendix A schema.
+3. Must survive page refresh, kit reload, and be user-scoped.
+4. API validation must reject invalid confidence values.
+5. Tests must cover persistence and validation.
+6. Small UI to change confidence (no major redesign).
