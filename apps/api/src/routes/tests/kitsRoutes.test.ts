@@ -530,3 +530,73 @@ describe('Multiple kits per user', () => {
     expect(roles).toContain('DevOps Lead');
   });
 });
+
+// ---------------------------------------------------------------------------
+// Question confidence tracking
+// ---------------------------------------------------------------------------
+
+describe('Question confidence tracking', () => {
+  it('updates confidence for a question in an owned kit', async () => {
+    const { body: saved } = await saveKit(tokenA);
+
+    const res = await fetch(`${baseUrl}/api/kits/${saved.id}/confidence`, {
+      method: 'PUT',
+      headers: authHeaders(tokenA),
+      body: JSON.stringify({ questionId: 'q1', confidence: 'ready' }),
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as any;
+    expect(body.success).toBe(true);
+    expect(body.updated).toBe(true);
+  });
+
+  it('rejects invalid confidence values', async () => {
+    const { body: saved } = await saveKit(tokenA);
+
+    const res = await fetch(`${baseUrl}/api/kits/${saved.id}/confidence`, {
+      method: 'PUT',
+      headers: authHeaders(tokenA),
+      body: JSON.stringify({ questionId: 'q1', confidence: 'invalid-value' }),
+    });
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as any;
+    expect(body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  it('returns 404 when updating confidence for another users kit', async () => {
+    const { body: saved } = await saveKit(tokenA);
+
+    const res = await fetch(`${baseUrl}/api/kits/${saved.id}/confidence`, {
+      method: 'PUT',
+      headers: authHeaders(tokenB),
+      body: JSON.stringify({ questionId: 'q1', confidence: 'ready' }),
+    });
+    expect(res.status).toBe(404);
+    const body = (await res.json()) as any;
+    expect(body.error.code).toBe('NOT_FOUND');
+  });
+
+  it('returns 404 for non-existent kit when updating confidence', async () => {
+    const fakeId = new Types.ObjectId().toHexString();
+    const res = await fetch(`${baseUrl}/api/kits/${fakeId}/confidence`, {
+      method: 'PUT',
+      headers: authHeaders(tokenA),
+      body: JSON.stringify({ questionId: 'q1', confidence: 'ready' }),
+    });
+    expect(res.status).toBe(404);
+  });
+
+  it('accepts all valid confidence values', async () => {
+    const { body: saved } = await saveKit(tokenA);
+    const validConfidences = ['unknown', 'not-ready', 'somewhat-ready', 'ready'] as const;
+
+    for (const confidence of validConfidences) {
+      const res = await fetch(`${baseUrl}/api/kits/${saved.id}/confidence`, {
+        method: 'PUT',
+        headers: authHeaders(tokenA),
+        body: JSON.stringify({ questionId: 'q1', confidence }),
+      });
+      expect(res.status).toBe(200);
+    }
+  });
+});

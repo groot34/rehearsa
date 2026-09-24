@@ -20,6 +20,11 @@ export interface KitServiceFailure {
 
 export type KitServiceResult<T> = KitServiceSuccess<T> | KitServiceFailure;
 
+// Confidence level enum
+export type QuestionConfidence = 'unknown' | 'not-ready' | 'somewhat-ready' | 'ready';
+
+export const QuestionConfidenceEnum = ['unknown', 'not-ready', 'somewhat-ready', 'ready'] as const;
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -250,4 +255,61 @@ export async function deleteKit(
   }
 
   return { success: true, data: { deleted: true } };
+}
+
+// ---------------------------------------------------------------------------
+// Update question confidence (ownership enforced)
+// ---------------------------------------------------------------------------
+
+/**
+ * Updates the confidence level for a specific question within a kit.
+ * Confidence is stored outside the Appendix A kit payload to preserve schema compliance.
+ * Only the owning user can update confidence for their own kit's questions.
+ */
+export async function updateQuestionConfidence(
+  userId: string,
+  kitId: string,
+  questionId: string,
+  confidence: QuestionConfidence
+): Promise<KitServiceResult<{ updated: true }>> {
+  if (!isValidObjectId(kitId)) {
+    return {
+      success: false,
+      code: 'NOT_FOUND',
+      message: 'Kit not found.',
+      statusCode: 404,
+    };
+  }
+
+  // Validate confidence value
+  if (!QuestionConfidenceEnum.includes(confidence)) {
+    return {
+      success: false,
+      code: 'INVALID_CONFIDENCE',
+      message: 'Invalid confidence value. Must be one of: unknown, not-ready, somewhat-ready, ready.',
+      statusCode: 400,
+    };
+  }
+
+  // Verify ownership and update confidence using atomic operation
+  const result = await KitDocumentModel.updateOne(
+    {
+      _id: new Types.ObjectId(kitId),
+      userId: new Types.ObjectId(userId),
+    },
+    {
+      $set: { [`questionConfidence.${questionId}`]: confidence },
+    }
+  );
+
+  if (result.matchedCount === 0) {
+    return {
+      success: false,
+      code: 'NOT_FOUND',
+      message: 'Kit not found.',
+      statusCode: 404,
+    };
+  }
+
+  return { success: true, data: { updated: true } };
 }

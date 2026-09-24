@@ -1,9 +1,17 @@
 import { Router, Request, Response, NextFunction } from 'express';
+import { z } from 'zod';
 import { SaveKitInputSchema, UpdateKitInputSchema } from '@rehearsa/shared';
 import { requireAuth } from '../modules/auth/auth.middleware';
-import { saveKit, listKits, getKitById, updateKit, deleteKit } from '../modules/kits/kit.service';
+import { saveKit, listKits, getKitById, updateKit, deleteKit, updateQuestionConfidence } from '../modules/kits/kit.service';
 
 const router = Router();
+
+// Confidence validation schema
+const QuestionConfidenceSchema = z.enum(['unknown', 'not-ready', 'somewhat-ready', 'ready']);
+const UpdateConfidenceInputSchema = z.object({
+  questionId: z.string().min(1, 'Question ID cannot be empty'),
+  confidence: QuestionConfidenceSchema,
+});
 
 // All kit routes require valid authentication.
 // req.user.sub is the authenticated user's MongoDB _id (string).
@@ -129,6 +137,42 @@ router.delete('/:id', asyncHandler(async (req: Request, res: Response) => {
     return;
   }
   res.status(200).json({ success: true, deleted: true });
+}));
+
+// ---------------------------------------------------------------------------
+// PUT /api/kits/:id/confidence  — update confidence for a specific question
+// ---------------------------------------------------------------------------
+
+/**
+ * Updates the confidence level for a specific question within an owned kit.
+ * Confidence is stored outside the Appendix A kit payload to preserve schema compliance.
+ */
+router.put('/:id/confidence', asyncHandler(async (req: Request, res: Response) => {
+  const parseResult = UpdateConfidenceInputSchema.safeParse(req.body);
+  if (!parseResult.success) {
+    const details = parseResult.error.issues.map((i) => ({
+      field: i.path.join('.'),
+      message: i.message,
+    }));
+    res.status(400).json({
+      error: { code: 'VALIDATION_ERROR', message: 'Invalid confidence update payload.', details },
+    });
+    return;
+  }
+
+  const result = await updateQuestionConfidence(
+    req.user!.sub,
+    req.params.id,
+    parseResult.data.questionId,
+    parseResult.data.confidence
+  );
+  if (!result.success) {
+    res.status(result.statusCode).json({
+      error: { code: result.code, message: result.message },
+    });
+    return;
+  }
+  res.status(200).json({ success: true, updated: true });
 }));
 
 export const kitsRoutes = router;

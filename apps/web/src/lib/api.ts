@@ -216,3 +216,38 @@ export async function deleteKitFromServer(
     return { success: false, error: { code: 'NETWORK_ERROR', message: err.message } };
   }
 }
+
+// ---------------------------------------------------------------------------
+// Question confidence tracking
+// ---------------------------------------------------------------------------
+
+export type QuestionConfidence = 'unknown' | 'not-ready' | 'somewhat-ready' | 'ready';
+
+export interface UpdateConfidencePayload {
+  questionId: string;
+  confidence: QuestionConfidence;
+}
+
+export interface ApiConfidenceResponse {
+  success: boolean;
+  error?: { code: string; message: string };
+}
+
+export async function updateQuestionConfidence(
+  kitId: string,
+  payload: UpdateConfidencePayload,
+  token: string
+): Promise<ApiConfidenceResponse> {
+  try {
+    const res = await fetch(`/api/kits/${kitId}/confidence`, {
+      method: 'PUT',
+      headers: authHeaders(token),
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) return { success: false, error: data.error };
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: { code: 'NETWORK_ERROR', message: err.message } };
+  }
+}

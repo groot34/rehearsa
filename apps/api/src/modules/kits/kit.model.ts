@@ -10,6 +10,8 @@ export interface IKitDocument extends Document {
   userId: Types.ObjectId;
   /** The complete Appendix A kit payload, stored verbatim. */
   kit: Kit;
+  /** Question confidence tracking (optional). Maps question ID to confidence level. Stored outside kit payload to preserve Appendix A compliance. */
+  questionConfidence?: Record<string, 'unknown' | 'not-ready' | 'somewhat-ready' | 'ready'>;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -35,6 +37,15 @@ const KitDocumentSchema = new Schema<IKitDocument>(
     kit: {
       type: Schema.Types.Mixed,
       required: true,
+    },
+    /**
+     * Question confidence tracking (optional).
+     * Maps question ID to confidence level. Stored outside kit payload to preserve Appendix A compliance.
+     */
+    questionConfidence: {
+      type: Map,
+      of: String,
+      default: undefined,
     },
   },
   {

@@ -8,6 +8,7 @@ import {
   saveKitToServer,
   fetchKitById,
   updateKitOnServer,
+  updateQuestionConfidence,
   GenerateKitPayload,
 } from '../lib/api';
 import { useAuth } from '../lib/auth';
@@ -63,6 +64,10 @@ export default function HomePage() {
   const [editedItemIds, setEditedItemIds] = useState<Set<string>>(new Set());
   const kitRevisionRef = useRef(0);
 
+  // Question confidence tracking
+  const [questionConfidence, setQuestionConfidence] = useState<Record<string, 'unknown' | 'not-ready' | 'somewhat-ready' | 'ready'>>({});
+  const [isUpdatingConfidence, setIsUpdatingConfidence] = useState(false);
+
   const handleItemEdited = useCallback((itemId: string) => {
     setEditedItemIds((prev) => {
       if (itemId.startsWith('q_custom_') || itemId.startsWith('f_custom_')) return prev;
@@ -84,6 +89,16 @@ export default function HomePage() {
     });
     setSaveSuccess(false);
   }, []);
+
+  const handleUpdateConfidence = useCallback(async (questionId: string, confidence: 'unknown' | 'not-ready' | 'somewhat-ready' | 'ready') => {
+    if (!savedKitId || !token) return;
+    setIsUpdatingConfidence(true);
+    const res = await updateQuestionConfidence(savedKitId, { questionId, confidence }, token);
+    setIsUpdatingConfidence(false);
+    if (res.success) {
+      setQuestionConfidence((prev) => ({ ...prev, [questionId]: confidence }));
+    }
+  }, [savedKitId, token]);
 
   // ---------------------------------------------------------------------------
   // Generation
@@ -214,6 +229,7 @@ export default function HomePage() {
       setSaveSuccess(true);
       setSaveError(null);
       setEditedItemIds(new Set());
+      setQuestionConfidence({}); // Reset confidence on load (TODO: fetch from API when endpoint returns it)
       regenRequestRef.current = 0;
       setView('kit-viewer');
     } else {
@@ -399,6 +415,9 @@ export default function HomePage() {
               onItemDeleted={handleItemDeleted}
               onRegenerateSection={handleRegenerateSection}
               onReset={handleReset}
+              questionConfidence={questionConfidence}
+              onUpdateConfidence={handleUpdateConfidence}
+              isUpdatingConfidence={isUpdatingConfidence}
             />
           </div>
         )}

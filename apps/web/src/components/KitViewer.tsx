@@ -44,6 +44,10 @@ interface Props {
     onDone: (error?: string) => void,
   ) => void;
   onReset: () => void;
+  /** Question confidence tracking */
+  questionConfidence?: Record<string, 'unknown' | 'not-ready' | 'somewhat-ready' | 'ready'>;
+  onUpdateConfidence?: (questionId: string, confidence: 'unknown' | 'not-ready' | 'somewhat-ready' | 'ready') => void;
+  isUpdatingConfidence?: boolean;
 }
 
 export const KitViewer: React.FC<Props> = ({
@@ -53,6 +57,9 @@ export const KitViewer: React.FC<Props> = ({
   onItemDeleted,
   onRegenerateSection,
   onReset,
+  questionConfidence = {},
+  onUpdateConfidence,
+  isUpdatingConfidence = false,
 }) => {
   const [activeTab, setActiveTab] = useState<
     'all' | 'brief' | 'role' | 'questions' | 'cards' | 'schedule'
@@ -287,6 +294,9 @@ export const KitViewer: React.FC<Props> = ({
               onUpdateQuestion={handleUpdateQuestion}
               onAddQuestion={handleAddQuestion}
               onDeleteQuestion={handleDeleteQuestion}
+              questionConfidence={questionConfidence}
+              onUpdateConfidence={onUpdateConfidence}
+              isUpdatingConfidence={isUpdatingConfidence}
             />
           </div>
         )}

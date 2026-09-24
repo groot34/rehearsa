@@ -12,6 +12,7 @@ import {
   Check,
   X,
   AlertCircle,
+  ChevronRight,
 } from 'lucide-react';
 
 interface Props {
@@ -20,6 +21,9 @@ interface Props {
   onUpdateQuestion?: (updated: Question) => void;
   onAddQuestion?: (question: Omit<Question, 'id'>) => void;
   onDeleteQuestion?: (questionId: string) => void;
+  questionConfidence?: Record<string, 'unknown' | 'not-ready' | 'somewhat-ready' | 'ready'>;
+  onUpdateConfidence?: (questionId: string, confidence: 'unknown' | 'not-ready' | 'somewhat-ready' | 'ready') => void;
+  isUpdatingConfidence?: boolean;
 }
 
 export const QuestionBankCard: React.FC<Props> = ({
@@ -28,6 +32,9 @@ export const QuestionBankCard: React.FC<Props> = ({
   onUpdateQuestion,
   onAddQuestion,
   onDeleteQuestion,
+  questionConfidence = {},
+  onUpdateConfidence,
+  isUpdatingConfidence = false,
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>({});
@@ -367,6 +374,23 @@ export const QuestionBankCard: React.FC<Props> = ({
                             </span>
                           ))}
                         </div>
+
+                        {/* Confidence Selector */}
+                        {onUpdateConfidence && (
+                          <div className="flex items-center gap-1">
+                            <select
+                              value={questionConfidence[q.id] || 'unknown'}
+                              onChange={(e) => onUpdateConfidence(q.id, e.target.value as any)}
+                              disabled={isUpdatingConfidence}
+                              className="text-[10px] font-medium bg-emerald-50 border border-emerald-200 text-emerald-700 px-2 py-0.5 rounded focus:outline-none focus:ring-1 focus:ring-emerald-500 disabled:opacity-50"
+                            >
+                              <option value="unknown">Unknown</option>
+                              <option value="not-ready">Not Ready</option>
+                              <option value="somewhat-ready">Somewhat Ready</option>
+                              <option value="ready">Ready</option>
+                            </select>
+                          </div>
+                        )}
                       </div>
 
                       <h4 className="text-sm font-semibold text-slate-900 leading-snug">{q.prompt}</h4>
