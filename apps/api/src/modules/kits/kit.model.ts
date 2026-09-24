@@ -14,6 +14,8 @@ export interface IKitDocument extends Document {
   questionConfidence?: Record<string, 'unknown' | 'not-ready' | 'somewhat-ready' | 'ready'>;
   /** Question order tracking (optional). Ordered array of question IDs. Stored outside kit payload to preserve Appendix A compliance. */
   questionOrder?: string[];
+  /** Flashcard confidence tracking (optional). Maps flashcard ID to confidence tier. Stored outside kit payload to preserve Appendix A compliance. */
+  flashcardConfidence?: Record<string, 'easy' | 'medium' | 'hard'>;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -55,6 +57,16 @@ const KitDocumentSchema = new Schema<IKitDocument>(
      */
     questionOrder: {
       type: [String],
+      default: undefined,
+    },
+    /**
+     * Flashcard confidence tracking (optional).
+     * Maps flashcard ID to confidence tier ('easy' | 'medium' | 'hard').
+     * Stored outside kit payload to preserve Appendix A compliance.
+     */
+    flashcardConfidence: {
+      type: Map,
+      of: String,
       default: undefined,
     },
   },

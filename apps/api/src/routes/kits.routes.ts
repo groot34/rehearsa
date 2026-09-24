@@ -2,7 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { SaveKitInputSchema, UpdateKitInputSchema } from '@rehearsa/shared';
 import { requireAuth } from '../modules/auth/auth.middleware';
-import { saveKit, listKits, getKitById, updateKit, deleteKit, updateQuestionConfidence, reorderQuestions } from '../modules/kits/kit.service';
+import { saveKit, listKits, getKitById, updateKit, deleteKit, updateQuestionConfidence, reorderQuestions, updateFlashcardConfidence } from '../modules/kits/kit.service';
 
 const router = Router();
 
@@ -16,6 +16,13 @@ const UpdateConfidenceInputSchema = z.object({
 // Reorder validation schema
 const ReorderQuestionsInputSchema = z.object({
   questionIds: z.array(z.string().min(1)).min(1, 'Question order must be a non-empty array'),
+});
+
+// Flashcard confidence validation schema
+const FlashcardConfidenceTierSchema = z.enum(['easy', 'medium', 'hard']);
+const UpdateFlashcardConfidenceInputSchema = z.object({
+  flashcardId: z.string().min(1, 'Flashcard ID cannot be empty'),
+  confidence: FlashcardConfidenceTierSchema,
 });
 
 // All kit routes require valid authentication.
@@ -205,6 +212,43 @@ router.put('/:id/reorder', asyncHandler(async (req: Request, res: Response) => {
     req.user!.sub,
     req.params.id,
     parseResult.data.questionIds
+  );
+  if (!result.success) {
+    res.status(result.statusCode).json({
+      error: { code: result.code, message: result.message },
+    });
+    return;
+  }
+  res.status(200).json({ success: true, updated: true });
+}));
+
+// ---------------------------------------------------------------------------
+// PUT /api/kits/:id/flashcard-confidence  — set confidence tier for a flashcard
+// ---------------------------------------------------------------------------
+
+/**
+ * Updates the confidence tier for a specific flashcard within an owned kit.
+ * Confidence is stored outside the Appendix A kit payload to preserve schema compliance.
+ * The owner is derived exclusively from the JWT — never from the request body.
+ */
+router.put('/:id/flashcard-confidence', asyncHandler(async (req: Request, res: Response) => {
+  const parseResult = UpdateFlashcardConfidenceInputSchema.safeParse(req.body);
+  if (!parseResult.success) {
+    const details = parseResult.error.issues.map((i) => ({
+      field: i.path.join('.'),
+      message: i.message,
+    }));
+    res.status(400).json({
+      error: { code: 'VALIDATION_ERROR', message: 'Invalid flashcard confidence payload.', details },
+    });
+    return;
+  }
+
+  const result = await updateFlashcardConfidence(
+    req.user!.sub,
+    req.params.id,
+    parseResult.data.flashcardId,
+    parseResult.data.confidence
   );
   if (!result.success) {
     res.status(result.statusCode).json({

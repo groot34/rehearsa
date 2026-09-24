@@ -25,6 +25,11 @@ export type QuestionConfidence = 'unknown' | 'not-ready' | 'somewhat-ready' | 'r
 
 export const QuestionConfidenceEnum = ['unknown', 'not-ready', 'somewhat-ready', 'ready'] as const;
 
+// Flashcard confidence tier enum
+export type FlashcardConfidence = 'easy' | 'medium' | 'hard';
+
+export const FlashcardConfidenceEnum = ['easy', 'medium', 'hard'] as const;
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -377,6 +382,85 @@ export async function reorderQuestions(
       statusCode: 404,
     };
   }
+
+  return { success: true, data: { updated: true } };
+}
+
+// ---------------------------------------------------------------------------
+// Update flashcard confidence (ownership enforced)
+// ---------------------------------------------------------------------------
+
+/**
+ * Updates the confidence tier for a specific flashcard within a kit.
+ * Confidence is stored outside the Appendix A kit payload to preserve schema compliance.
+ * Only the owning user can update confidence for their own kit's flashcards.
+ *
+ * @param userId  - JWT subject (authenticated user's MongoDB _id string)
+ * @param kitId   - The kit document _id
+ * @param flashcardId - The flashcard's id within the Appendix A payload
+ * @param confidence  - One of: 'easy' | 'medium' | 'hard'
+ */
+export async function updateFlashcardConfidence(
+  userId: string,
+  kitId: string,
+  flashcardId: string,
+  confidence: FlashcardConfidence
+): Promise<KitServiceResult<{ updated: true }>> {
+  if (!isValidObjectId(kitId)) {
+    return {
+      success: false,
+      code: 'NOT_FOUND',
+      message: 'Kit not found.',
+      statusCode: 404,
+    };
+  }
+
+  // Validate confidence value
+  if (!FlashcardConfidenceEnum.includes(confidence)) {
+    return {
+      success: false,
+      code: 'INVALID_CONFIDENCE',
+      message: 'Invalid confidence value. Must be one of: easy, medium, hard.',
+      statusCode: 400,
+    };
+  }
+
+  // Verify the kit exists and is owned by this user, then fetch to validate flashcardId
+  const doc = await KitDocumentModel.findOne({
+    _id: new Types.ObjectId(kitId),
+    userId: new Types.ObjectId(userId),
+  });
+
+  if (!doc) {
+    return {
+      success: false,
+      code: 'NOT_FOUND',
+      message: 'Kit not found.',
+      statusCode: 404,
+    };
+  }
+
+  // Validate that the flashcard ID exists in the kit payload
+  const flashcardExists = doc.kit.flashcards.some((f) => f.id === flashcardId);
+  if (!flashcardExists) {
+    return {
+      success: false,
+      code: 'NOT_FOUND',
+      message: 'Flashcard not found in this kit.',
+      statusCode: 404,
+    };
+  }
+
+  // Atomic update — ownership already confirmed above
+  await KitDocumentModel.updateOne(
+    {
+      _id: new Types.ObjectId(kitId),
+      userId: new Types.ObjectId(userId),
+    },
+    {
+      $set: { [`flashcardConfidence.${flashcardId}`]: confidence },
+    }
+  );
 
   return { success: true, data: { updated: true } };
 }

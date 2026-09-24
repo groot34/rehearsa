@@ -669,3 +669,131 @@ describe('Question reordering', () => {
     expect(res.status).toBe(404);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Flashcard confidence tracking (M10.3)
+// ---------------------------------------------------------------------------
+
+describe('Flashcard confidence tracking', () => {
+  it('returns 401 without a token', async () => {
+    const { body: saved } = await saveKit(tokenA);
+    const res = await fetch(`${baseUrl}/api/kits/${saved.id}/flashcard-confidence`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ flashcardId: 'f1', confidence: 'easy' }),
+    });
+    expect(res.status).toBe(401);
+  });
+
+  it('sets easy confidence for a flashcard in an owned kit', async () => {
+    const { body: saved } = await saveKit(tokenA);
+
+    const res = await fetch(`${baseUrl}/api/kits/${saved.id}/flashcard-confidence`, {
+      method: 'PUT',
+      headers: authHeaders(tokenA),
+      body: JSON.stringify({ flashcardId: 'f1', confidence: 'easy' }),
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as any;
+    expect(body.success).toBe(true);
+    expect(body.updated).toBe(true);
+  });
+
+  it('sets medium confidence for a flashcard in an owned kit', async () => {
+    const { body: saved } = await saveKit(tokenA);
+
+    const res = await fetch(`${baseUrl}/api/kits/${saved.id}/flashcard-confidence`, {
+      method: 'PUT',
+      headers: authHeaders(tokenA),
+      body: JSON.stringify({ flashcardId: 'f1', confidence: 'medium' }),
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as any;
+    expect(body.success).toBe(true);
+  });
+
+  it('sets hard confidence for a flashcard in an owned kit', async () => {
+    const { body: saved } = await saveKit(tokenA);
+
+    const res = await fetch(`${baseUrl}/api/kits/${saved.id}/flashcard-confidence`, {
+      method: 'PUT',
+      headers: authHeaders(tokenA),
+      body: JSON.stringify({ flashcardId: 'f1', confidence: 'hard' }),
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as any;
+    expect(body.success).toBe(true);
+  });
+
+  it('rejects invalid confidence values', async () => {
+    const { body: saved } = await saveKit(tokenA);
+
+    const res = await fetch(`${baseUrl}/api/kits/${saved.id}/flashcard-confidence`, {
+      method: 'PUT',
+      headers: authHeaders(tokenA),
+      body: JSON.stringify({ flashcardId: 'f1', confidence: 'unknown' }), // valid for questions, not for flashcards
+    });
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as any;
+    expect(body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  it('rejects unknown flashcard IDs', async () => {
+    const { body: saved } = await saveKit(tokenA);
+
+    const res = await fetch(`${baseUrl}/api/kits/${saved.id}/flashcard-confidence`, {
+      method: 'PUT',
+      headers: authHeaders(tokenA),
+      body: JSON.stringify({ flashcardId: 'f999', confidence: 'easy' }),
+    });
+    expect(res.status).toBe(404);
+    const body = (await res.json()) as any;
+    expect(body.error.code).toBe('NOT_FOUND');
+  });
+
+  it('returns 404 when updating another users kit flashcard confidence', async () => {
+    const { body: saved } = await saveKit(tokenA);
+
+    const res = await fetch(`${baseUrl}/api/kits/${saved.id}/flashcard-confidence`, {
+      method: 'PUT',
+      headers: authHeaders(tokenB),
+      body: JSON.stringify({ flashcardId: 'f1', confidence: 'easy' }),
+    });
+    expect(res.status).toBe(404);
+    const body = (await res.json()) as any;
+    expect(body.error.code).toBe('NOT_FOUND');
+  });
+
+  it('confidence survives after reload (GET kit after setting confidence)', async () => {
+    const { body: saved } = await saveKit(tokenA);
+
+    // Set confidence for f1
+    await fetch(`${baseUrl}/api/kits/${saved.id}/flashcard-confidence`, {
+      method: 'PUT',
+      headers: authHeaders(tokenA),
+      body: JSON.stringify({ flashcardId: 'f1', confidence: 'hard' }),
+    });
+
+    // Reload the kit document from the DB and verify confidence was stored
+    const { KitDocumentModel: KitModel } = await import('../../modules/kits/kit.model');
+    const doc = await KitModel.findById(saved.id);
+    expect(doc).not.toBeNull();
+    // Mongoose Map — access via .get()
+    const storedConfidence = (doc!.flashcardConfidence as any)?.get?.('f1') ?? (doc!.flashcardConfidence as any)?.['f1'];
+    expect(storedConfidence).toBe('hard');
+  });
+
+  it('existing kit without flashcard confidence still loads successfully', async () => {
+    const { body: saved } = await saveKit(tokenA);
+    // Do NOT set any flashcard confidence — simulate a pre-M10.3 kit
+
+    const res = await fetch(`${baseUrl}/api/kits/${saved.id}`, {
+      headers: authHeaders(tokenA),
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as any;
+    expect(body.success).toBe(true);
+    expect(body.kit.flashcards).toBeDefined();
+    expect(body.kit.flashcards[0].id).toBe('f1');
+  });
+});

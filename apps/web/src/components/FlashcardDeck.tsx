@@ -5,14 +5,23 @@ import {
   RotateCw,
   ChevronLeft,
   ChevronRight,
-  CheckCircle2,
   Pencil,
   Trash2,
   Plus,
   Check,
   X,
   AlertCircle,
+  Loader2,
 } from 'lucide-react';
+
+// Confidence tier configuration
+const CONFIDENCE_TIERS = [
+  { value: 'easy',   label: 'Easy',   short: 'E', className: 'bg-emerald-500/20 border-emerald-400 text-emerald-300', dotClass: 'bg-emerald-400' },
+  { value: 'medium', label: 'Medium', short: 'M', className: 'bg-amber-500/20 border-amber-400 text-amber-300',     dotClass: 'bg-amber-400' },
+  { value: 'hard',   label: 'Hard',   short: 'H', className: 'bg-rose-500/20 border-rose-400 text-rose-300',        dotClass: 'bg-rose-400' },
+] as const;
+
+type FlashcardConfidenceTier = 'easy' | 'medium' | 'hard';
 
 interface Props {
   flashcards: Flashcard[];
@@ -20,6 +29,11 @@ interface Props {
   onUpdateFlashcard?: (updated: Flashcard) => void;
   onAddFlashcard?: (card: Omit<Flashcard, 'id'>) => void;
   onDeleteFlashcard?: (cardId: string) => void;
+  /** Persisted confidence map from the server (card id → tier). */
+  flashcardConfidence?: Record<string, FlashcardConfidenceTier>;
+  /** Called when the user selects a confidence tier for a card. */
+  onUpdateFlashcardConfidence?: (flashcardId: string, confidence: FlashcardConfidenceTier) => void;
+  isUpdatingFlashcardConfidence?: boolean;
 }
 
 export const FlashcardDeck: React.FC<Props> = ({
@@ -28,10 +42,12 @@ export const FlashcardDeck: React.FC<Props> = ({
   onUpdateFlashcard,
   onAddFlashcard,
   onDeleteFlashcard,
+  flashcardConfidence = {},
+  onUpdateFlashcardConfidence,
+  isUpdatingFlashcardConfidence = false,
 }) => {
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [isFlipped, setIsFlipped] = useState<boolean>(false);
-  const [masteredIds, setMasteredIds] = useState<Record<string, boolean>>({});
 
   // Editing state for current card
   const [isEditing, setIsEditing] = useState<boolean>(false);
@@ -56,7 +72,9 @@ export const FlashcardDeck: React.FC<Props> = ({
   }, [flashcards.length, currentIndex]);
 
   const currentCard = flashcards[currentIndex] ?? flashcards[0];
-  const isMastered = currentCard ? !!masteredIds[currentCard.id] : false;
+  const currentConfidence: FlashcardConfidenceTier | undefined = currentCard
+    ? flashcardConfidence[currentCard.id]
+    : undefined;
 
   const handleNext = useCallback(() => {
     if (isEditing) return;
@@ -69,15 +87,6 @@ export const FlashcardDeck: React.FC<Props> = ({
     setIsFlipped(false);
     setCurrentIndex((prev) => (prev - 1 + flashcards.length) % flashcards.length);
   }, [flashcards.length, isEditing]);
-
-  const toggleMastered = useCallback(
-    (e?: React.MouseEvent) => {
-      if (e) e.stopPropagation();
-      if (!currentCard) return;
-      setMasteredIds((prev) => ({ ...prev, [currentCard.id]: !prev[currentCard.id] }));
-    },
-    [currentCard]
-  );
 
   const startEditing = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -180,15 +189,12 @@ export const FlashcardDeck: React.FC<Props> = ({
       } else if (e.code === 'ArrowLeft') {
         e.preventDefault();
         handlePrev();
-      } else if (e.code === 'KeyM') {
-        e.preventDefault();
-        toggleMastered();
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleNext, handlePrev, toggleMastered, isEditing, isAdding]);
+  }, [handleNext, handlePrev, isEditing, isAdding]);
 
   if (!flashcards || flashcards.length === 0 || !currentCard) {
     return (
@@ -216,7 +222,7 @@ export const FlashcardDeck: React.FC<Props> = ({
           <div>
             <h3 className="text-lg font-bold text-slate-900">Interactive Flashcard Practice</h3>
             <p className="text-xs text-slate-500">
-              Card {currentIndex + 1} of {flashcards.length} • Use Arrow Keys to navigate, Space/Enter to flip, 'M' to mark mastered
+              Card {currentIndex + 1} of {flashcards.length} • Use Arrow Keys to navigate, Space/Enter to flip
             </p>
           </div>
         </div>
@@ -237,9 +243,19 @@ export const FlashcardDeck: React.FC<Props> = ({
             </button>
           )}
 
-          <span className="text-xs font-semibold text-slate-600 bg-slate-100 px-3 py-1 rounded-full">
-            {Object.keys(masteredIds).filter((k) => masteredIds[k]).length}/{flashcards.length} Mastered
-          </span>
+          {/* Confidence distribution summary */}
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 bg-slate-100 px-3 py-1 rounded-full">
+            {CONFIDENCE_TIERS.map((tier) => {
+              const count = flashcards.filter((f) => flashcardConfidence[f.id] === tier.value).length;
+              return (
+                <span key={tier.value} className="flex items-center gap-0.5">
+                  <span className={`inline-block w-2 h-2 rounded-full ${tier.dotClass}`} />
+                  <span>{count}</span>
+                </span>
+              );
+            })}
+            <span className="text-slate-400 ml-0.5">/ {flashcards.length}</span>
+          </div>
         </div>
       </div>
 
@@ -375,19 +391,42 @@ export const FlashcardDeck: React.FC<Props> = ({
                 </button>
               )}
 
-              <button
-                type="button"
-                onClick={toggleMastered}
-                aria-label={isMastered ? 'Mark card as not mastered' : 'Mark card as mastered'}
-                className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded-full border transition-all ${
-                  isMastered
-                    ? 'bg-emerald-500/20 border-emerald-400 text-emerald-300'
-                    : 'bg-white/10 border-white/20 text-white/70 hover:bg-white/20'
-                }`}
-              >
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                <span>{isMastered ? 'Mastered' : 'Mark Mastered (M)'}</span>
-              </button>
+              {/* Confidence tier selector */}
+              {onUpdateFlashcardConfidence && (
+                <div className="flex items-center gap-1">
+                  {isUpdatingFlashcardConfidence ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-white/50" />
+                  ) : (
+                    CONFIDENCE_TIERS.map((tier) => {
+                      const isActive = currentConfidence === tier.value;
+                      return (
+                        <button
+                          key={tier.value}
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (currentCard) {
+                              onUpdateFlashcardConfidence(currentCard.id, tier.value);
+                            }
+                          }}
+                          aria-label={`Mark card as ${tier.label}`}
+                          aria-pressed={isActive}
+                          title={tier.label}
+                          className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded-full border transition-all ${
+                            isActive
+                              ? tier.className
+                              : 'bg-white/10 border-white/20 text-white/60 hover:bg-white/20'
+                          }`}
+                        >
+                          <span className={`inline-block w-1.5 h-1.5 rounded-full ${isActive ? tier.dotClass : 'bg-white/40'}`} />
+                          <span>{tier.label}</span>
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              )}
+
               <span className="text-xs text-white/50 flex items-center gap-1">
                 <RotateCw className="w-3.5 h-3.5" />
                 <span>Flip (Space)</span>

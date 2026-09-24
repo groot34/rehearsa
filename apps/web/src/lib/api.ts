@@ -283,3 +283,38 @@ export async function reorderQuestions(
     return { success: false, error: { code: 'NETWORK_ERROR', message: err.message } };
   }
 }
+
+// ---------------------------------------------------------------------------
+// Flashcard confidence tracking
+// ---------------------------------------------------------------------------
+
+export type FlashcardConfidence = 'easy' | 'medium' | 'hard';
+
+export interface UpdateFlashcardConfidencePayload {
+  flashcardId: string;
+  confidence: FlashcardConfidence;
+}
+
+export interface ApiFlashcardConfidenceResponse {
+  success: boolean;
+  error?: { code: string; message: string };
+}
+
+export async function updateFlashcardConfidence(
+  kitId: string,
+  payload: UpdateFlashcardConfidencePayload,
+  token: string
+): Promise<ApiFlashcardConfidenceResponse> {
+  try {
+    const res = await fetch(`/api/kits/${kitId}/flashcard-confidence`, {
+      method: 'PUT',
+      headers: authHeaders(token),
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) return { success: false, error: data.error };
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: { code: 'NETWORK_ERROR', message: err.message } };
+  }
+}

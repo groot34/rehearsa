@@ -52,6 +52,10 @@ interface Props {
   questionOrder?: string[];
   onReorderQuestions?: (newOrder: string[]) => void;
   isReordering?: boolean;
+  /** Flashcard confidence tracking */
+  flashcardConfidence?: Record<string, 'easy' | 'medium' | 'hard'>;
+  onUpdateFlashcardConfidence?: (flashcardId: string, confidence: 'easy' | 'medium' | 'hard') => void;
+  isUpdatingFlashcardConfidence?: boolean;
 }
 
 export const KitViewer: React.FC<Props> = ({
@@ -67,6 +71,9 @@ export const KitViewer: React.FC<Props> = ({
   questionOrder = [],
   onReorderQuestions,
   isReordering = false,
+  flashcardConfidence = {},
+  onUpdateFlashcardConfidence,
+  isUpdatingFlashcardConfidence = false,
 }) => {
   const [activeTab, setActiveTab] = useState<
     'all' | 'brief' | 'role' | 'questions' | 'cards' | 'schedule'
@@ -327,6 +334,9 @@ export const KitViewer: React.FC<Props> = ({
               onUpdateFlashcard={handleUpdateFlashcard}
               onAddFlashcard={handleAddFlashcard}
               onDeleteFlashcard={handleDeleteFlashcard}
+              flashcardConfidence={flashcardConfidence}
+              onUpdateFlashcardConfidence={onUpdateFlashcardConfidence}
+              isUpdatingFlashcardConfidence={isUpdatingFlashcardConfidence}
             />
           </div>
         )}

@@ -10,6 +10,7 @@ import {
   updateKitOnServer,
   updateQuestionConfidence,
   reorderQuestions,
+  updateFlashcardConfidence,
   GenerateKitPayload,
 } from '../lib/api';
 import { useAuth } from '../lib/auth';
@@ -73,6 +74,10 @@ export default function HomePage() {
   const [questionOrder, setQuestionOrder] = useState<string[]>([]);
   const [isReordering, setIsReordering] = useState(false);
 
+  // Flashcard confidence tracking
+  const [flashcardConfidence, setFlashcardConfidence] = useState<Record<string, 'easy' | 'medium' | 'hard'>>({});
+  const [isUpdatingFlashcardConfidence, setIsUpdatingFlashcardConfidence] = useState(false);
+
   const handleItemEdited = useCallback((itemId: string) => {
     setEditedItemIds((prev) => {
       if (itemId.startsWith('q_custom_') || itemId.startsWith('f_custom_')) return prev;
@@ -113,6 +118,17 @@ export default function HomePage() {
     if (res.success) {
       setQuestionOrder(newOrder);
     }
+  }, [savedKitId, token]);
+
+  const handleUpdateFlashcardConfidence = useCallback(async (flashcardId: string, confidence: 'easy' | 'medium' | 'hard') => {
+    if (!savedKitId || !token) return;
+    setIsUpdatingFlashcardConfidence(true);
+    const res = await updateFlashcardConfidence(savedKitId, { flashcardId, confidence }, token);
+    setIsUpdatingFlashcardConfidence(false);
+    if (res.success) {
+      setFlashcardConfidence((prev) => ({ ...prev, [flashcardId]: confidence }));
+    }
+    // On failure, optimistic UI is not applied — the displayed confidence stays as-is
   }, [savedKitId, token]);
 
   // ---------------------------------------------------------------------------
@@ -246,6 +262,7 @@ export default function HomePage() {
       setEditedItemIds(new Set());
       setQuestionConfidence({}); // Reset confidence on load (TODO: fetch from API when endpoint returns it)
       setQuestionOrder([]); // Reset order on load (TODO: fetch from API when endpoint returns it)
+      setFlashcardConfidence({}); // Reset flashcard confidence on load
       regenRequestRef.current = 0;
       setView('kit-viewer');
     } else {
@@ -437,6 +454,9 @@ export default function HomePage() {
               questionOrder={questionOrder}
               onReorderQuestions={handleReorderQuestions}
               isReordering={isReordering}
+              flashcardConfidence={flashcardConfidence}
+              onUpdateFlashcardConfidence={handleUpdateFlashcardConfidence}
+              isUpdatingFlashcardConfidence={isUpdatingFlashcardConfidence}
             />
           </div>
         )}
