@@ -4,6 +4,107 @@ All notable changes to the Rehearsa project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [feat] - M12.2 Production Deployment Preparation — 2026-09-24
+
+### Added
+- **render.yaml**: Render configuration for Express API backend deployment. Build command `npm install && npm run build` (installs workspace dependencies, builds API), start command `node apps/api/dist/server.js`, health check path `/api/health`, port 10000. All production environment variables configured with sync: false for secrets.
+- **README.md**: Added comprehensive production deployment section with:
+  - Deployment architecture description (Vercel + Render + MongoDB Atlas)
+  - Environment variable requirements for each platform
+  - Step-by-step MongoDB Atlas setup instructions
+  - Render deployment steps
+  - Vercel deployment steps
+  - CORS configuration guidance
+  - Health check verification instructions
+
+### Changed
+- **apps/web/next.config.js**: Removed `output: 'standalone'` (not needed for Vercel deployment; Vercel handles Next.js build optimization automatically).
+
+### Removed
+- **vercel.json**: Removed unnecessary Vercel configuration file. Vercel auto-detects Next.js and uses default build settings without requiring explicit configuration.
+
+### Architecture decision
+- **ADR-016**: Production deployment architecture — Vercel (frontend) + Render (backend) + MongoDB Atlas (database). Next.js rewrites proxy `/api/*` and `/auth/*` to Render API to keep browser requests same-origin with Vercel frontend and avoid CORS complexity. CORS_ORIGIN configured on Render to Vercel domain.
+
+### Environment variables configured
+**Vercel**:
+- `API_URL`: Render API URL (required for Next.js rewrites)
+
+**Render**:
+- `NODE_ENV`: production
+- `PORT`: 10000
+- `MONGODB_URI`: MongoDB Atlas connection string (secret)
+- `JWT_SECRET`: Cryptographically random string, minimum 32 characters (secret)
+- `JWT_EXPIRES_IN`: 7d
+- `CORS_ORIGIN`: Vercel frontend URL (secret)
+- `LLM_PROVIDER`: gemini
+- `GEMINI_API_KEY`: Gemini API key (secret)
+- `GEMINI_MODEL`: gemini-1.5-flash
+- `ALLOW_LOOPBACK_IN_DEV`: false
+- `INTERVIEW_SEARCH_PROVIDER`: mock
+- `GOOGLE_SEARCH_API_KEY`: Optional Google Search API key (secret)
+- `GOOGLE_SEARCH_CX`: Optional Custom Search Engine ID (secret)
+
+### Verification
+- **npm test**: Exit Code 0. **257/257 tests passing** across 20 test files.
+- **npm run build**: Exit Code 0. All three workspaces compile cleanly.
+- **npm run lint**: Exit Code 0. All workspaces lint cleanly.
+- **npm run evaluate**: Exit Code 0. 8 cases: 5 valid kits, 3 isolated invalid, 2.6s total.
+- **git diff --check**: Exit Code 0. No trailing whitespace issues.
+
+### Deployment status
+**NOT YET DEPLOYED**. Repository is prepared with deployment configuration files (`render.yaml`), environment variable documentation, and deployment instructions. Actual deployment to Vercel, Render, and MongoDB Atlas has not been performed. Production verification pending.
+
+### Next steps (M12.3)
+- Manual MongoDB Atlas setup (create cluster, user, network access)
+- Manual Render deployment (connect GitHub, set env vars, deploy)
+- Manual Vercel deployment (connect GitHub, set API_URL, deploy)
+- Configure CORS_ORIGIN on Render to Vercel domain
+- Perform production verification (health, auth, kit generation, persistence, ownership isolation)
+- Verify live Google Custom Search (if credentials configured)
+
+---
+
+## [investigation] - M12.1 Deployment Readiness Investigation — 2026-09-24
+
+### Investigated
+- **Frontend architecture audit**: Next.js 14.2.35 (App Router), build/start commands verified, API communication via Next.js rewrites (`/api/*`, `/auth/*` → Express backend).
+- **Backend architecture audit**: Express 4.21.2 + TypeScript, health endpoint (`GET /api/health`), auth routes, kit CRUD routes, environment variable configuration.
+- **Environment variables audit**: Documented all required production variables (`MONGODB_URI`, `JWT_SECRET`, `CORS_ORIGIN`, `LLM_PROVIDER`, `GEMINI_API_KEY`, optional `INTERVIEW_SEARCH_PROVIDER`, `GOOGLE_SEARCH_API_KEY`, `GOOGLE_SEARCH_CX`).
+- **MongoDB requirements**: MongoDB 4.4+ required, Mongoose 9.10.2 compatible, no migrations needed, indexes on `users.email` and `kits.userId+createdAt`. MongoDB Atlas free tier recommended for production.
+- **Authentication & CORS requirements**: JWT in `Authorization: Bearer` header, ≥32 char secret enforced at startup, CORS configured via `CORS_ORIGIN` env, credentials enabled.
+- **Production health endpoint**: `GET /api/health` (public, implicit DB check).
+- **SSRF & security configuration**: `ssrfGuard.ts` blocks private/loopback IPs in production, `ALLOW_LOOPBACK_IN_DEV=false` required, 2MB content limit, robots.txt enforcement, untrusted content XML wrapping.
+- **Localhost URL audit**: No production localhost URLs in critical paths. All defaults overridden by environment variables. Console logs use localhost (harmless).
+- **Secrets audit**: No committed secrets found. All keys read from environment variables. Test files use dummy strings (not production code).
+- **Deployment topology assessment**:
+  - **Option A (simplest)**: Single server with nginx reverse proxy (Next.js port 3000, Express port 4000, MongoDB Atlas).
+  - **Option B (cloud)**: Vercel (frontend) + Railway/Render (backend) + MongoDB Atlas.
+  - **Option C (containerized)**: Docker + docker-compose (not currently implemented).
+- **Build/start commands verification**: `npm run build` (Exit Code 0), `npm run lint` (Exit Code 0), `npm test` (257/257 passing), `npm run evaluate` (Exit Code 0). API compiles to `dist/`, Next.js produces optimized build.
+
+### Changes required
+- **Code**: None required. Codebase is production-ready as-is.
+- **Documentation**: README.md needs production deployment section added (nginx config, PM2/systemd, cloud platform setup).
+
+### Architecture decision
+- **ADR-016**: Deployment architecture decision deferred to M12.2. Repository supports multiple deployment topologies without code changes. Simplest path is single-server nginx reverse proxy.
+
+### Verification
+- **Code security audit**: No secrets committed, no production localhost URLs, SSRF protection enforced.
+- **Build verification**: All workspaces compile cleanly (Exit Code 0).
+- **Test verification**: 257/257 tests passing (Exit Code 0).
+- **Batch evaluator**: 8 cases processed in 4.1s (Exit Code 0).
+- **Git status**: Clean working tree, `main` current with `origin/main`.
+
+### Next steps (M12.2)
+- Implement deployment configuration (Docker or nginx+PM2)
+- Deploy to production environment
+- Verify production deployment (health, MongoDB, auth, kit generation, CORS)
+- Verify live Google Custom Search (if credentials configured)
+
+---
+
 ## [feat] - M11 Public Interview Discussion Search — 2026-09-24
 
 ### Added

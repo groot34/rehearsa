@@ -6,7 +6,6 @@ services:
     buildCommand: npm install && npm run build
     startCommand: node apps/api/dist/server.js
     healthCheckPath: /api/health
-    autoDeploy: false
     envVars:
       - key: NODE_ENV
         value: production

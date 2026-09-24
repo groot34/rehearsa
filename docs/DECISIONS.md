@@ -614,4 +614,109 @@ This is an accepted trade-off for a client-rendered SPA without a BFF. An `httpO
   - URL source extraction (Glassdoor, Reddit, Blind, Indeed, LeetCode).
   - Factory returns mock by default.
   - Factory returns mock when Google requested but not configured.
+
+---
+
+### ADR-016: Production Deployment Architecture
+
+* **Status**: Accepted
+* **Date**: 2026-09-24
+* **Context**:
+  Milestone 12.2 requires preparing the repository for production deployment. The application is a monorepo with separate Next.js frontend and Express backend services. The deployment architecture must support production-grade hosting while maintaining existing functionality and avoiding unnecessary complexity.
+
+* **Alternatives Considered**:
+  - Single-server deployment with nginx reverse proxy: Rejected — requires server management and infrastructure setup beyond current scope.
+  - Containerized deployment with Docker + docker-compose: Rejected — adds Dockerfile maintenance and orchestration complexity not currently required.
+  - Multi-cloud deployment across multiple providers: Rejected — adds operational complexity without clear benefit.
+
+* **Decision**:
+  Deploy to Vercel (frontend) + Render (backend) + MongoDB Atlas (database). This cloud-native approach leverages platform-specific optimizations while keeping the monorepo structure intact.
+
+* **Reasoning**:
+  - Vercel provides native Next.js support with automatic builds, previews, and edge caching.
+  - Render supports Node.js/Express backends with simple YAML configuration and automatic health checks.
+  - MongoDB Atlas free M0 cluster provides managed database with no infrastructure overhead.
+  - Next.js rewrites proxy `/api/*` and `/auth/*` to Render, keeping browser requests same-origin with Vercel and avoiding CORS complexity.
+  - No vercel.json file needed — Vercel auto-detects Next.js and uses default build settings.
+  - render.yaml provides explicit build/start commands and environment variable configuration for the backend.
+
+* **Architecture Details**:
+  - **Frontend (Vercel)**: Next.js 14.2.35 deployed via Vercel's automatic Next.js detection. Environment variable `API_URL` points to Render backend URL. Next.js rewrites proxy API/auth requests to Render.
+  - **Backend (Render)**: Express 4.21.2 on port 10000. Build command: `npm install && npm run build` (installs workspace dependencies, builds API). Start command: `node apps/api/dist/server.js`. Health check at `/api/health`.
+  - **Database (MongoDB Atlas)**: Free M0 cluster. Connection string via `MONGODB_URI`. Network access from Render (0.0.0.0/0 or specific IPs).
+  - **CORS**: Configured via `CORS_ORIGIN` environment variable on Render to Vercel domain.
+  - **Authentication**: JWT in `Authorization: Bearer` header. Token stored in sessionStorage on client.
+
+* **Security Considerations**:
+  - All secrets (MongoDB URI, JWT secret, API keys) marked with `sync: false` in render.yaml.
+  - `.env` file gitignored — no secrets committed to repository.
+  - SSRF protection enabled via `ALLOW_LOOPBACK_IN_DEV=false` in production.
+  - Health endpoint `/api/health` is public (no auth required) for platform monitoring.
+
+* **Trade-offs**:
+  - Separate platforms require manual CORS configuration (`CORS_ORIGIN` on Render).
+  - No vercel.json file means Vercel uses default settings — acceptable for this use case.
+  - MongoDB Atlas free tier has resource limits (512 MB storage, 512 MB RAM) — adequate for initial deployment.
+
+* **Verification**:
+  - Repository build: `npm run build` Exit Code 0 (all workspaces compile cleanly).
+  - Tests: `npm test` Exit Code 0 (257/257 tests passing).
+  - Lint: `npm run lint` Exit Code 0.
+  - Evaluator: `npm run evaluate` Exit Code 0 (8 cases, 5 valid kits, 3 isolated invalid).
+  - Security: `.env` ignored, no secrets committed, vercel.json removed (unnecessary).
+
+* **Next Steps**:
+  - Manual MongoDB Atlas setup (create cluster, user, network access).
+  - Manual Render deployment (connect GitHub, set env vars, deploy).
+  - Manual Vercel deployment (connect GitHub, set API_URL, deploy).
+  - Configure CORS_ORIGIN on Render to Vercel domain.
+  - Perform production verification (health, auth, kit generation, persistence, ownership isolation).
   - Factory returns mock when mock explicitly requested.
+
+---
+
+### ADR-016: Production Deployment Architecture
+
+* **Status**: Accepted
+* **Date**: 2026-09-24
+* **Context**:
+  Production deployment requires separating frontend and backend across different platforms (Vercel for Next.js, Render for Express API) while maintaining seamless API communication and proper CORS configuration. The application must work in production with real MongoDB Atlas, real Gemini API, and proper environment variable management.
+
+* **Alternatives Considered**:
+  - Single-server deployment with nginx reverse proxy (simpler infrastructure, but requires server management).
+  - Containerized deployment with Docker + docker-compose (adds complexity, not currently implemented).
+  - Full-stack Next.js with API routes (would require significant refactoring of existing Express backend).
+
+* **Decision**:
+  Deploy frontend to Vercel, backend to Render, and use MongoDB Atlas for database. Next.js rewrites proxy `/api/*` and `/auth/*` to the Render API URL to keep browser requests same-origin with the Vercel frontend. CORS_ORIGIN configured on Render to Vercel domain.
+
+* **Reasoning**:
+  - Vercel provides native Next.js support with automatic builds and HTTPS.
+  - Render provides Node.js hosting with environment variable management and health checks.
+  - MongoDB Atlas free M0 cluster provides production-ready MongoDB without server management.
+  - Next.js rewrites avoid CORS complexity by keeping API calls same-origin from the browser.
+  - Separation of concerns: frontend and backend can scale independently.
+
+* **Trade-offs**:
+  - Cross-platform deployment requires managing environment variables on multiple platforms.
+  - Network latency between Vercel and Render (both regions can be configured to minimize latency).
+  - Dependency on third-party platforms (Vercel, Render, MongoDB Atlas) for production hosting.
+
+* **Implementation Details**:
+  - `vercel.json`: Vercel configuration with build command and API_URL environment variable.
+  - `render.yaml`: Render configuration with build command, start command, health check, and all environment variables.
+  - `apps/web/next.config.js`: Standalone output for production build optimization.
+  - Next.js rewrites proxy `/api/*` and `/auth/*` to Render API URL.
+  - CORS_ORIGIN on Render set to Vercel domain for cross-origin requests.
+  - Health check at `/api/health` for Render deployment monitoring.
+
+* **Environment Variables**:
+  - Vercel: `API_URL` (Render backend URL)
+  - Render: `MONGODB_URI`, `JWT_SECRET`, `CORS_ORIGIN`, `GEMINI_API_KEY`, and other production settings
+  - MongoDB Atlas: Connection string via `MONGODB_URI`
+
+* **Security Considerations**:
+  - All secrets marked as `sync: false` in Render configuration (not synced from repository).
+  - JWT_SECRET enforced to be ≥32 characters at startup in production.
+  - ALLOW_LOOPBACK_IN_DEV set to false in production to enforce SSRF protection.
+  - CORS_ORIGIN restricted to Vercel domain only.

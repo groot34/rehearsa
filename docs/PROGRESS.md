@@ -1,7 +1,7 @@
 # Project Progress & Status — Rehearsa
 
 ## 1. Current Milestone
-**Milestone 11: Public Interview Discussion Search (COMMITTED)**
+**Milestone 12.2: Production Deployment Preparation (COMMITTED + FINALIZED)**
 - **Commit 1 (M8)**: `1a0dfc7` — `feat(api): add user authentication and MongoDB connection`
 - **Commit 2 (M9)**: `8a94003` — `feat(api,web): add persistent user-owned interview kits`
 - **Commit 3 (M10.1)**: `2bbd21e` — `feat: add persisted question confidence tracking`
@@ -14,11 +14,333 @@
 - **Commit 10 (M11)**: `342e4fd` — `feat: add public interview discussion search`
 - **Commit 11 (M11 docs)**: `b2a5628` — `docs: update handoff and progress for M11 commit`
 - **Commit 12 (M11 docs final)**: `240fdf2` — `docs: final handoff/progress update for M11`
-- **Branch**: `main`, 6 ahead of `origin/main` (not yet pushed).
+- **Commit 13 (M11 sync)**: `13fa78c` — `docs: sync handoff/progress with final M11 state`
+- **Commit 14 (M12.2 initial)**: `fbb2564` — `feat: prepare production deployment`
+- **Commit 15 (M12.2 final)**: — `docs: finalise production deployment preparation`
+- **Branch**: `main`, 1 ahead of `origin/main`.
 
 ---
 
-## 2. Completed Work
+## 2. Production Deployment Preparation (M12.2 - COMMITTED + FINALIZED)
+
+### Repository Changes Made
+- **render.yaml**: Added Render configuration for Express API backend deployment
+  - Build command: `npm install && npm run build` (installs workspace dependencies, builds API)
+  - Start command: `node apps/api/dist/server.js`
+  - Health check path: `/api/health`
+  - Port: 10000
+  - All production environment variables configured (with sync: false for secrets)
+- **apps/web/next.config.js**: Removed `output: 'standalone'` (not needed for Vercel deployment)
+- **README.md**: Added comprehensive production deployment section with:
+  - Deployment architecture description (Vercel + Render + MongoDB Atlas)
+  - Environment variable requirements for each platform
+  - Step-by-step deployment instructions
+  - Health check verification guidance
+
+### Deployment Architecture
+**Target**: Vercel (frontend) + Render (backend) + MongoDB Atlas (database)
+
+**Frontend (Vercel)**:
+- Next.js 14.2.35 deployed via Vercel's automatic Next.js detection
+- Next.js rewrites proxy `/api/*` and `/auth/*` to Render API
+- `API_URL` environment variable points to Render backend
+- No vercel.json file needed (Vercel auto-detects Next.js and uses default build)
+
+**Backend (Render)**:
+- Express 4.21.2 on port 10000
+- Health check at `/api/health`
+- MongoDB Atlas connection via `MONGODB_URI`
+- JWT authentication with `JWT_SECRET`
+- CORS configured for Vercel domain via `CORS_ORIGIN`
+
+**Database (MongoDB Atlas)**:
+- Free M0 cluster recommended
+- Connection string via `MONGODB_URI`
+- Network access from Render (0.0.0.0/0 or specific IPs)
+
+### Environment Variables Required
+
+**Vercel**:
+```bash
+API_URL=<Render API URL, e.g., https://rehearsa-api.onrender.com>
+```
+
+**Render**:
+```bash
+NODE_ENV=production
+PORT=10000
+MONGODB_URI=<MongoDB Atlas connection string>
+JWT_SECRET=<cryptographically random string, minimum 32 characters>
+JWT_EXPIRES_IN=7d
+CORS_ORIGIN=<Vercel frontend URL>
+LLM_PROVIDER=gemini
+GEMINI_API_KEY=<Gemini API key>
+GEMINI_MODEL=gemini-1.5-flash
+ALLOW_LOOPBACK_IN_DEV=false
+INTERVIEW_SEARCH_PROVIDER=mock
+GOOGLE_SEARCH_API_KEY=<optional>
+GOOGLE_SEARCH_CX=<optional>
+```
+
+### Local Verification
+- **npm test**: Exit Code 0. **257/257 tests passing**
+- **npm run build**: Exit Code 0. All workspaces compile cleanly
+- **npm run lint**: Exit Code 0. All workspaces lint cleanly
+- **npm run evaluate**: Exit Code 0. 8 cases: 5 valid kits, 3 isolated invalid, 2.6s total
+- **git diff --check**: Exit Code 0. No trailing whitespace issues
+
+### What Needs to Be Done Manually
+1. **MongoDB Atlas Setup**:
+   - Create free M0 cluster
+   - Create database user with read/write permissions
+   - Configure network access (allow Render IPs)
+   - Copy connection string
+
+2. **Render Deployment**:
+   - Connect GitHub repository
+   - Select `render.yaml` configuration
+   - Set environment variables (all secrets)
+   - Deploy
+   - Copy Render API URL
+
+3. **Vercel Deployment**:
+   - Connect GitHub repository
+   - Select `vercel.json` configuration
+   - Set `API_URL` to Render API URL
+   - Deploy
+
+4. **CORS Configuration**:
+   - Set `CORS_ORIGIN` on Render to Vercel domain
+
+### Production Verification Status
+**NOT YET DEPLOYED**. Repository is prepared with deployment configuration files (render.yaml), environment variable documentation, and deployment instructions. Actual deployment to Vercel, Render, and MongoDB Atlas has not been performed. Production verification pending.
+
+---
+
+## 3. Deployment Readiness Investigation (M12.1 - COMPLETED)
+
+### Current Repository State
+- **Git Status**: Clean working tree, `main` branch current with `origin/main`
+- **Latest Commit**: `13fa78c` — `docs: sync handoff/progress with final M11 state`
+- **No uncommitted changes**
+
+### Architecture Audit Results
+
+#### Frontend Architecture (`apps/web`)
+- **Framework**: Next.js 14.2.35 (App Router)
+- **Build Command**: `npm run build` → `next build` (verified: Exit Code 0)
+- **Start Command**: `npm run start` → `next start` (production server)
+- **Dev Command**: `npm run dev` → `next dev` (development with hot reload)
+- **Dependencies**: React 18.3.1, Tailwind CSS 3.4.17, lucide-react 0.475.0
+- **API Communication**:
+  - Uses Next.js rewrites (`next.config.js`) to proxy `/api/*` and `/auth/*` to backend
+  - Uses `process.env.NEXT_PUBLIC_API_URL` as fallback (default: `http://localhost:4000`)
+  - All auth calls go through `/auth/*` rewrites
+  - Kit CRUD calls go through `/api/kits` rewrites
+  - Generation/regeneration calls go through `/api/interview-prep` rewrites
+
+#### Backend Architecture (`apps/api`)
+- **Framework**: Express 4.21.2 + TypeScript 5.8.2
+- **Build Command**: `npm run build` → `tsc` (verified: Exit Code 0)
+- **Start Command**: `npm run start` → `node dist/server.js`
+- **Dev Command**: `npm run dev` → `tsx watch src/server.ts`
+- **Port**: Configurable via `PORT` env (default: 4000)
+- **Dependencies**: Mongoose 9.10.2, bcrypt 6.0.0, jsonwebtoken 9.0.3, cors 2.8.5, cheerio 1.2.0, zod 3.24.2
+- **Health Endpoint**: `GET /api/health` (public, no auth required)
+- **Auth Routes**: `/auth/register`, `/auth/login`, `/auth/logout`, `/auth/me` (public except `/me` requires token)
+- **Kit Routes**: `/api/kits` (all require auth), `/api/interview-prep/generate` (public, for batch evaluator)
+
+#### Environment Variables (Required for Production)
+```bash
+# Required in production (enforced by server.ts startup guard)
+MONGODB_URI=mongodb://localhost:27017/rehearsa  # or MongoDB Atlas connection string
+JWT_SECRET=<minimum 32 characters, cryptographically random>
+JWT_EXPIRES_IN=7d
+
+# CORS configuration
+CORS_ORIGIN=<frontend production URL>
+NODE_ENV=production
+
+# LLM Provider (Gemini recommended for free tier)
+LLM_PROVIDER=gemini
+GEMINI_API_KEY=<your Gemini API key>
+GEMINI_MODEL=gemini-1.5-flash
+
+# Optional: Public Interview Search (Google Custom Search)
+INTERVIEW_SEARCH_PROVIDER=google  # or mock
+GOOGLE_SEARCH_API_KEY=<Google Search API key>
+GOOGLE_SEARCH_CX=<Custom Search Engine ID>
+
+# Optional: Web crawling limits
+CRAWL_MAX_PAGES_PER_SITE=5
+CRAWL_TIMEOUT_MS=10000
+CRAWL_MAX_BODY_SIZE_BYTES=2097152
+ALLOW_LOOPBACK_IN_DEV=false  # Must be false in production
+```
+
+#### MongoDB Requirements
+- **Minimum Version**: MongoDB 4.4+ (Mongoose 9.10.2 compatible)
+- **Connection**: Single database with `users` and `kits` collections
+- **Indexes**:
+  - `users.email` (unique, indexed, lowercase)
+  - `kits.userId` + `kits.createdAt` (compound index for per-user queries)
+- **No Migrations Required**: Mongoose handles schema dynamically via `KitDocumentModel`
+- **Hosting Options**:
+  - MongoDB Atlas (free M0 cluster recommended for production)
+  - Self-hosted MongoDB 4.4+ on any cloud provider
+  - Local MongoDB (for development only)
+
+#### Authentication & CORS Requirements
+- **JWT Configuration**:
+  - Token transport: `Authorization: Bearer <token>` header
+  - Token expiry: Default 7 days (configurable via `JWT_EXPIRES_IN`)
+  - Secret must be ≥32 characters (enforced at startup in production)
+- **CORS**:
+  - Configured via `CORS_ORIGIN` env variable
+  - Default: `http://localhost:3000` (development)
+  - Production: Must set to frontend domain (e.g., `https://rehearsa.example.com`)
+  - Credentials: `credentials: true` set in CORS middleware
+- **Session Storage**: JWT stored in `sessionStorage` on client (cleared on tab close)
+
+#### Production Health Endpoint
+- **Endpoint**: `GET /api/health` or `GET /health`
+- **Response**: `{ status: "ok", service: "rehearsa-api", timestamp: "...", uptimeSeconds: ... }`
+- **Auth**: Not required (public health check)
+- **DB Check**: Implicitly verifies MongoDB connection (server exits if DB connection fails)
+
+#### SSRF & Security Configuration
+- **SSRF Guard**: `ssrfGuard.ts` blocks private/loopback IP ranges in production
+- **Production Flag**: `ALLOW_LOOPBACK_IN_DEV=false` must be set in production
+- **Protected Ranges**: 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 127.0.0.0/8, 169.254.0.0/16, ::1, etc.
+- **Content Limits**: 2MB max body size on crawled pages
+- **Robots.txt**: Enforced via `robotsParser.ts`
+- **Untrusted Content**: All crawled text wrapped in `<untrusted_web_content>` XML tags before LLM ingestion
+
+#### Localhost/Development URLs in Production Paths
+- **Code Audit Findings**:
+  - `server.ts`: Console logs use `localhost` (harmless, for admin visibility)
+  - `config/index.ts`: Default fallbacks to `localhost` URLs (only used if env vars not set)
+  - `next.config.js`: Default `API_URL` fallback to `http://localhost:4000` (overridden by env in production)
+  - Test files: Use `127.0.0.1` for integration tests (not shipped to production)
+- **Assessment**: No production localhost URLs in critical paths. All defaults are overridden by environment variables in production.
+
+#### Secrets & Hard-coded Values
+- **Security Audit**: No committed secrets found
+- **API Keys**: All keys read from environment variables (`.env` gitignored)
+- **JWT Secret**: Enforced to be ≥32 chars at startup in production
+- **Test Secrets**: Test files use dummy strings like `test-secret-for-auth-route-tests-32chars!!` (not production code)
+- **Assessment**: Clean. No hard-coded production credentials.
+
+#### Deployment Topology Assessment
+**Current Architecture**: Monorepo with separate frontend and backend services
+- **Frontend**: Next.js (port 3000 in dev, configurable in production)
+- **Backend**: Express (port 4000 default, configurable via `PORT`)
+- **Database**: MongoDB (connection string via `MONGODB_URI`)
+
+**Recommended Deployment Options**:
+
+1. **Simple Single-Server Deployment** (easiest, no infrastructure changes needed):
+   - Run Next.js and Express on same server on different ports
+   - Use nginx to proxy requests:
+     - `/` → Next.js (port 3000)
+     - `/api/*` and `/auth/*` → Express (port 4000)
+   - MongoDB hosted on MongoDB Atlas (free M0) or same server
+   - Environment variables set on server
+
+2. **Containerized Deployment** (requires Docker):
+   - Create Dockerfile for API (Node.js + Express)
+   - Create Dockerfile for Web (Next.js standalone build)
+   - Use docker-compose to orchestrate API + Web + MongoDB
+   - **Not currently implemented** (no Dockerfile exists)
+
+3. **Cloud Platform Deployment** (e.g., Vercel + Railway/Render):
+   - Frontend: Deploy Next.js to Vercel (supports environment variables)
+   - Backend: Deploy Express to Railway/Render (supports MongoDB, env vars)
+   - Database: MongoDB Atlas free tier
+   - CORS: Set `CORS_ORIGIN` to Vercel domain
+   - **Not currently configured** (no platform-specific files exist)
+
+**Current State**: Repository is deployment-ready as a monorepo. No Docker, CI/CD, or cloud-specific infrastructure exists. Simplest path is single-server deployment with nginx reverse proxy.
+
+#### README.md Documentation Assessment
+- **Current README**: Documents local development only (`npm run dev`, build, test)
+- **Production Configuration**: `.env.example` documents all required env variables
+- **Missing**: Production deployment instructions, nginx configuration, cloud platform setup
+- **Assessment**: README needs production deployment section added.
+
+#### Build/Start Commands Verification
+- **Root commands**: `npm run build`, `npm run lint`, `npm test` all verified (Exit Code 0)
+- **API build**: `tsc` compiles TypeScript to `dist/` (verified)
+- **Web build**: `next build` produces optimized production build (verified)
+- **API start**: `node dist/server.js` (verified build output exists)
+- **Web start**: `next start` (verified build output exists)
+- **Workspace commands**: Work correctly via `npm run build --workspaces --if-present`
+
+### Recommended Deployment Architecture (Simplest Path)
+
+**Option A: Single Server with nginx Reverse Proxy**
+1. **Server Requirements**: Node.js v20+, MongoDB
+2. **Deployment Steps**:
+   - Build all workspaces: `npm run build`
+   - Set production env variables on server
+   - Start API: `cd apps/api && npm run start` (port 4000)
+   - Start Web: `cd apps/web && npm run start` (port 3000)
+   - Configure nginx to proxy:
+     ```
+     server {
+       listen 80;
+       server_name rehearsa.example.com;
+
+       location / {
+         proxy_pass http://localhost:3000;
+       }
+
+       location /api/ {
+         proxy_pass http://localhost:4000/api/;
+       }
+
+       location /auth/ {
+         proxy_pass http://localhost:4000/auth/;
+       }
+     }
+     ```
+3. **Process Management**: Use PM2 or systemd to keep services running
+4. **Database**: MongoDB Atlas free tier (recommended) or local MongoDB
+
+**Option B: MongoDB Atlas + Cloud Platforms** (more scalable)
+1. **Frontend**: Vercel (Next.js native support)
+2. **Backend**: Railway/Render/Fly.io (Express deployment)
+3. **Database**: MongoDB Atlas (shared across platforms)
+4. **Environment Variables**: Set on each platform
+5. **CORS**: Set `CORS_ORIGIN` to Vercel domain
+
+### Code Changes Required
+**None required for deployment**. The codebase is production-ready as-is.
+
+### Documentation Changes Required
+1. **README.md**: Add production deployment section with:
+   - Environment variable requirements
+   - MongoDB Atlas setup instructions
+   - nginx reverse proxy configuration example
+   - PM2/systemd service configuration
+   - Cloud platform deployment options
+
+2. **.env.example**: Already complete (all required variables documented)
+
+### Next Steps for M12.2
+1. Implement deployment configuration (Docker or nginx+PM2)
+2. Deploy to production environment
+3. Verify production deployment:
+   - Health endpoint accessible
+   - MongoDB connection successful
+   - Auth flow works with production domain
+   - Kit generation works with live Gemini API
+   - CORS configured correctly
+4. Verify live Google Custom Search (if credentials configured)
+
+---
+
+## 3. Completed Work
 - [x] **Milestone 1: Project Foundation & Engineering Setup**:
   - Monorepo workspace scaffolding (`apps/web`, `apps/api`, `packages/shared`), permanent project memory documentation.
 - [x] **Milestone 2: Deterministic Core Engine**:

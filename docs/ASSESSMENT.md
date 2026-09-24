@@ -139,7 +139,17 @@
 
 ---
 
-## 10. Out-of-Scope & Optional Features
+## 10. Production Deployment
+
+|| Requirement | Scope | Status | Notes / Evidence |
+||---|---|---|---|
+|| Deployment configuration (Vercel + Render + MongoDB Atlas) | Infrastructure | Implemented, not yet verified | `render.yaml` added for Express API backend deployment. Vercel deployment configured via automatic Next.js detection (no vercel.json needed). README.md updated with deployment architecture and environment variable requirements. |
+|| Production deployment verification | Infrastructure | Not started | Repository is prepared with deployment configuration, but actual deployment to Vercel, Render, and MongoDB Atlas has not been performed. Production verification pending. |
+|| Live Google Custom Search verification | External Service | Not started | `GoogleCustomSearchProvider` implemented but not tested with live credentials. Mock provider used by default. |
+
+---
+
+## 12. Out-of-Scope & Optional Features
 
 | Item | Status | Notes |
 |---|---|---|

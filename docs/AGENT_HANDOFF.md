@@ -8,25 +8,27 @@
 
 * **Project**: Rehearsa — Full-Stack AI-Powered Interview Preparation Platform
 * **Assessment ID**: `FS-AI-INTERVIEW-01` (Trao Assessment)
-* **Active Milestone**: `M11: Public Interview Discussion Search` (COMMITTED)
+* **Active Milestone**: `M12.2: Production Deployment Preparation` (COMMITTED + FINALIZED)
 
 ---
 
 ## 2. Latest Known Repository State
 
 * **Branch**: `main`
-* **HEAD Commit**: `240fdf2` — `docs: final handoff/progress update for M11`
-* **Sync status**: `main` is 6 ahead of `origin/main`. M11 public interview search implementation is committed.
+* **HEAD Commit**: `fbb2564` — `feat: prepare production deployment` (pending finalization commit)
+* **Sync status**: `main` is 1 ahead of `origin/main`. M12.2 deployment preparation finalized, not yet pushed.
 * **Commit history (most recent first)**:
+  - `fbb2564` — `feat: prepare production deployment`
+  - `13fa78c` — `docs: sync handoff/progress with final M11 state`
   - `240fdf2` — `docs: final handoff/progress update for M11`
   - `b2a5628` — `docs: update handoff and progress for M11 commit`
   - `342e4fd` — `feat: add public interview discussion search`
   - `a4cbbc0` — `feat: restore persisted kit state on fetch`
   - `54a2b9b` — `docs: record end-to-end journey audit`
   - `1981ab6` — `docs: record live MongoDB verification`
-  - `d947b87` — `docs: record flashcard confidence tiers implementation` (M10.3 docs, origin/main)
+  - `d947b87` — `docs: record flashcard confidence tiers implementation` (M10.3 docs)
   - `085cc0f` — `feat: add persisted flashcard confidence tiers` (M10.3 impl)
-* **Working Tree**: Clean after M11 commit.
+* **Working Tree**: Clean.
 
 ---
 
@@ -130,9 +132,9 @@ git log -n 5 --oneline --decorate
 
 The following items are genuinely outstanding as of 2026-09-24:
 
-1. **Deployment verification**: No production/cloud deployment has been performed or verified. All verification has been local (Docker MongoDB + local API server on port 4000 + local Next.js on port 3000).
+1. **Production deployment verification**: No production/cloud deployment has been performed or verified. All verification has been local (Docker MongoDB + local API server on port 4000 + local Next.js on port 3000). **Deployment preparation completed (M12.2)** — see `docs/PROGRESS.md` for deployment configuration files (`render.yaml`), environment variable requirements, and deployment architecture (Vercel + Render + MongoDB Atlas). Repository is ready for deployment but actual deployment and verification have not been performed.
 
-2. **Public interview discussion search (ASSESSMENT.md §2)**: **Implemented (M11 committed)**. `IPublicInterviewSearchProvider` abstraction with `MockPublicInterviewSearchProvider` for tests and `GoogleCustomSearchProvider` for production. Mock provider used by default; graceful degradation if provider unavailable. Live external search (Google Custom Search with real API key) not yet verified — requires real credentials and Custom Search Engine ID configuration.
+2. **Live Google Custom Search verification**: `IPublicInterviewSearchProvider` abstraction with `MockPublicInterviewSearchProvider` for tests and `GoogleCustomSearchProvider` for production. Mock provider used by default; graceful degradation if provider unavailable. Live external search (Google Custom Search with real API key) not yet verified — requires real credentials and Custom Search Engine ID configuration.
 
 3. ~~**Confidence and order not returned in GET response**~~: **Resolved** — `GET /api/kits/:id` now returns `questionConfidence`, `questionOrder`, and `flashcardConfidence` as optional fields. Frontend restores state on kit open. See ADR-014.
 
@@ -153,4 +155,5 @@ The following items are genuinely outstanding as of 2026-09-24:
 - `apps/web/src/lib/kitEditing.ts`: Pure immutable editing functions for questions & flashcards.
 - `apps/web/src/lib/auth.tsx`: `AuthProvider` + `useAuth` hook.
 - `apps/web/src/components/`: Full kit UI (generator form, progress tracker, interactive flashcard deck, question bank with confidence/reorder, company brief, role breakdown, schedule timeline, saved kits list).
+- `render.yaml`: Render deployment configuration for Express API backend.
 - `docs/`: Complete 7-document permanent project memory.

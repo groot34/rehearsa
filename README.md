@@ -96,8 +96,8 @@ Rehearsa is designed for deployment across separate platforms:
 
 ### Deployment Files
 
-- `vercel.json`: Vercel configuration for Next.js frontend
 - `render.yaml`: Render configuration for Express API backend
+- Vercel deployment: Uses automatic Next.js detection (no configuration file needed)
 
 ### Environment Variables
 
@@ -146,7 +146,7 @@ GOOGLE_SEARCH_CX=<optional Custom Search Engine ID>
 
 3. **Vercel Deployment**
    - Connect GitHub repository
-   - Use `vercel.json` configuration
+   - Vercel auto-detects Next.js and uses default build settings
    - Set `API_URL` to Render API URL
    - Deploy
 
@@ -156,7 +156,7 @@ GOOGLE_SEARCH_CX=<optional Custom Search Engine ID>
 
 ### Health Check
 
-- Render health endpoint: `https://rehearsa-api.onrender.com/api/health`
+- Render health endpoint: `https://<your-app-name>.onrender.com/api/health` (example URL)
 - Should return: `{ status: "ok", service: "rehearsa-api", timestamp: "...", uptimeSeconds: ... }`
 
 ---
