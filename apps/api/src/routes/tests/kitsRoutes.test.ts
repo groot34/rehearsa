@@ -600,3 +600,72 @@ describe('Question confidence tracking', () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// Question reordering
+// ---------------------------------------------------------------------------
+
+describe('Question reordering', () => {
+  it('reorders questions in an owned kit', async () => {
+    const { body: saved } = await saveKit(tokenA);
+
+    const res = await fetch(`${baseUrl}/api/kits/${saved.id}/reorder`, {
+      method: 'PUT',
+      headers: authHeaders(tokenA),
+      body: JSON.stringify({ questionIds: ['q2', 'q1'] }),
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as any;
+    expect(body.success).toBe(true);
+    expect(body.updated).toBe(true);
+  });
+
+  it('rejects empty question order array', async () => {
+    const { body: saved } = await saveKit(tokenA);
+
+    const res = await fetch(`${baseUrl}/api/kits/${saved.id}/reorder`, {
+      method: 'PUT',
+      headers: authHeaders(tokenA),
+      body: JSON.stringify({ questionIds: [] }),
+    });
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as any;
+    expect(body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  it('rejects duplicate question IDs in order', async () => {
+    const { body: saved } = await saveKit(tokenA);
+
+    const res = await fetch(`${baseUrl}/api/kits/${saved.id}/reorder`, {
+      method: 'PUT',
+      headers: authHeaders(tokenA),
+      body: JSON.stringify({ questionIds: ['q1', 'q1'] }),
+    });
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as any;
+    expect(body.error.code).toBe('INVALID_ORDER');
+  });
+
+  it('returns 404 when reordering another users kit', async () => {
+    const { body: saved } = await saveKit(tokenA);
+
+    const res = await fetch(`${baseUrl}/api/kits/${saved.id}/reorder`, {
+      method: 'PUT',
+      headers: authHeaders(tokenB),
+      body: JSON.stringify({ questionIds: ['q1', 'q2'] }),
+    });
+    expect(res.status).toBe(404);
+    const body = (await res.json()) as any;
+    expect(body.error.code).toBe('NOT_FOUND');
+  });
+
+  it('returns 404 for non-existent kit when reordering', async () => {
+    const fakeId = new Types.ObjectId().toHexString();
+    const res = await fetch(`${baseUrl}/api/kits/${fakeId}/reorder`, {
+      method: 'PUT',
+      headers: authHeaders(tokenA),
+      body: JSON.stringify({ questionIds: ['q1', 'q2'] }),
+    });
+    expect(res.status).toBe(404);
+  });
+});

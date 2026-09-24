@@ -251,3 +251,35 @@ export async function updateQuestionConfidence(
     return { success: false, error: { code: 'NETWORK_ERROR', message: err.message } };
   }
 }
+
+// ---------------------------------------------------------------------------
+// Question reordering
+// ---------------------------------------------------------------------------
+
+export interface ReorderQuestionsPayload {
+  questionIds: string[];
+}
+
+export interface ApiReorderResponse {
+  success: boolean;
+  error?: { code: string; message: string };
+}
+
+export async function reorderQuestions(
+  kitId: string,
+  payload: ReorderQuestionsPayload,
+  token: string
+): Promise<ApiReorderResponse> {
+  try {
+    const res = await fetch(`/api/kits/${kitId}/reorder`, {
+      method: 'PUT',
+      headers: authHeaders(token),
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) return { success: false, error: data.error };
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: { code: 'NETWORK_ERROR', message: err.message } };
+  }
+}

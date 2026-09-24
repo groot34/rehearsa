@@ -313,3 +313,70 @@ export async function updateQuestionConfidence(
 
   return { success: true, data: { updated: true } };
 }
+
+// ---------------------------------------------------------------------------
+// Reorder questions (ownership enforced)
+// ---------------------------------------------------------------------------
+
+/**
+ * Reorders questions within a kit by setting an explicit ordered array of question IDs.
+ * Order is stored outside the Appendix A kit payload to preserve schema compliance.
+ * Only the owning user can reorder their own kit's questions.
+ */
+export async function reorderQuestions(
+  userId: string,
+  kitId: string,
+  questionIds: string[]
+): Promise<KitServiceResult<{ updated: true }>> {
+  if (!isValidObjectId(kitId)) {
+    return {
+      success: false,
+      code: 'NOT_FOUND',
+      message: 'Kit not found.',
+      statusCode: 404,
+    };
+  }
+
+  // Validate: non-empty array
+  if (!Array.isArray(questionIds) || questionIds.length === 0) {
+    return {
+      success: false,
+      code: 'INVALID_ORDER',
+      message: 'Question order must be a non-empty array.',
+      statusCode: 400,
+    };
+  }
+
+  // Validate: no duplicates
+  const uniqueIds = new Set(questionIds);
+  if (uniqueIds.size !== questionIds.length) {
+    return {
+      success: false,
+      code: 'INVALID_ORDER',
+      message: 'Question order cannot contain duplicate IDs.',
+      statusCode: 400,
+    };
+  }
+
+  // Verify ownership and update order using atomic operation
+  const result = await KitDocumentModel.updateOne(
+    {
+      _id: new Types.ObjectId(kitId),
+      userId: new Types.ObjectId(userId),
+    },
+    {
+      $set: { questionOrder: questionIds },
+    }
+  );
+
+  if (result.matchedCount === 0) {
+    return {
+      success: false,
+      code: 'NOT_FOUND',
+      message: 'Kit not found.',
+      statusCode: 404,
+    };
+  }
+
+  return { success: true, data: { updated: true } };
+}

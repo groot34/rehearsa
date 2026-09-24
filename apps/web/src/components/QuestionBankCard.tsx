@@ -13,6 +13,8 @@ import {
   X,
   AlertCircle,
   ChevronRight,
+  ArrowUp,
+  ArrowDown,
 } from 'lucide-react';
 
 interface Props {
@@ -24,6 +26,9 @@ interface Props {
   questionConfidence?: Record<string, 'unknown' | 'not-ready' | 'somewhat-ready' | 'ready'>;
   onUpdateConfidence?: (questionId: string, confidence: 'unknown' | 'not-ready' | 'somewhat-ready' | 'ready') => void;
   isUpdatingConfidence?: boolean;
+  questionOrder?: string[];
+  onReorderQuestions?: (newOrder: string[]) => void;
+  isReordering?: boolean;
 }
 
 export const QuestionBankCard: React.FC<Props> = ({
@@ -35,6 +40,9 @@ export const QuestionBankCard: React.FC<Props> = ({
   questionConfidence = {},
   onUpdateConfidence,
   isUpdatingConfidence = false,
+  questionOrder = [],
+  onReorderQuestions,
+  isReordering = false,
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>({});
@@ -71,9 +79,44 @@ export const QuestionBankCard: React.FC<Props> = ({
       ? questions
       : questions.filter((q) => q.category === selectedCategory);
 
+  // Apply custom order if available
+  const orderedQuestions = React.useMemo(() => {
+    if (questionOrder.length > 0) {
+      const orderMap = new Map(questionOrder.map((id, idx) => [id, idx]));
+      return [...filteredQuestions].sort((a, b) => {
+        const aIdx = orderMap.get(a.id) ?? filteredQuestions.indexOf(a);
+        const bIdx = orderMap.get(b.id) ?? filteredQuestions.indexOf(b);
+        return aIdx - bIdx;
+      });
+    }
+    return filteredQuestions;
+  }, [filteredQuestions, questionOrder]);
+
   const toggleExpand = (id: string) => {
     if (editingId === id) return; // Don't toggle collapse while editing
     setExpandedIds((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const handleMoveUp = (questionId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!onReorderQuestions || questionOrder.length === 0) return;
+    const currentIdx = questionOrder.indexOf(questionId);
+    if (currentIdx > 0) {
+      const newOrder = [...questionOrder];
+      [newOrder[currentIdx], newOrder[currentIdx - 1]] = [newOrder[currentIdx - 1], newOrder[currentIdx]];
+      onReorderQuestions(newOrder);
+    }
+  };
+
+  const handleMoveDown = (questionId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!onReorderQuestions || questionOrder.length === 0) return;
+    const currentIdx = questionOrder.indexOf(questionId);
+    if (currentIdx < questionOrder.length - 1) {
+      const newOrder = [...questionOrder];
+      [newOrder[currentIdx], newOrder[currentIdx + 1]] = [newOrder[currentIdx + 1], newOrder[currentIdx]];
+      onReorderQuestions(newOrder);
+    }
   };
 
   const startEditing = (q: Question, e: React.MouseEvent) => {
@@ -325,7 +368,7 @@ export const QuestionBankCard: React.FC<Props> = ({
             No questions found in category "{selectedCategory}".
           </div>
         ) : (
-          filteredQuestions.map((q) => {
+          orderedQuestions.map((q) => {
             const isExpanded = !!expandedIds[q.id];
             const isEditing = editingId === q.id;
 
@@ -397,6 +440,29 @@ export const QuestionBankCard: React.FC<Props> = ({
                     </div>
 
                     <div className="flex items-center gap-1">
+                      {onReorderQuestions && questionOrder.length > 0 && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={(e) => handleMoveUp(q.id, e)}
+                            title="Move Up"
+                            disabled={isReordering}
+                            className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 disabled:opacity-50 rounded-lg transition-colors"
+                          >
+                            <ArrowUp className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => handleMoveDown(q.id, e)}
+                            title="Move Down"
+                            disabled={isReordering}
+                            className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 disabled:opacity-50 rounded-lg transition-colors"
+                          >
+                            <ArrowDown className="w-3.5 h-3.5" />
+                          </button>
+                        </>
+                      )}
+
                       {onUpdateQuestion && (
                         <button
                           type="button"

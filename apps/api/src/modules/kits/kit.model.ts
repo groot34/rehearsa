@@ -12,6 +12,8 @@ export interface IKitDocument extends Document {
   kit: Kit;
   /** Question confidence tracking (optional). Maps question ID to confidence level. Stored outside kit payload to preserve Appendix A compliance. */
   questionConfidence?: Record<string, 'unknown' | 'not-ready' | 'somewhat-ready' | 'ready'>;
+  /** Question order tracking (optional). Ordered array of question IDs. Stored outside kit payload to preserve Appendix A compliance. */
+  questionOrder?: string[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -45,6 +47,14 @@ const KitDocumentSchema = new Schema<IKitDocument>(
     questionConfidence: {
       type: Map,
       of: String,
+      default: undefined,
+    },
+    /**
+     * Question order tracking (optional).
+     * Ordered array of question IDs. Stored outside kit payload to preserve Appendix A compliance.
+     */
+    questionOrder: {
+      type: [String],
       default: undefined,
     },
   },

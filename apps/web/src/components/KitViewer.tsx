@@ -48,6 +48,10 @@ interface Props {
   questionConfidence?: Record<string, 'unknown' | 'not-ready' | 'somewhat-ready' | 'ready'>;
   onUpdateConfidence?: (questionId: string, confidence: 'unknown' | 'not-ready' | 'somewhat-ready' | 'ready') => void;
   isUpdatingConfidence?: boolean;
+  /** Question order tracking */
+  questionOrder?: string[];
+  onReorderQuestions?: (newOrder: string[]) => void;
+  isReordering?: boolean;
 }
 
 export const KitViewer: React.FC<Props> = ({
@@ -60,6 +64,9 @@ export const KitViewer: React.FC<Props> = ({
   questionConfidence = {},
   onUpdateConfidence,
   isUpdatingConfidence = false,
+  questionOrder = [],
+  onReorderQuestions,
+  isReordering = false,
 }) => {
   const [activeTab, setActiveTab] = useState<
     'all' | 'brief' | 'role' | 'questions' | 'cards' | 'schedule'
@@ -297,6 +304,9 @@ export const KitViewer: React.FC<Props> = ({
               questionConfidence={questionConfidence}
               onUpdateConfidence={onUpdateConfidence}
               isUpdatingConfidence={isUpdatingConfidence}
+              questionOrder={questionOrder}
+              onReorderQuestions={onReorderQuestions}
+              isReordering={isReordering}
             />
           </div>
         )}

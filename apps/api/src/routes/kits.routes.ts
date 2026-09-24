@@ -2,7 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { SaveKitInputSchema, UpdateKitInputSchema } from '@rehearsa/shared';
 import { requireAuth } from '../modules/auth/auth.middleware';
-import { saveKit, listKits, getKitById, updateKit, deleteKit, updateQuestionConfidence } from '../modules/kits/kit.service';
+import { saveKit, listKits, getKitById, updateKit, deleteKit, updateQuestionConfidence, reorderQuestions } from '../modules/kits/kit.service';
 
 const router = Router();
 
@@ -11,6 +11,11 @@ const QuestionConfidenceSchema = z.enum(['unknown', 'not-ready', 'somewhat-ready
 const UpdateConfidenceInputSchema = z.object({
   questionId: z.string().min(1, 'Question ID cannot be empty'),
   confidence: QuestionConfidenceSchema,
+});
+
+// Reorder validation schema
+const ReorderQuestionsInputSchema = z.object({
+  questionIds: z.array(z.string().min(1)).min(1, 'Question order must be a non-empty array'),
 });
 
 // All kit routes require valid authentication.
@@ -165,6 +170,41 @@ router.put('/:id/confidence', asyncHandler(async (req: Request, res: Response) =
     req.params.id,
     parseResult.data.questionId,
     parseResult.data.confidence
+  );
+  if (!result.success) {
+    res.status(result.statusCode).json({
+      error: { code: result.code, message: result.message },
+    });
+    return;
+  }
+  res.status(200).json({ success: true, updated: true });
+}));
+
+// ---------------------------------------------------------------------------
+// PUT /api/kits/:id/reorder  — reorder questions in an owned kit
+// ---------------------------------------------------------------------------
+
+/**
+ * Reorders questions within an owned kit by setting an explicit ordered array of question IDs.
+ * Order is stored outside the Appendix A kit payload to preserve schema compliance.
+ */
+router.put('/:id/reorder', asyncHandler(async (req: Request, res: Response) => {
+  const parseResult = ReorderQuestionsInputSchema.safeParse(req.body);
+  if (!parseResult.success) {
+    const details = parseResult.error.issues.map((i) => ({
+      field: i.path.join('.'),
+      message: i.message,
+    }));
+    res.status(400).json({
+      error: { code: 'VALIDATION_ERROR', message: 'Invalid reorder payload.', details },
+    });
+    return;
+  }
+
+  const result = await reorderQuestions(
+    req.user!.sub,
+    req.params.id,
+    parseResult.data.questionIds
   );
   if (!result.success) {
     res.status(result.statusCode).json({

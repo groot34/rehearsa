@@ -9,6 +9,7 @@ import {
   fetchKitById,
   updateKitOnServer,
   updateQuestionConfidence,
+  reorderQuestions,
   GenerateKitPayload,
 } from '../lib/api';
 import { useAuth } from '../lib/auth';
@@ -68,6 +69,10 @@ export default function HomePage() {
   const [questionConfidence, setQuestionConfidence] = useState<Record<string, 'unknown' | 'not-ready' | 'somewhat-ready' | 'ready'>>({});
   const [isUpdatingConfidence, setIsUpdatingConfidence] = useState(false);
 
+  // Question order tracking
+  const [questionOrder, setQuestionOrder] = useState<string[]>([]);
+  const [isReordering, setIsReordering] = useState(false);
+
   const handleItemEdited = useCallback((itemId: string) => {
     setEditedItemIds((prev) => {
       if (itemId.startsWith('q_custom_') || itemId.startsWith('f_custom_')) return prev;
@@ -97,6 +102,16 @@ export default function HomePage() {
     setIsUpdatingConfidence(false);
     if (res.success) {
       setQuestionConfidence((prev) => ({ ...prev, [questionId]: confidence }));
+    }
+  }, [savedKitId, token]);
+
+  const handleReorderQuestions = useCallback(async (newOrder: string[]) => {
+    if (!savedKitId || !token) return;
+    setIsReordering(true);
+    const res = await reorderQuestions(savedKitId, { questionIds: newOrder }, token);
+    setIsReordering(false);
+    if (res.success) {
+      setQuestionOrder(newOrder);
     }
   }, [savedKitId, token]);
 
@@ -230,6 +245,7 @@ export default function HomePage() {
       setSaveError(null);
       setEditedItemIds(new Set());
       setQuestionConfidence({}); // Reset confidence on load (TODO: fetch from API when endpoint returns it)
+      setQuestionOrder([]); // Reset order on load (TODO: fetch from API when endpoint returns it)
       regenRequestRef.current = 0;
       setView('kit-viewer');
     } else {
@@ -418,6 +434,9 @@ export default function HomePage() {
               questionConfidence={questionConfidence}
               onUpdateConfidence={handleUpdateConfidence}
               isUpdatingConfidence={isUpdatingConfidence}
+              questionOrder={questionOrder}
+              onReorderQuestions={handleReorderQuestions}
+              isReordering={isReordering}
             />
           </div>
         )}
