@@ -11,8 +11,8 @@
 - **Commit 7 (live verify docs)**: `1981ab6` — `docs: record live MongoDB verification`
 - **Commit 8 (E2E audit)**: `54a2b9b` — `docs: record end-to-end journey audit`
 - **Commit 9 (M10 state restore)**: `a4cbbc0` — `feat: restore persisted kit state on fetch`
-- **Commit 10 (M11)**: pending — `feat: add public interview discussion search`
-- **Branch**: `main`, 3 ahead of `origin/main` (not yet pushed).
+- **Commit 10 (M11)**: `342e4fd` — `feat: add public interview discussion search`
+- **Branch**: `main`, 4 ahead of `origin/main` (not yet pushed).
 
 ---
 
