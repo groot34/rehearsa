@@ -141,7 +141,18 @@ export async function logoutUser(token: string): Promise<void> {
 // Kit persistence (Milestone 9)
 // ---------------------------------------------------------------------------
 
-export interface SavedKitMeta { id: string; kit: Kit; createdAt: string; updatedAt: string; }
+export interface SavedKitMeta {
+  id: string;
+  kit: Kit;
+  createdAt: string;
+  updatedAt: string;
+  /** Maps question ID → confidence level. Absent when no confidence has been set. */
+  questionConfidence?: Record<string, 'unknown' | 'not-ready' | 'somewhat-ready' | 'ready'>;
+  /** Ordered array of question IDs. Absent when no custom order has been set. */
+  questionOrder?: string[];
+  /** Maps flashcard ID → confidence tier. Absent when no confidence has been set. */
+  flashcardConfidence?: Record<string, 'easy' | 'medium' | 'hard'>;
+}
 
 export interface ApiKitResponse {
   success: boolean;
@@ -184,7 +195,19 @@ export async function fetchKitById(id: string, token: string): Promise<ApiKitRes
     const res = await fetch(`/api/kits/${id}`, { headers: authHeaders(token) });
     const data = await res.json();
     if (!res.ok) return { success: false, error: data.error };
-    return { success: true, data: { id: data.id, kit: data.kit, createdAt: data.createdAt, updatedAt: data.updatedAt } };
+    // Forward M10 persistence metadata alongside the Appendix A kit payload.
+    // These fields are optional — absent on kits that pre-date M10 or where
+    // the user has not yet set any confidence/order values.
+    const meta: SavedKitMeta = {
+      id: data.id,
+      kit: data.kit,
+      createdAt: data.createdAt,
+      updatedAt: data.updatedAt,
+    };
+    if (data.questionConfidence !== undefined) meta.questionConfidence = data.questionConfidence;
+    if (data.questionOrder !== undefined) meta.questionOrder = data.questionOrder;
+    if (data.flashcardConfidence !== undefined) meta.flashcardConfidence = data.flashcardConfidence;
+    return { success: true, data: meta };
   } catch (err: any) {
     return { success: false, error: { code: 'NETWORK_ERROR', message: err.message } };
   }

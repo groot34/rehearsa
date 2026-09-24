@@ -125,14 +125,38 @@ export async function listKits(userId: string): Promise<KitServiceResult<KitSumm
 // ---------------------------------------------------------------------------
 
 /**
+ * Shape returned for a single kit fetch, including optional M10 persistence
+ * metadata stored outside the Appendix A payload.
+ *
+ * These three fields are omitted (undefined) when they have never been set,
+ * so clients must treat them as optional.
+ */
+export interface KitFetchData {
+  id: string;
+  kit: Kit;
+  createdAt: string;
+  updatedAt: string;
+  /** Maps question ID → confidence level. Absent when no confidence has been set. */
+  questionConfidence?: Record<string, 'unknown' | 'not-ready' | 'somewhat-ready' | 'ready'>;
+  /** Ordered array of question IDs. Absent when no custom order has been set. */
+  questionOrder?: string[];
+  /** Maps flashcard ID → confidence tier. Absent when no confidence has been set. */
+  flashcardConfidence?: Record<string, 'easy' | 'medium' | 'hard'>;
+}
+
+/**
  * Fetches a single kit, scoped to the authenticated user.
  * Returns NOT_FOUND for both missing and non-owned kits to avoid
  * disclosing that a kit exists but belongs to another user.
+ *
+ * The response includes the M10 persistence metadata
+ * (questionConfidence, questionOrder, flashcardConfidence) so the
+ * frontend can restore interactive state when re-opening a saved kit.
  */
 export async function getKitById(
   userId: string,
   kitId: string
-): Promise<KitServiceResult<{ id: string; kit: Kit; createdAt: string; updatedAt: string }>> {
+): Promise<KitServiceResult<KitFetchData>> {
   if (!isValidObjectId(kitId)) {
     return {
       success: false,
@@ -156,15 +180,44 @@ export async function getKitById(
     };
   }
 
-  return {
-    success: true,
-    data: {
-      id: String(doc._id),
-      kit: doc.kit,
-      createdAt: doc.createdAt.toISOString(),
-      updatedAt: doc.updatedAt.toISOString(),
-    },
+  // ---------------------------------------------------------------------------
+  // Convert Mongoose Map objects to plain Records for JSON serialisation.
+  // Mongoose stores Map-type fields as ES6 Map instances; JSON.stringify does
+  // not serialise Map natively, so we convert to plain objects here.
+  // ---------------------------------------------------------------------------
+  const questionConfidence = doc.questionConfidence
+    ? Object.fromEntries(
+        doc.questionConfidence instanceof Map
+          ? doc.questionConfidence
+          : Object.entries(doc.questionConfidence)
+      ) as Record<string, 'unknown' | 'not-ready' | 'somewhat-ready' | 'ready'>
+    : undefined;
+
+  const flashcardConfidence = doc.flashcardConfidence
+    ? Object.fromEntries(
+        doc.flashcardConfidence instanceof Map
+          ? doc.flashcardConfidence
+          : Object.entries(doc.flashcardConfidence)
+      ) as Record<string, 'easy' | 'medium' | 'hard'>
+    : undefined;
+
+  const questionOrder =
+    doc.questionOrder && doc.questionOrder.length > 0
+      ? [...doc.questionOrder]
+      : undefined;
+
+  const data: KitFetchData = {
+    id: String(doc._id),
+    kit: doc.kit,
+    createdAt: doc.createdAt.toISOString(),
+    updatedAt: doc.updatedAt.toISOString(),
   };
+
+  if (questionConfidence !== undefined) data.questionConfidence = questionConfidence;
+  if (questionOrder !== undefined) data.questionOrder = questionOrder;
+  if (flashcardConfidence !== undefined) data.flashcardConfidence = flashcardConfidence;
+
+  return { success: true, data };
 }
 
 // ---------------------------------------------------------------------------

@@ -4,6 +4,47 @@ All notable changes to the Rehearsa project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [feat] - M10 State Restoration Fix — 2026-09-24
+
+### Fixed
+- **`GET /api/kits/:id` now returns M10 persistence metadata** (`questionConfidence`, `questionOrder`, `flashcardConfidence`) alongside the Appendix A kit payload. Previously these fields were persisted to MongoDB by their dedicated `PUT` endpoints but never returned on fetch, causing silent data loss every time a user navigated away and reopened a saved kit. See ADR-014.
+
+### Changed
+- **`apps/api/src/modules/kits/kit.service.ts`**: `getKitById` return type extended to `KitFetchData` — adds three optional fields. Mongoose `Map` instances are converted to plain `Record<string, string>` objects for JSON serialisation. Empty `questionOrder` array is treated as absent.
+- **`apps/web/src/lib/api.ts`**: `SavedKitMeta` interface extended with three optional M10 fields. `fetchKitById` forwards them from the API response.
+- **`apps/web/src/app/page.tsx`**: `handleOpenKit` restores `questionConfidence`, `questionOrder`, and `flashcardConfidence` from the API response (`?? {}` / `?? []` fallback for pre-M10 kits). TODO comments removed.
+
+### Tests added
+- **`apps/api/src/routes/tests/kitsRoutes.test.ts`**: 7 new integration tests — fresh kit returns no M10 fields; each field returned individually after being set; all three fields present simultaneously with Appendix A `kit.*` uncontaminated; ownership isolation confirmed (User B receives 404, not M10 data); M10 fields absent from list summary response.
+
+### Architecture
+- **ADR-014** added to `docs/DECISIONS.md`.
+- **ADR-013** trade-off note updated (flashcard confidence now returned in GET response).
+
+### Verification
+- `npm test`: Exit Code `0`. **246/246 tests passing** across 19 test files (7 new tests).
+- `npm run build`: Exit Code `0`. All three workspaces compile cleanly.
+- `npm run lint`: Exit Code `0`. All workspaces lint cleanly.
+- `npm run evaluate`: Exit Code `0`. 5/8 OK, 3 invalid isolated, 706ms.
+
+### API contract change
+`GET /api/kits/:id` response now includes three **optional** top-level fields:
+```json
+{
+  "success": true,
+  "id": "...",
+  "kit": { /* Appendix A payload — unchanged */ },
+  "createdAt": "...",
+  "updatedAt": "...",
+  "questionConfidence": { "q1": "ready", "q2": "not-ready" },
+  "questionOrder": ["q2", "q1"],
+  "flashcardConfidence": { "f1": "hard" }
+}
+```
+All three fields are omitted (not null) when no M10 state has been set. Existing clients that do not read these fields are unaffected.
+
+---
+
 ## [test] - End-to-End Journey Audit — 2026-09-24
 
 ### Added

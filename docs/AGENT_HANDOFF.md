@@ -8,37 +8,36 @@
 
 * **Project**: Rehearsa — Full-Stack AI-Powered Interview Preparation Platform
 * **Assessment ID**: `FS-AI-INTERVIEW-01` (Trao Assessment)
-* **Active Milestone**: `End-to-End Journey Audit` (Completed — pending commit)
+* **Active Milestone**: `M10 State Restoration Fix` (Implemented — pending commit)
 
 ---
 
 ## 2. Latest Known Repository State
 
 * **Branch**: `main`
-* **HEAD Commit**: `1981ab6` — `docs: record live MongoDB verification`
-* **Sync status**: `main` is 1 ahead of `origin/main` (E2E audit commit pending; verify with `git status` before proceeding).
+* **HEAD Commit**: `54a2b9b` — `docs: record end-to-end journey audit`
+* **Sync status**: `main` is 2 ahead of `origin/main`. M10 state restoration commit (`feat: restore persisted kit state on fetch`) is pending.
 * **Commit history (most recent first)**:
+  - `54a2b9b` — `docs: record end-to-end journey audit`
   - `1981ab6` — `docs: record live MongoDB verification`
-  - `d947b87` — `docs: record flashcard confidence tiers implementation` (M10.3 docs)
+  - `d947b87` — `docs: record flashcard confidence tiers implementation` (M10.3 docs, origin/main)
   - `085cc0f` — `feat: add persisted flashcard confidence tiers` (M10.3 impl)
   - `c2783c2` — `docs: record question confidence and reordering implementation`
   - `e5cd02c` — `feat: add persisted question reordering` (M10.2)
   - `2bbd21e` — `feat: add persisted question confidence tracking` (M10.1)
-  - `9c85498` — `docs: record live M8+M9 verification`
-  - `9797d33` — `docs: sync post-commit repository status`
   - `8a94003` — `feat(api,web): add persistent user-owned interview kits` (M9)
   - `1a0dfc7` — `feat(api): add user authentication and MongoDB connection` (M8)
-* **Working Tree**: E2E journey audit commit (`docs: record end-to-end journey audit`) is pending — includes `apps/api/src/routes/tests/e2eJourney.test.ts` (new, 59 tests) and 5 documentation files.
+* **Working Tree**: M10 state restoration changes are uncommitted — includes `kit.service.ts`, `apps/web/src/lib/api.ts`, `apps/web/src/app/page.tsx`, `apps/api/src/routes/tests/kitsRoutes.test.ts` (+7 tests), and 5 documentation files.
 
 ---
 
 ## 3. Completed Verification Evidence
 
 ### Automated Tests (mongodb-memory-server — no real DB required)
-- `npm test` → Exit Code `0`. **239/239 tests passing** across 19 test files.
+- `npm test` → Exit Code `0`. **246/246 tests passing** across 19 test files.
 - `npm run build` → Exit Code `0`. All three workspaces compile cleanly.
 - `npm run lint` → Exit Code `0`. All workspaces lint cleanly.
-- `npm run evaluate -- --input scratch/synthetic-benchmark-cases.json --output scratch/synthetic-benchmark-output.json` → Exit Code `0`. 8 cases: 5 valid kits, 3 isolated invalid, <3s total.
+- `npm run evaluate -- --input scratch/synthetic-benchmark-cases.json --output scratch/synthetic-benchmark-output.json` → Exit Code `0`. 8 cases: 5 valid kits, 3 isolated invalid, <1s total.
 
 ### E2E Journey Audit — completed 2026-09-24
 **File**: `apps/api/src/routes/tests/e2eJourney.test.ts` — 59 tests, 30 labelled steps.
@@ -134,11 +133,11 @@ The following items are genuinely outstanding as of 2026-09-24:
 
 1. **Deployment verification**: No production/cloud deployment has been performed or verified. All verification has been local (Docker MongoDB + local API server on port 4000 + local Next.js on port 3000).
 
-2. **Confidence and order not returned in GET response**: `GET /api/kits/:id` does not currently return `questionConfidence`, `questionOrder`, or `flashcardConfidence`. The frontend tracks these in React session state only; they are lost on page refresh. A follow-up milestone should extend the GET response and load these on kit open.
+2. **Public interview discussion search (ASSESSMENT.md §2)**: Marked `In progress`. The multi-page crawler fetches about/careers/culture pages but there is no dedicated search-engine integration for external interview discussion sites (e.g. Glassdoor, Blind). This item requires a decision on whether the crawler alone satisfies the requirement or whether a dedicated search integration is needed.
 
-3. **Public interview discussion search (ASSESSMENT.md §2)**: Marked `In progress`. The multi-page crawler fetches about/careers/culture pages but there is no dedicated search-engine integration for external interview discussion sites (e.g. Glassdoor, Blind). This item requires a decision on whether the crawler alone satisfies the requirement or whether a dedicated search integration is needed.
+3. ~~**Confidence and order not returned in GET response**~~: **Resolved** — `GET /api/kits/:id` now returns `questionConfidence`, `questionOrder`, and `flashcardConfidence` as optional fields. Frontend restores state on kit open. See ADR-014.
 
-4. ~~**Final project audit**~~: **Resolved** — `apps/api/src/routes/tests/e2eJourney.test.ts` provides a 59-test API-level sequential journey audit. No browser/UI E2E test exists (no Playwright or Cypress in the project). The API-level audit covers all 16 documented journey steps.
+4. ~~**Final project audit**~~: **Resolved** — `apps/api/src/routes/tests/e2eJourney.test.ts` provides a 59-test API-level sequential journey audit covering all 16 documented journey steps.
 
 ---
 

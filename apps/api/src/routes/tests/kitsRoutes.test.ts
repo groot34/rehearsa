@@ -797,3 +797,168 @@ describe('Flashcard confidence tracking', () => {
     expect(body.kit.flashcards[0].id).toBe('f1');
   });
 });
+
+// ---------------------------------------------------------------------------
+// GET /api/kits/:id — M10 state restoration (questionConfidence, questionOrder,
+// flashcardConfidence returned in response after being set)
+// ---------------------------------------------------------------------------
+
+describe('GET /api/kits/:id — M10 state restoration', () => {
+  it('returns no M10 fields when none have been set (fresh kit)', async () => {
+    const { body: saved } = await saveKit(tokenA);
+
+    const res = await fetch(`${baseUrl}/api/kits/${saved.id}`, {
+      headers: authHeaders(tokenA),
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as any;
+    expect(body.success).toBe(true);
+    // Fields must be absent (not set to null or empty objects) on a fresh kit
+    expect(body.questionConfidence).toBeUndefined();
+    expect(body.questionOrder).toBeUndefined();
+    expect(body.flashcardConfidence).toBeUndefined();
+  });
+
+  it('returns questionConfidence in GET response after it has been set', async () => {
+    const { body: saved } = await saveKit(tokenA);
+
+    // Set confidence for q1
+    await fetch(`${baseUrl}/api/kits/${saved.id}/confidence`, {
+      method: 'PUT',
+      headers: authHeaders(tokenA),
+      body: JSON.stringify({ questionId: 'q1', confidence: 'ready' }),
+    });
+
+    // Set confidence for q2
+    await fetch(`${baseUrl}/api/kits/${saved.id}/confidence`, {
+      method: 'PUT',
+      headers: authHeaders(tokenA),
+      body: JSON.stringify({ questionId: 'q2', confidence: 'not-ready' }),
+    });
+
+    const res = await fetch(`${baseUrl}/api/kits/${saved.id}`, {
+      headers: authHeaders(tokenA),
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as any;
+    expect(body.questionConfidence).toBeDefined();
+    expect(body.questionConfidence['q1']).toBe('ready');
+    expect(body.questionConfidence['q2']).toBe('not-ready');
+  });
+
+  it('returns questionOrder in GET response after it has been set', async () => {
+    const { body: saved } = await saveKit(tokenA);
+
+    await fetch(`${baseUrl}/api/kits/${saved.id}/reorder`, {
+      method: 'PUT',
+      headers: authHeaders(tokenA),
+      body: JSON.stringify({ questionIds: ['q2', 'q1'] }),
+    });
+
+    const res = await fetch(`${baseUrl}/api/kits/${saved.id}`, {
+      headers: authHeaders(tokenA),
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as any;
+    expect(body.questionOrder).toBeDefined();
+    expect(body.questionOrder).toEqual(['q2', 'q1']);
+  });
+
+  it('returns flashcardConfidence in GET response after it has been set', async () => {
+    const { body: saved } = await saveKit(tokenA);
+
+    await fetch(`${baseUrl}/api/kits/${saved.id}/flashcard-confidence`, {
+      method: 'PUT',
+      headers: authHeaders(tokenA),
+      body: JSON.stringify({ flashcardId: 'f1', confidence: 'medium' }),
+    });
+
+    const res = await fetch(`${baseUrl}/api/kits/${saved.id}`, {
+      headers: authHeaders(tokenA),
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as any;
+    expect(body.flashcardConfidence).toBeDefined();
+    expect(body.flashcardConfidence['f1']).toBe('medium');
+  });
+
+  it('returns all three M10 fields when all have been set', async () => {
+    const { body: saved } = await saveKit(tokenA);
+
+    await fetch(`${baseUrl}/api/kits/${saved.id}/confidence`, {
+      method: 'PUT',
+      headers: authHeaders(tokenA),
+      body: JSON.stringify({ questionId: 'q1', confidence: 'somewhat-ready' }),
+    });
+    await fetch(`${baseUrl}/api/kits/${saved.id}/reorder`, {
+      method: 'PUT',
+      headers: authHeaders(tokenA),
+      body: JSON.stringify({ questionIds: ['q2', 'q1'] }),
+    });
+    await fetch(`${baseUrl}/api/kits/${saved.id}/flashcard-confidence`, {
+      method: 'PUT',
+      headers: authHeaders(tokenA),
+      body: JSON.stringify({ flashcardId: 'f1', confidence: 'hard' }),
+    });
+
+    const res = await fetch(`${baseUrl}/api/kits/${saved.id}`, {
+      headers: authHeaders(tokenA),
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as any;
+    expect(body.questionConfidence['q1']).toBe('somewhat-ready');
+    expect(body.questionOrder).toEqual(['q2', 'q1']);
+    expect(body.flashcardConfidence['f1']).toBe('hard');
+    // Core kit payload must still be intact
+    expect(body.kit.role.title).toBe('Senior Backend Engineer');
+    // M10 fields must not bleed into the Appendix A kit object
+    expect(body.kit.questionConfidence).toBeUndefined();
+    expect(body.kit.questionOrder).toBeUndefined();
+    expect(body.kit.flashcardConfidence).toBeUndefined();
+  });
+
+  it('M10 state is not visible to another user (ownership isolation preserved)', async () => {
+    const { body: saved } = await saveKit(tokenA);
+
+    // Set some M10 state on User A's kit
+    await fetch(`${baseUrl}/api/kits/${saved.id}/confidence`, {
+      method: 'PUT',
+      headers: authHeaders(tokenA),
+      body: JSON.stringify({ questionId: 'q1', confidence: 'ready' }),
+    });
+
+    // User B attempts to GET the kit — must receive 404, not the M10 state
+    const res = await fetch(`${baseUrl}/api/kits/${saved.id}`, {
+      headers: authHeaders(tokenB),
+    });
+    expect(res.status).toBe(404);
+    const body = (await res.json()) as any;
+    expect(body.error.code).toBe('NOT_FOUND');
+    // M10 data must never be disclosed to a non-owner
+    expect(body.questionConfidence).toBeUndefined();
+    expect(body.questionOrder).toBeUndefined();
+    expect(body.flashcardConfidence).toBeUndefined();
+  });
+
+  it('M10 state does not appear in GET /api/kits list response (summaries only)', async () => {
+    const { body: saved } = await saveKit(tokenA);
+
+    await fetch(`${baseUrl}/api/kits/${saved.id}/confidence`, {
+      method: 'PUT',
+      headers: authHeaders(tokenA),
+      body: JSON.stringify({ questionId: 'q1', confidence: 'ready' }),
+    });
+
+    const res = await fetch(`${baseUrl}/api/kits`, {
+      headers: authHeaders(tokenA),
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as any;
+    const summary = body.kits[0];
+    // Summary must not expose M10 or internal fields
+    expect(summary.questionConfidence).toBeUndefined();
+    expect(summary.questionOrder).toBeUndefined();
+    expect(summary.flashcardConfidence).toBeUndefined();
+    expect(summary.kit).toBeUndefined();
+  });
+});

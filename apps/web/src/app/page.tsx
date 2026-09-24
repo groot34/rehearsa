@@ -260,9 +260,12 @@ export default function HomePage() {
       setSaveSuccess(true);
       setSaveError(null);
       setEditedItemIds(new Set());
-      setQuestionConfidence({}); // Reset confidence on load (TODO: fetch from API when endpoint returns it)
-      setQuestionOrder([]); // Reset order on load (TODO: fetch from API when endpoint returns it)
-      setFlashcardConfidence({}); // Reset flashcard confidence on load
+      // Restore persisted M10 state from the API response.
+      // Fall back to empty maps/arrays when fields are absent (pre-M10 kits
+      // or kits where confidence/order has never been set).
+      setQuestionConfidence(res.data.questionConfidence ?? {});
+      setQuestionOrder(res.data.questionOrder ?? []);
+      setFlashcardConfidence(res.data.flashcardConfidence ?? {});
       regenRequestRef.current = 0;
       setView('kit-viewer');
     } else {

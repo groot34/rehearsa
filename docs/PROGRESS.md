@@ -1,7 +1,7 @@
 # Project Progress & Status — Rehearsa
 
 ## 1. Current Milestone
-**Milestone 10.3 — Flashcard Confidence Tiers (COMMITTED, TESTED, live MongoDB verified) + E2E Journey Audit (COMPLETED)**
+**Milestone 10.3 — Flashcard Confidence Tiers (COMMITTED, TESTED, live MongoDB verified) + E2E Journey Audit (COMPLETED) + M10 State Restoration Fix (IMPLEMENTED)**
 - **Commit 1 (M8)**: `1a0dfc7` — `feat(api): add user authentication and MongoDB connection`
 - **Commit 2 (M9)**: `8a94003` — `feat(api,web): add persistent user-owned interview kits`
 - **Commit 3 (M10.1)**: `2bbd21e` — `feat: add persisted question confidence tracking`
@@ -9,8 +9,9 @@
 - **Commit 5 (M10.3)**: `085cc0f` — `feat: add persisted flashcard confidence tiers`
 - **Commit 6 (M10.3 docs)**: `d947b87` — `docs: record flashcard confidence tiers implementation`
 - **Commit 7 (live verify docs)**: `1981ab6` — `docs: record live MongoDB verification`
-- **Commit 8 (E2E audit)**: pending — `docs: record end-to-end journey audit`
-- **Branch**: `main`, 1 ahead of `origin/main` (not yet pushed).
+- **Commit 8 (E2E audit)**: `54a2b9b` — `docs: record end-to-end journey audit`
+- **Commit 9 (M10 state restore)**: pending — `feat: restore persisted kit state on fetch`
+- **Branch**: `main`, 2 ahead of `origin/main` (not yet pushed).
 
 ---
 
@@ -177,7 +178,7 @@
 ---
 
 ## 4. Outstanding Tasks (Next Milestones)
-- **Milestone 10**: Question confidence tracking, reordering, and flashcard confidence tiers all completed and committed. Live MongoDB verification of M8+M9 completed. **E2E journey audit completed** (59 API-level tests covering all 16 journey steps, 239/239 passing).
+- **Milestone 10**: Question confidence tracking, reordering, and flashcard confidence tiers all completed and committed. Live MongoDB verification of M8+M9 completed. **E2E journey audit completed** (59 API-level tests covering all 16 journey steps, 246/246 passing after M10 state restoration fix). **M10 state restoration fix**: `GET /api/kits/:id` now returns `questionConfidence`, `questionOrder`, and `flashcardConfidence`; frontend restores state on kit open (7 new integration tests). ADR-014 documented.
 - Final User Review & Project Audit.
 
 ---
@@ -188,14 +189,13 @@
 ---
 
 ## 6. Blockers
-* None. Live MongoDB verification completed (2026-09-24). E2E journey audit completed (2026-09-24). All 239 tests pass; live Gemini generation verified (M6); full monorepo build succeeds; lint succeeds.
+* None. Live MongoDB verification completed (2026-09-24). E2E journey audit completed (2026-09-24). M10 state restoration fix implemented (2026-09-24). All 246 tests pass; live Gemini generation verified (M6); full monorepo build succeeds; lint succeeds.
 
 ---
 
 ## 7. Next Recommended Task
-All Milestone 10 interactive features committed and live-verified. E2E journey audit completed (gap #4 resolved). Remaining gaps:
+All Milestone 10 interactive features committed, live-verified, and fully restored on kit reload. E2E journey audit completed (gap #4 resolved). M10 state restoration gap resolved (ADR-014). Remaining gaps:
 - Deployment verification (production environment not yet tested)
-- Confidence and order values not currently returned in `GET /api/kits/:id` response (frontend tracks in session state only)
 - Public interview discussion search: multi-page crawler covers about/careers/culture pages; no dedicated external search-engine integration (e.g. Glassdoor, Blind)
 
-Next: deployment verification or final project audit.
+Next: deployment verification or public interview search integration.

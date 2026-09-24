@@ -21,6 +21,7 @@ This document records the architectural and engineering decisions made for the R
 | [ADR-011](#adr-011-question-confidence-tracking-persistence) | Question Confidence Tracking Persistence | Accepted | 2026-09-24 |
 | [ADR-012](#adr-012-question-reordering-persistence) | Question Reordering Persistence | Accepted | 2026-09-24 |
 | [ADR-013](#adr-013-flashcard-confidence-tiers-persistence) | Flashcard Confidence Tiers Persistence | Accepted | 2026-09-24 |
+| [ADR-014](#adr-014-return-m10-persistence-metadata-in-get-apikitsid-response) | Return M10 Persistence Metadata in GET /api/kits/:id Response | Accepted | 2026-09-24 |
 
 ---
 
@@ -516,7 +517,51 @@ This is an accepted trade-off for a client-rendered SPA without a BFF. An `httpO
   - Flashcard ID validation ensures only cards actually present in the kit can receive confidence updates.
   - Three-tier UI provides finer-grained self-assessment than binary mastery.
 * **Trade-offs**:
-  - Flashcard confidence is not returned in the current `GET /api/kits/:id` response (requires extending the response schema to include it).
-  - Frontend tracks confidence in React state during the session; a full implementation would fetch it on kit load.
+  - Flashcard confidence is returned in `GET /api/kits/:id` as an optional field (added in ADR-014). Frontend restores state on kit open.
   - The old binary mastered interaction is removed — there is no fallback to the previous UI pattern.
   - Frontend falls back to default array order when `questionOrder` is empty or undefined.
+
+---
+
+### ADR-014: Return M10 Persistence Metadata in GET /api/kits/:id Response
+
+* **Status**: Accepted
+* **Date**: 2026-09-24
+* **Context**:
+  Milestones 10.1–10.3 added three persistence fields to `KitDocumentModel` outside the Appendix A payload: `questionConfidence` (Map), `questionOrder` (string[]), and `flashcardConfidence` (Map). Dedicated `PUT` endpoints were implemented to update these fields atomically. However, `GET /api/kits/:id` was not updated to return them. The frontend `page.tsx` `handleOpenKit` therefore reset all three maps to empty values on every kit reload, with TODO comments noting the gap. As a result, any confidence ratings or custom question order set by the user were silently lost whenever they navigated away and reopened the kit.
+
+* **Investigation findings**:
+  - The gap is a genuine consistency issue, not an intentional trade-off. ADR-011, ADR-012, and ADR-013 each noted the limitation but deferred the fix.
+  - No Appendix A schema change is required — the three fields live outside `kit.*`.
+  - No ownership/security risk — `getKitById` already enforces `{ _id, userId }` ownership at the database level. Adding fields to the response of an already-ownership-gated endpoint does not weaken isolation.
+  - Mongoose stores `Map`-type fields as ES6 `Map` instances. `JSON.stringify` does not serialise `Map` natively, so conversion to plain `Record<string, string>` is required before returning.
+  - An empty `questionOrder` array is treated as absent (fields are omitted when no custom order has been set), matching the Mongoose schema `default: undefined`.
+
+* **Decision**:
+  Extend `getKitById` in `kit.service.ts` to include `questionConfidence`, `questionOrder`, and `flashcardConfidence` as optional fields in the returned `KitFetchData` object. Convert Mongoose `Map` instances to plain `Record` objects for JSON serialisation. Extend `SavedKitMeta` in `apps/web/src/lib/api.ts` to forward these fields. Update `handleOpenKit` in `apps/web/src/app/page.tsx` to restore state from the API response (`?? {}` / `?? []` fallback for pre-M10 kits).
+
+* **Reasoning**:
+  - Smallest possible fix: only `getKitById` changes on the backend; the route handler already spreads `result.data` so no route change is needed.
+  - Optional fields with `undefined` absence means pre-M10 kits and kits with no M10 state set are handled gracefully without migration.
+  - Ownership isolation is preserved — User B still receives 404 (not M10 data) for another user's kit.
+  - M10 fields are absent from list summary responses (`GET /api/kits`) — summaries remain lightweight.
+  - Appendix A `kit.*` object is never modified — batch evaluator compatibility is unchanged.
+
+* **Alternatives Considered**:
+  - Separate dedicated endpoint (`GET /api/kits/:id/meta`): Rejected — requires two round-trips to open a kit; adds API surface with no benefit.
+  - Embed fields inside `kit.*` (Appendix A): Rejected — would break schema compliance and batch evaluator.
+  - Accept the loss silently (keep as TODO): Rejected — this is a user-visible data loss bug, not a UX enhancement.
+
+* **Trade-offs**:
+  - `GET /api/kits/:id` response payload grows slightly (at most a few hundred bytes of optional metadata). Acceptable given the existing 2 MB body limit.
+  - Clients must treat all three fields as optional (may be absent on pre-M10 kits).
+
+* **Tests added**:
+  7 integration tests in `apps/api/src/routes/tests/kitsRoutes.test.ts`:
+  - Fresh kit returns no M10 fields.
+  - `questionConfidence` returned after being set.
+  - `questionOrder` returned after being set.
+  - `flashcardConfidence` returned after being set.
+  - All three fields present simultaneously, Appendix A `kit.*` uncontaminated.
+  - Ownership isolation: User B receives 404, not M10 data.
+  - M10 fields absent from list summary response.
