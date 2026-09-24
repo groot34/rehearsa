@@ -1,13 +1,14 @@
 # Project Progress & Status — Rehearsa
 
 ## 1. Current Milestone
-**Milestone 10.3 — Flashcard Confidence Tiers (IMPLEMENTED, TESTED, pending commit)**
+**Milestone 10.3 — Flashcard Confidence Tiers (COMMITTED, TESTED, live MongoDB verified)**
 - **Commit 1 (M8)**: `1a0dfc7` — `feat(api): add user authentication and MongoDB connection`
 - **Commit 2 (M9)**: `8a94003` — `feat(api,web): add persistent user-owned interview kits`
 - **Commit 3 (M10.1)**: `2bbd21e` — `feat: add persisted question confidence tracking`
 - **Commit 4 (M10.2)**: `e5cd02c` — `feat: add persisted question reordering`
-- **Commit 5 (M10.3)**: pending — `feat: add persisted flashcard confidence tiers`
-- **Branch**: `main`, 12 commits ahead of `origin/main` (not yet pushed).
+- **Commit 5 (M10.3)**: `085cc0f` — `feat: add persisted flashcard confidence tiers`
+- **Commit 6 (M10.3 docs)**: `d947b87` — `docs: record flashcard confidence tiers implementation`
+- **Branch**: `main`, synced with `origin/main` (all commits pushed).
 
 ---
 
@@ -105,7 +106,7 @@
   - **Test result**: `npx vitest run` → Exit Code `0`. **132/132 tests passing** across 17 test files.
   - **Build**: `npm run build` → Exit Code `0`.
   - **Lint**: `npm run lint` → Exit Code `0`.
-  - **Live DB/auth verification**: NOT verified against real MongoDB/real secrets. All automated tests use mongodb-memory-server. Manual verification requires `MONGODB_URI` and `JWT_SECRET` in `.env`.
+  - **Live DB/auth verification**: Completed (2026-09-24). Verified against real MongoDB (Docker) with live `MONGODB_URI` and `JWT_SECRET`. Registration, login, logout, `/auth/me`, duplicate-email rejection, wrong-password rejection, and unknown-email rejection all confirmed. See TESTING.md live verification log.
   - **Changes committed at `1a0dfc7`**.
 - [x] **Milestone 9: Kit Persistence + User-Scoped CRUD (COMPLETED, committed at `8a94003`)**:
   - **`packages/shared/src/schemas/input.schema.ts`**: Added `SaveKitInputSchema`, `UpdateKitInputSchema`, `KitSummarySchema` — persistence contracts kept outside Appendix A.
@@ -127,7 +128,7 @@
   - **Test result**: `npx vitest run` → Exit Code `0`. **161/161 tests passing** across 18 test files.
   - **Build**: `npm run build` → Exit Code `0`. All three workspaces compile cleanly.
   - **Lint**: `npm run lint` → Exit Code `0`.
-  - **Live verification**: NOT performed against real MongoDB. All tests use mongodb-memory-server.
+  - **Live verification**: Completed (2026-09-24). Verified against real MongoDB. Kit creation (POST), list (GET), edit (PUT), delete (DELETE), question confidence update, question reorder, multiple kits per user, and cross-user ownership isolation all confirmed. See TESTING.md live verification log.
   - **Changes committed at `8a94003`**.
 - [x] **Milestone 10.1: Question Confidence Tracking (COMMITTED at `2bbd21e`)**:
   - **`apps/api/src/modules/kits/kit.model.ts`**: Added optional `questionConfidence` field (Map<string, string>) to `KitDocumentModel`, stored outside Appendix A kit payload.
@@ -174,7 +175,7 @@
 ---
 
 ## 4. Outstanding Tasks (Next Milestones)
-- **Milestone 10**: Assessment.md Section 5 update to Verified; live manual verification of M8+M9; flashcard confidence tiers (easy/medium/hard); reorder UI.
+- **Milestone 10**: Question confidence tracking, reordering, and flashcard confidence tiers all completed and committed. Live MongoDB verification of M8+M9 completed.
 - Final User Review & Project Audit.
 
 ---
@@ -185,11 +186,13 @@
 ---
 
 ## 6. Blockers
-* Milestones 8+9 live verification requires a running MongoDB instance and `JWT_SECRET` in `.env`. Automated tests are self-contained.
+* None. Live MongoDB verification completed (2026-09-24). All 180 tests pass; live Gemini generation verified (M6); full monorepo build succeeds; lint succeeds.
 
 ---
 
 ## 7. Next Recommended Task
-Question confidence tracking, reordering, and flashcard confidence tiers completed (Milestone 10.1–10.3). Remaining gaps:
-- Deployment verification (3/14 live verification items not completed)
-Next: deployment verification or live Gemini re-verification post-M10 changes.
+All Milestone 10 interactive features committed and live-verified. Remaining gaps:
+- Deployment verification (production environment not yet tested)
+- Confidence and order values not currently returned in `GET /api/kits/:id` response (frontend tracks in session state only)
+
+Next: deployment verification or final project audit.

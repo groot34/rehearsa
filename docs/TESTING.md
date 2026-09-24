@@ -87,7 +87,7 @@ Must verify:
 - `apps/web/src/tests/kitEditing.test.ts`: 9 tests — update/add/delete questions and flashcards, referential integrity, schedule cleanup, coverage recalculation.
 - `scripts/tests/evaluator.test.ts`: 2 tests — CLI batch evaluation, Appendix B envelope formatting, per-case failure isolation, error exit codes.
 
-Automated auth and kit persistence tests use `mongodb-memory-server`; they do not verify connectivity to a real MongoDB deployment. Live Gemini generation was verified in Milestone 6, but it is separate from live M8/M9 database verification. Deployment verification has not been performed.
+Automated auth and kit persistence tests use `mongodb-memory-server`; they do not verify connectivity to a real MongoDB deployment. Live MongoDB verification was completed on 2026-09-24 against a Docker MongoDB instance with real credentials — results are recorded in the Test Execution Log above. Deployment verification (production cloud environment) has not been performed.
 
 ---
 
@@ -131,4 +131,5 @@ Automated auth and kit persistence tests use `mongodb-memory-server`; they do no
 | 2026-09-24 | M10.3 flashcard confidence | npx vitest run | Passed | 18 test files, **180/180 tests passing** (Exit Code 0) |
 | 2026-09-24 | M10.3 flashcard confidence | npm run build | Passed | All three workspaces compile cleanly (Exit Code 0) |
 | 2026-09-24 | M10.3 flashcard confidence | npm run lint | Passed | All workspaces lint cleanly (Exit Code 0) |
-| 2026-09-24 | M10.3 flashcard confidence | git commit | Pending | Implementation changes are uncommitted |
+| 2026-09-24 | M10.3 flashcard confidence | git commit | Passed | Commit `085cc0f` (impl, 8 files); Commit `d947b87` (docs, 5 files) |
+| 2026-09-24 | Live MongoDB verification | Manual — Docker MongoDB + real Gemini API key | Passed | Full live verification against real MongoDB (Docker). Auth: registration (201), duplicate rejected (409 EMAIL_TAKEN), login correct creds (200 + JWT), login wrong password (401 INVALID_CREDENTIALS), login unknown email (401 INVALID_CREDENTIALS, no enumeration), GET /auth/me (200 user), logout (200 stateless). Kit CRUD: live Gemini generation succeeded, POST /api/kits (201), GET /api/kits (200), PUT /api/kits/:id (200, edit preserved), PUT /api/kits/:id/confidence (200), PUT /api/kits/:id/reorder (200), PUT /api/kits/:id/flashcard-confidence easy/medium/hard (200 each), multiple kits listed correctly, DELETE (200). Ownership isolation: User B GET/PUT/DELETE on User A's kit all returned 404 NOT_FOUND; User A's kits not visible in User B's list. No secrets recorded in documentation. |

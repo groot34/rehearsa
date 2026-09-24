@@ -4,6 +4,32 @@ All notable changes to the Rehearsa project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [docs] - Live MongoDB Verification — 2026-09-24
+
+### Verified
+Live end-to-end verification completed against a real MongoDB instance (Docker) with production-equivalent credentials (`MONGODB_URI`, `JWT_SECRET`, `GEMINI_API_KEY` in `.env`). No secrets recorded. Key results:
+
+- **API health**: `GET /api/health` → `{ status: "ok" }` (server up, DB connected).
+- **Registration**: `POST /auth/register` → 201. Duplicate email → 409 `EMAIL_TAKEN`. `passwordHash` never returned.
+- **Login**: Correct credentials → 200 + JWT. Wrong password → 401 `INVALID_CREDENTIALS`. Unknown email → 401 `INVALID_CREDENTIALS` (no user enumeration, constant-time path).
+- **Session**: `GET /auth/me` with valid JWT → 200, authenticated user. `POST /auth/logout` → 200, stateless behaviour confirmed.
+- **Live Gemini generation**: Full 11-step pipeline completed successfully with real API key; Appendix A kit returned.
+- **Kit CRUD**: Save (201), list (200), edit/PUT (200, edited question preserved), delete (200).
+- **Question confidence**: `PUT /api/kits/:id/confidence` → 200 for all valid tiers.
+- **Question reorder**: `PUT /api/kits/:id/reorder` → 200 with corrected `questionIds` payload.
+- **Flashcard confidence**: `PUT /api/kits/:id/flashcard-confidence` → 200 for easy, medium, and hard tiers.
+- **Multiple kits**: Two kits created for the same user; both returned in list.
+- **Ownership isolation (User B → User A's kit)**: `GET /api/kits` (empty list), `GET /api/kits/:id` (404), `PUT /api/kits/:id` (404), `DELETE /api/kits/:id` (404). No ownership disclosure.
+
+### Documentation updated
+- `docs/ASSESSMENT.md`: Auth and kit ownership rows updated to `Verified (live MongoDB verification)` with detailed evidence.
+- `docs/PROGRESS.md`: M10.3 status updated to committed + live-verified; M8/M9 live verification notes corrected; blockers and next steps updated.
+- `docs/AGENT_HANDOFF.md`: Rewritten to reflect actual HEAD commit, completed verification evidence, and genuine remaining gaps.
+- `docs/TESTING.md`: Live verification entry added to Test Execution Log; suite note updated.
+- `docs/CHANGELOG.md`: This entry added.
+
+---
+
 ## [1.0.0-m10] - Milestone 10: Question Confidence + Reordering + Flashcard Confidence - 2026-09-24
 
 ### Added
