@@ -4,7 +4,7 @@ All notable changes to the Rehearsa project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [1.0.0-m10] - Milestone 10: Question Confidence + Reordering - 2026-09-24
+## [1.0.0-m10] - Milestone 10: Question Confidence + Reordering + Flashcard Confidence - 2026-09-24
 
 ### Added
 - **Question Confidence Persistence (`apps/api/src/modules/kits/kit.model.ts`)**: Optional `questionConfidence` field (Map) to `KitDocumentModel`, stored outside Appendix A kit payload to preserve schema compliance.
@@ -19,23 +19,32 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Reorder Frontend API (`apps/web/src/lib/api.ts`)**: `reorderQuestions` function with typed payload/response.
 - **Reorder UI (`apps/web/src/components/QuestionBankCard.tsx`)**: Up/down arrow buttons per question when `questionOrder` is set. `orderedQuestions` memo sorts by custom order.
 - **Reorder State (`apps/web/src/app/page.tsx`)**: `questionOrder` state tracking, `handleReorderQuestions` callback. Reset on kit load (TODO: fetch from API).
+- **Flashcard Confidence Persistence (`apps/api/src/modules/kits/kit.model.ts`)**: Optional `flashcardConfidence` field (Map<string, 'easy'|'medium'|'hard'>) to `KitDocumentModel`, stored outside Appendix A kit payload. Same pattern as `questionConfidence`.
+- **Flashcard Confidence Service (`apps/api/src/modules/kits/kit.service.ts`)**: `FlashcardConfidence` type (`'easy' | 'medium' | 'hard'`), `FlashcardConfidenceEnum`, and `updateFlashcardConfidence` function. Validates flashcard ID against the kit's flashcards array (rejects unknown IDs), validates confidence enum, enforces ownership via `{ _id, userId }`.
+- **Flashcard Confidence API Route (`apps/api/src/routes/kits.routes.ts`)**: `FlashcardConfidenceTierSchema`, `UpdateFlashcardConfidenceInputSchema`, and `PUT /api/kits/:id/flashcard-confidence` endpoint. Returns `{ success: true, updated: true }` or structured error.
+- **Flashcard Confidence Frontend API (`apps/web/src/lib/api.ts`)**: `FlashcardConfidence` type, `UpdateFlashcardConfidencePayload`, `ApiFlashcardConfidenceResponse`, and `updateFlashcardConfidence()` client function.
+- **Flashcard Confidence State (`apps/web/src/app/page.tsx`)**: `flashcardConfidence` state, `isUpdatingFlashcardConfidence` state, `handleUpdateFlashcardConfidence` callback (no-op if kit not saved), reset on kit open. Wired to `KitViewer`.
+- **Flashcard Confidence UI (`apps/web/src/components/FlashcardDeck.tsx`)**: Replaced binary `masteredIds` toggle with three-tier confidence buttons (Easy / Medium / Hard). Removed `CheckCircle2` icon, `toggleMastered` callback, and `KeyM` keyboard shortcut. Added `CONFIDENCE_TIERS` config array with color/dot classes. Summary header now shows easy/medium/hard distribution counts instead of mastered count.
 - **Confidence Tests (`apps/api/src/routes/tests/kitsRoutes.test.ts`)**: 5 integration tests — valid update, invalid rejection, cross-user 404, non-existent kit 404, all valid values.
 - **Reorder Tests (`apps/api/src/routes/tests/kitsRoutes.test.ts`)**: 5 integration tests — valid reorder, empty array rejection, duplicate rejection, cross-user 404, non-existent kit 404.
+- **Flashcard Confidence Tests (`apps/api/src/routes/tests/kitsRoutes.test.ts`)**: 9 integration tests — unauthenticated rejection, easy confidence, medium confidence, hard confidence, invalid value rejection (`unknown` is not valid for flashcards), unknown flashcard ID rejection, cross-user 404, confidence persistence verified via DB read, existing kit without confidence loads successfully.
 
 ### Architecture decisions
 - **ADR-011**: Confidence stored outside Appendix A via optional `questionConfidence` field. Preserves schema compliance. Dedicated endpoint for atomic updates.
 - **ADR-012**: Order stored outside Appendix A via optional `questionOrder: string[]` field. Simple ID array representation. Up/down UI avoids drag-and-drop dependency.
+- **ADR-013**: Flashcard confidence stored outside Appendix A via optional `flashcardConfidence` field. Three-tier enum (easy/medium/hard). Flashcard ID validation ensures only existing cards can receive confidence. UI replaces binary mastered toggle with tiered buttons.
 
 ### Verification
-- `npx vitest run`: Exit Code `0`. **171/171 tests passing** (10 new tests added for confidence + reordering).
+- `npx vitest run`: Exit Code `0`. **180/180 tests passing** (19 new tests added for confidence + reordering + flashcard confidence).
 - `npm run build`: Exit Code `0`. All three workspaces compile cleanly.
 - `npm run lint`: Exit Code `0` (with pre-existing TS deprecation warning on moduleResolution).
-- Changes committed at `2bbd21e` (confidence) and `e5cd02c` (reorder).
+- Changes committed at `2bbd21e` (confidence), `e5cd02c` (reorder), and pending for flashcard confidence.
 
 ### Known limitations
 - Confidence and order are not returned in `GET /api/kits/:id` response. Frontend tracks in session state; full implementation would fetch on kit load.
 - If a question is deleted, its ID remains in `questionOrder` array (cleanup needed on regeneration or explicit reordering).
 - Frontend falls back to default array order when `questionOrder` is empty/undefined.
+- Flashcard confidence is not returned in `GET /api/kits/:id` response. Frontend tracks in session state; full implementation would fetch on kit load.
 
 ---
 

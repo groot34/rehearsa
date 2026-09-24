@@ -96,8 +96,8 @@
 | Requirement | Scope | Status | Notes |
 |---|---|---|---|
 | Interactive flip-card interface | Mandatory | Verified | `FlashcardDeck.tsx` card flip animation & front/back toggle |
-| Record confidence levels per card (e.g., easy, medium, hard) | Mandatory | In progress | Mastery toggle in M4; confidence rating sync planned |
-| Track session progress & mastery summary | Mandatory | Verified | `FlashcardDeck.tsx` mastery counter & progress tracking |
+| Record confidence levels per card (e.g., easy, medium, hard) | Mandatory | Verified | Persisted `flashcardConfidence` field in `KitDocumentModel` (outside Appendix A). `PUT /api/kits/:id/flashcard-confidence` endpoint with Zod validation. Three tiers: `easy`, `medium`, `hard`. FlashcardDeck UI replaced binary mastered toggle with three confidence buttons. 9 integration tests passing. |
+| Track session progress & mastery summary | Mandatory | Verified | `FlashcardDeck.tsx` confidence distribution summary (easy/medium/hard counts) replaces binary mastered counter. |
 
 ---
 

@@ -8,7 +8,7 @@
 
 * **Project**: Rehearsa — Full-Stack AI-Powered Interview Preparation Platform
 * **Assessment ID**: `FS-AI-INTERVIEW-01` (Trao Assessment)
-* **Active Milestone**: `Milestone 10 — Question Confidence + Reordering` (Completed and committed)
+* **Active Milestone**: `Milestone 10.3 — Flashcard Confidence Tiers` (Implemented and tested, pending commit)
 
 ---
 
@@ -21,7 +21,7 @@
   - `8a94003` — `feat(api,web): add persistent user-owned interview kits` (Milestone 9)
   - `2bbd21e` — `feat: add persisted question confidence tracking` (Milestone 10.1)
   - `e5cd02c` — `feat: add persisted question reordering` (Milestone 10.2)
-* **Working Tree**: Clean — nothing uncommitted. The branch is 11 commits ahead of `origin/main`; nothing has been pushed.
+* **Working Tree**: M10.3 flashcard confidence implementation is uncommitted (8 implementation files + 3 documentation files). The branch is 12 commits ahead of `origin/main`; nothing has been pushed.
 * **Workspace Structure**:
   - `packages/shared`: Zod schemas, types, coverageChecker.ts, scheduleAllocator.ts, kitValidator.ts, full test suite.
   - `apps/api/src/modules/research/`: SSRF-safe fetcher, HTML cleaner, robots parser, multi-page crawler.
@@ -71,15 +71,14 @@ npm run evaluate -- --input scratch/synthetic-benchmark-cases.json --output scra
 
 ## 6. Exact Next Task / Milestone
 
-**Flashcard Confidence Tiers (Milestone 10.3)**
+**Commit M10.3 Flashcard Confidence Tiers**
 
-Question confidence tracking and reordering are now complete. The next remaining assessment item from Section 6 (Flashcard Practice Mode) is:
+Milestone 10.3 (flashcard confidence tiers) is fully implemented and tested. The implementation changes are currently uncommitted and need to be committed as two separate commits:
 
-1. Implement flashcard confidence tiers (persisted enum state per card, scoped to user's kit).
-2. Design must not break Appendix A schema (similar pattern to question confidence).
-3. Must survive page refresh, kit reload, and be user-scoped.
-4. API validation must reject invalid confidence values.
-5. Tests must cover persistence and validation.
-6. Small UI to change confidence during practice (no major redesign).
+1. **Implementation commit**: Stage and commit the 8 implementation files (backend model, service, routes, tests; frontend API, page, FlashcardDeck, KitViewer).
+2. **Documentation commit**: Stage and commit the 3 documentation files (ASSESSMENT.md, PROGRESS.md, TESTING.md, CHANGELOG.md, DECISIONS.md, AGENT_HANDOFF.md).
 
-After flashcard confidence, the remaining gaps are deployment verification and live M8+M9 documentation (3/14 live verification items not completed).
+After M10.3 is committed, the remaining gaps are:
+- Deployment verification
+- Final assessment/end-to-end verification
+- Any remaining research/search requirement if ASSESSMENT.md still identifies one

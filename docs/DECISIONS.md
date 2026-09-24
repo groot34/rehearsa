@@ -20,6 +20,7 @@ This document records the architectural and engineering decisions made for the R
 | [ADR-010](#adr-010-kit-persistence-ownership-and-generation-auth-strategy) | Kit Persistence, Ownership, and Generation Auth Strategy | Accepted | 2026-09-23 |
 | [ADR-011](#adr-011-question-confidence-tracking-persistence) | Question Confidence Tracking Persistence | Accepted | 2026-09-24 |
 | [ADR-012](#adr-012-question-reordering-persistence) | Question Reordering Persistence | Accepted | 2026-09-24 |
+| [ADR-013](#adr-013-flashcard-confidence-tiers-persistence) | Flashcard Confidence Tiers Persistence | Accepted | 2026-09-24 |
 
 ---
 
@@ -491,4 +492,31 @@ This is an accepted trade-off for a client-rendered SPA without a BFF. An `httpO
 * **Trade-offs**:
   - Order is not currently returned in `GET /api/kits/:id` (frontend tracks it in session state).
   - If a question is deleted from the kit, its ID remains in the order array (a cleanup step would be needed on regeneration or explicit reordering).
+
+---
+
+### ADR-013: Flashcard Confidence Tiers Persistence
+
+* **Status**: Accepted
+* **Date**: 2026-09-24
+* **Context**:
+  The Flashcard Practice Mode assessment requirement (Section 6) specifies recording confidence levels per card with three tiers: easy, medium, hard. This replaces the previous binary "mastered" toggle. The state must persist across page refreshes and kit reloads, remain scoped to the authenticated user's kit, and not break the Appendix A schema or existing kits without confidence data.
+* **Alternatives Considered**:
+  - Adding confidence field directly to `FlashcardSchema` in Appendix A.
+  - Storing confidence in a separate collection with foreign keys.
+  - Frontend-only localStorage (not user-scoped, not shared across devices).
+  - Extending the existing binary `masteredIds` pattern (inadequate for three-tier granularity).
+* **Decision**:
+  Add an optional `flashcardConfidence` field to `KitDocumentModel` (outside the Appendix A `kit` payload). Use a three-tier enum: `'easy' | 'medium' | 'hard'`. Provide a dedicated authenticated API endpoint `PUT /api/kits/:id/flashcard-confidence` for updates. Replace the binary mastered toggle in `FlashcardDeck.tsx` with three confidence buttons (Easy / Medium / Hard) and update the summary header to show distribution counts instead of a single mastered count.
+* **Reasoning**:
+  - Storing outside Appendix A preserves schema compliance and batch evaluation compatibility.
+  - Optional field ensures existing kits without flashcard confidence remain valid.
+  - Dedicated endpoint enables targeted atomic updates without replacing the full kit.
+  - Ownership enforced at the service layer via `{ _id, userId }` query filter.
+  - Flashcard ID validation ensures only cards actually present in the kit can receive confidence updates.
+  - Three-tier UI provides finer-grained self-assessment than binary mastery.
+* **Trade-offs**:
+  - Flashcard confidence is not returned in the current `GET /api/kits/:id` response (requires extending the response schema to include it).
+  - Frontend tracks confidence in React state during the session; a full implementation would fetch it on kit load.
+  - The old binary mastered interaction is removed — there is no fallback to the previous UI pattern.
   - Frontend falls back to default array order when `questionOrder` is empty or undefined.

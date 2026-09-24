@@ -62,12 +62,12 @@ Must verify:
 |---|---|---|---|
 | `npm run lint` | Monorepo root | Runs linter across all workspaces | Verified |
 | `npm run build` | Monorepo root | TypeScript compilation across packages & Next.js build | Verified |
-| `npm test` or `npx vitest run` | Monorepo root | Runs Vitest unit & integration test suite | Verified (161/161 passing) |
+| `npm test` or `npx vitest run` | Monorepo root | Runs Vitest unit & integration test suite | Verified (180/180 passing) |
 | `npm run evaluate -- --input <cases.json> --output <kits.json>` | Monorepo root | Runs batch evaluator CLI with Appendix B output | Verified (8 cases, 782ms) |
 
 **Note**: Auth and kit CRUD tests use `mongodb-memory-server` — no real MongoDB connection required.
 
-### Test Suite Breakdown (`Vitest v5.0.1` — 18 test files, 171 tests)
+### Test Suite Breakdown (`Vitest v5.0.1` — 18 test files, 180 tests)
 - `packages/shared/src/tests/coverageChecker.test.ts`: 7 tests — coverage set difference, partial coverage, empty arrays, invalid refs, duplicates, stable ordering.
 - `packages/shared/src/tests/scheduleAllocator.test.ts`: 6 tests — 1-day, multi-day, 0 questions, contiguous block, deterministic reproducibility, error handling.
 - `packages/shared/src/tests/kitValidator.test.ts`: 13 tests — Appendix A valid kit, missing fields, enum errors, difficulty limits, invalid refs, duplicate IDs, coverage consistency.
@@ -128,3 +128,7 @@ Automated auth and kit persistence tests use `mongodb-memory-server`; they do no
 | 2026-09-24 | M10.2 reorder | `npm run build` | Passed | All three workspaces compile cleanly (Exit Code 0) |
 | 2026-09-24 | M10.2 reorder | `npm run lint` | Passed | All workspaces lint cleanly (Exit Code 0) |
 | 2026-09-24 | M10.2 reorder | git commit | Passed | Commit `e5cd02c` (8 files) |
+| 2026-09-24 | M10.3 flashcard confidence | npx vitest run | Passed | 18 test files, **180/180 tests passing** (Exit Code 0) |
+| 2026-09-24 | M10.3 flashcard confidence | npm run build | Passed | All three workspaces compile cleanly (Exit Code 0) |
+| 2026-09-24 | M10.3 flashcard confidence | npm run lint | Passed | All workspaces lint cleanly (Exit Code 0) |
+| 2026-09-24 | M10.3 flashcard confidence | git commit | Pending | Implementation changes are uncommitted |

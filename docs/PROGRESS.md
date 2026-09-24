@@ -1,12 +1,13 @@
 # Project Progress & Status — Rehearsa
 
 ## 1. Current Milestone
-**Milestone 10 — Question Confidence + Reordering (COMPLETED and COMMITTED)**
+**Milestone 10.3 — Flashcard Confidence Tiers (IMPLEMENTED, TESTED, pending commit)**
 - **Commit 1 (M8)**: `1a0dfc7` — `feat(api): add user authentication and MongoDB connection`
 - **Commit 2 (M9)**: `8a94003` — `feat(api,web): add persistent user-owned interview kits`
 - **Commit 3 (M10.1)**: `2bbd21e` — `feat: add persisted question confidence tracking`
 - **Commit 4 (M10.2)**: `e5cd02c` — `feat: add persisted question reordering`
-- **Branch**: `main`, 11 commits ahead of `origin/main` (not yet pushed).
+- **Commit 5 (M10.3)**: pending — `feat: add persisted flashcard confidence tiers`
+- **Branch**: `main`, 12 commits ahead of `origin/main` (not yet pushed).
 
 ---
 
@@ -141,9 +142,19 @@
   - **Build**: `npm run build` → Exit Code `0`.
   - **Lint**: `npm run lint` → Exit Code `0`.
   - **ADR-011**: Documented in `docs/DECISIONS.md`.
-- [x] **Milestone 10.2: Question Reordering (COMMITTED at `e5cd02c`)**:
-  - **`apps/api/src/modules/kits/kit.model.ts`**: Added optional `questionOrder: string[]` field to `KitDocumentModel`, stored outside Appendix A kit payload.
-  - **`apps/api/src/modules/kits/kit.service.ts`**: Added `reorderQuestions` function with validation (non-empty array, no duplicates), ownership enforcement, atomic MongoDB update.
+- [x] **Milestone 10.3: Flashcard Confidence Tiers (IMPLEMENTED, TESTED, pending commit)**:
+  - **`apps/api/src/modules/kits/kit.model.ts`**: Added optional `flashcardConfidence` field (Map<string, 'easy'|'medium'|'hard'>) to `KitDocumentModel`, stored outside Appendix A kit payload. Same pattern as `questionConfidence`.
+  - **`apps/api/src/modules/kits/kit.service.ts`**: Added `FlashcardConfidence` type (`'easy' | 'medium' | 'hard'`), `FlashcardConfidenceEnum`, and `updateFlashcardConfidence` function. Validates flashcard ID against the kit's flashcards array (rejects unknown IDs), validates confidence enum, enforces ownership via `{ _id, userId }`.
+  - **`apps/api/src/routes/kits.routes.ts`**: Added `FlashcardConfidenceTierSchema`, `UpdateFlashcardConfidenceInputSchema`, and `PUT /api/kits/:id/flashcard-confidence` endpoint. Returns `{ success: true, updated: true }` or structured error.
+  - **`apps/web/src/lib/api.ts`**: Added `FlashcardConfidence` type, `UpdateFlashcardConfidencePayload`, `ApiFlashcardConfidenceResponse`, and `updateFlashcardConfidence()` client function.
+  - **`apps/web/src/app/page.tsx`**: Added `flashcardConfidence` state, `isUpdatingFlashcardConfidence` state, `handleUpdateFlashcardConfidence` callback (no-op if kit not saved), reset on kit open. Wired to `KitViewer`.
+  - **`apps/web/src/components/KitViewer.tsx`**: Added `flashcardConfidence`, `onUpdateFlashcardConfidence`, `isUpdatingFlashcardConfidence` props. Wired to `FlashcardDeck`.
+  - **`apps/web/src/components/FlashcardDeck.tsx`**: Replaced binary `masteredIds` toggle with three-tier confidence buttons (Easy / Medium / Hard). Removed `CheckCircle2` icon, `toggleMastered` callback, and `KeyM` keyboard shortcut. Added `CONFIDENCE_TIERS` config array with color/dot classes. Summary header now shows easy/medium/hard distribution counts instead of mastered count.
+  - **`apps/api/src/routes/tests/kitsRoutes.test.ts`**: Added 9 integration tests — unauthenticated rejection, easy confidence, medium confidence, hard confidence, invalid value rejection (`unknown` is not valid for flashcards), unknown flashcard ID rejection, cross-user 404, confidence persistence verified via DB read, existing kit without confidence loads successfully.
+  - **Test result**: `npx vitest run` → Exit Code `0`. **180/180 tests passing** (9 new tests added).
+  - **Build**: `npm run build` → Exit Code `0`. Next.js 14 production build clean.
+  - **Lint**: `npm run lint` → Exit Code `0`.
+  - **ADR-013**: Documented in `docs/DECISIONS.md`.
   - **`apps/api/src/routes/kits.routes.ts`**: Added `PUT /api/kits/:id/reorder` endpoint with Zod validation (`ReorderQuestionsInputSchema`), returns `{ success: true, updated: true }` or error.
   - **`apps/web/src/lib/api.ts`**: Added `reorderQuestions` function with `ReorderQuestionsPayload` and `ApiReorderResponse` types.
   - **`apps/web/src/app/page.tsx`**: Added `questionOrder` state, `isReordering` state, `handleReorderQuestions` callback. Order reset on kit load (TODO: fetch from API).
@@ -169,7 +180,7 @@
 ---
 
 ## 5. Known Bugs / Issues
-* None. All 161 tests pass; live Gemini generation verified (M6); full monorepo build succeeds; lint succeeds.
+* None. All 180 tests pass; live Gemini generation verified (M6); full monorepo build succeeds; lint succeeds.
 
 ---
 
@@ -179,7 +190,6 @@
 ---
 
 ## 7. Next Recommended Task
-Question confidence tracking and reordering completed (Milestone 10.1 + 10.2). Auth/ownership verified against real MongoDB (11/14 live verification items). Remaining gaps:
-- Flashcard confidence tiers (Section 6, Assessment.md)
+Question confidence tracking, reordering, and flashcard confidence tiers completed (Milestone 10.1–10.3). Remaining gaps:
 - Deployment verification (3/14 live verification items not completed)
-Next: flashcard confidence tracking (Milestone 10.3).
+Next: deployment verification or live Gemini re-verification post-M10 changes.
