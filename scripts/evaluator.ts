@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { parseArgs } from 'util';
-import { BatchCaseInputSchema, BatchOutputEnvelope, BatchKitResult } from '../packages/shared/src';
+import { BatchCaseInputSchema, BatchOutputEnvelope, BatchKitResult, normalizeCompanyUrl } from '../packages/shared/src';
 import { executeGenerationPipeline } from '../apps/api/src/modules/interview-prep';
 import { MockPublicInterviewSearchProvider } from '../apps/api/src/modules/research/mockInterviewSearchProvider';
 
@@ -70,13 +70,14 @@ async function main() {
     }
 
     const { id, jd, company_url, days } = parsed.data;
+    const normalizedUrl = normalizeCompanyUrl(company_url);
 
     try {
-      console.log(`[Rehearsa Batch Evaluator] Case ${id}: Executing pipeline (${company_url}, ${days} days)...`);
+      console.log(`[Rehearsa Batch Evaluator] Case ${id}: Executing pipeline (${normalizedUrl}, ${days} days)...`);
 
       const pipelineRes = await executeGenerationPipeline({
         jobDescription: jd,
-        companyUrl: company_url,
+        companyUrl: normalizedUrl,
         daysAvailable: days,
         allowLoopbackInDev: true,
         interviewSearchProvider: new MockPublicInterviewSearchProvider(),

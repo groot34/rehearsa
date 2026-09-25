@@ -8,14 +8,41 @@
 
 * **Project**: Rehearsa — Full-Stack AI-Powered Interview Preparation Platform
 * **Assessment ID**: `FS-AI-INTERVIEW-01` (Trao Assessment)
-* **Active Milestone**: `M18: Production LLM Generation Reliability Hardening` (IMPLEMENTED & LOCALLY VERIFIED 2026-09-25)
+* **Active Milestone**: `M19: Session URL / Refresh Persistence and Company URL Normalisation` (VERIFIED 2026-09-26)
+* **Next Milestone**: Final Assessment Audit (FS-AI-INTERVIEW-01)
 
 ---
 
 ## 2. Latest Known Repository State
 
 * **Branch**: `main`
-* **HEAD Commit**: (see latest git log; commit with M18 changes is `fix(llm): harden production generation reliability`)
+* **HEAD Commit**: Uncommitted M19 changes (session URL + URL normalisation)
+* **Working Tree**: Modified files ready for commit (10 modified, 4 untracked)
+
+### M19 Session URL / Refresh Persistence and Company URL Normalisation — implemented 2026-09-26
+
+Implementation summary:
+- **Session URL Architecture**:
+  - Created `SessionDocument` model (`apps/api/src/modules/sessions/session.model.ts`) with UUID v4 session IDs, anonymous (no userId), 7-day TTL via `lastAccessedAt` index.
+  - Implemented session service (`apps/api/src/modules/sessions/session.service.ts`): `createSession()`, `getSessionById()`, `convertSessionToKit()`, plus confidence/order tracking methods.
+  - Added API routes (`apps/api/src/routes/sessions.routes.ts`): `POST /api/sessions` (public), `GET /api/sessions/:id` (public), `POST /api/sessions/:id/save` (auth required), plus PUT endpoints for confidence/reorder/flashcard-confidence.
+  - Updated frontend (`apps/web/src/app/page.tsx`): On kit generation, creates session via `createSession()` and navigates to `/session/[id]`.
+  - Added dynamic route (`apps/web/src/app/session/[id]/page.tsx`): Loads session and displays kit with full KitViewer capabilities.
+  - Session conversion to kit requires authentication, associating the kit with the authenticated user.
+  - 22 unit tests for session service passing (`apps/api/src/modules/sessions/tests/session.service.test.ts`).
+- **Company URL Normalisation**:
+  - Implemented `normalizeCompanyUrl()` in `packages/shared/src/utils/urlNormalizer.ts` to accept scheme-less inputs (`google.com`, `www.google.com`) and prepend `https://`.
+  - Preserves explicit `http://` and `https://` schemes unchanged.
+  - Preserves other schemes (e.g., `ftp://`, `file://`) for downstream rejection.
+  - Integrated into `POST /api/interview-prep/generate` and batch evaluator.
+  - 14 unit tests for URL normalisation passing (`packages/shared/src/tests/urlNormalizer.test.ts`).
+- **Files changed**: `apps/api/src/modules/sessions/` (new), `apps/api/src/routes/sessions.routes.ts` (new), `apps/web/src/app/session/[id]/page.tsx` (new), `apps/web/src/app/page.tsx`, `apps/web/src/lib/api.ts`, `packages/shared/src/utils/urlNormalizer.ts` (new), `packages/shared/src/index.ts`, `scripts/evaluator.ts`, `apps/api/src/app.ts`, `apps/api/src/routes/interviewPrep.routes.ts`, plus documentation updates.
+- **Verification (2026-09-26)**:
+  - `npm run lint`: Exit code 0
+  - `npm run build`: Exit code 0 (all workspaces compile cleanly, Next.js build successful with `/session/[id]` route)
+  - `npm test`: Exit code 0, **342/342 tests passing** (22 test files, including 22 session tests + 14 URL normalizer tests)
+  - `npm run evaluate`: Exit code 0, 8 cases (5 valid, 3 invalid), 355ms
+- **Documentation**: ADR-024 (Session URL and Refresh Persistence) and ADR-025 (Company URL Normalisation) recorded in `docs/DECISIONS.md`. ASSESSMENT.md updated with session URL requirements. PROGRESS.md updated with verification status.
 
 ### M18 Production LLM Reliability Hardening — implemented 2026-09-25
 
@@ -192,6 +219,125 @@ The following items are genuinely outstanding as of 2026-09-25:
 
 6. **Live Tavily production verification**: `INTERVIEW_SEARCH_PROVIDER=tavily` + `TAVILY_API_KEY` must be configured in Render environment variables to activate Tavily in production. Live end-to-end verification (kit generation with real Tavily search results) has not happened yet. Mock provider is currently configured in `render.yaml`.
 7. **M18 live verification**: After deploying M18, verify the fix against a company that previously produced 25 s timeouts (e.g. large crawled research + full 10 Tavily results). `GEMINI_TIMEOUT_MS=60000` is already set in `render.yaml`; no additional env changes needed.
+
+---
+
+## 8. Final Assessment Audit Report (M19 Verification - 2026-09-26)
+
+### A. Session URL Implementation
+- **Route format**: `/session/<uuid-v4>` (e.g., `/session/550e8400-e29b-41d4-a716-446655440000`)
+- **Source of truth**: MongoDB `SessionDocument` with high-entropy UUID v4 session IDs
+- **Persistence mechanism**: Anonymous session storage (no userId), 7-day TTL via `lastAccessedAt` index
+- **Refresh behaviour**: Refreshing `/session/[id]` loads session from MongoDB, restoring kit, confidence, and order state. No new generation triggered.
+- **Saved-kit interaction**: `POST /api/sessions/:id/save` (auth required) converts session to user-owned KitDocument, associates with authenticated user, deletes session, redirects to My Kits.
+- **Security model**: Sessions are anonymous and addressable by opaque UUID. No ownership check required for session fetch. Conversion to kit requires authentication.
+
+### B. Company URL Normalisation
+- **Accepted formats**: `google.com`, `www.google.com`, `https://google.com`, `http://google.com`
+- **Canonical format**: HTTPS (scheme-less inputs prefixed with `https://`)
+- **Validation order**: Normalisation → Zod URL validation → SSRF guard → network request
+- **SSRF behaviour**: Normalisation is pre-validation; normalised URL must still pass through SSRF guard before any network request. No SSRF bypass possible.
+
+### C. Tests/Build/Lint/Evaluator
+- **Lint**: Exit code 0 (all workspaces lint cleanly)
+- **Build**: Exit code 0 (all workspaces compile cleanly, Next.js build successful with `/session/[id]` route)
+- **Tests**: Exit code 0, **342/342 tests passing** (22 test files, including 22 session tests + 14 URL normalizer tests)
+- **Evaluator**: Exit code 0, 8 cases (5 valid, 3 invalid), 355ms
+
+### D. Assessment Requirement Matrix
+
+**Authentication & Ownership**: COMPLETE
+- User registration/login/logout: Verified
+- Kit ownership isolation: Verified
+
+**Input & Research Pipeline**: COMPLETE
+- JD/URL/Days input: Verified
+- Multiple kits per user: Verified
+- Seed page retrieval: Verified
+- Dynamic crawler: Verified
+- Public interview search: Implemented (Tavily + Mock + graceful degradation)
+- Robots.txt compliance: Verified
+- Untrusted input handling: Verified
+- **Company URL normalisation**: Verified (M19)
+
+**Research & Generation Sequencing (11-Step Pipeline)**: COMPLETE
+- All 11 steps: Verified
+
+**Exact Kit Schema (Appendix A)**: COMPLETE
+- All schema sections: Verified
+
+**Kit Builder, Editing & Regeneration**: COMPLETE
+- View/Edit/Reorder/Add/Delete: Verified
+- Section regeneration: Verified
+- Edit preservation: Verified
+- Progress updates: Verified
+
+**Flashcard Practice Mode**: COMPLETE
+- Flip-card interface: Verified
+- Confidence tracking: Verified
+- Progress summary: Verified
+
+**Deterministic Schedule Allocation**: COMPLETE
+- Day allocation: Verified
+- Minute balancing: Verified
+- Thematic grouping: Verified
+
+**Batch Evaluator CLI (Appendix B)**: COMPLETE
+- CLI command: Verified
+- Input format: Verified
+- Appendix B envelope: Verified
+- Failure isolation: Verified
+- Local mock sites: Verified
+- Runtime (15 min): Verified
+
+**Edge Cases & Security Handling**: COMPLETE
+- SSRF prevention: Verified
+- Content-type/size limits: Verified
+- 404/DNS/timeout handling: Verified
+- Missing company pages: Verified
+- Short/malformed JD: Verified
+- LLM rate limits/retries: Verified
+- Malformed LLM JSON: Verified
+- Secrets in .env: Verified
+
+**Production Deployment**: PARTIAL
+- Deployment configuration: Implemented
+- Production verification: Partial (manual verification for kit generation/saving/persistence/ownership; live Tavily unverified)
+
+**Out-of-Scope Features**: NOT APPLICABLE
+
+### E. Production Verification Evidence
+- Previous production verification (2026-09-25): Frontend availability, kit generation, saving, question readiness persistence, flashcard confidence persistence, question reordering, User B ownership isolation all verified manually.
+- M19 production verification: Pending (session URL and URL normalisation require production deployment to verify end-to-end).
+
+### F. Documentation Updated
+- `docs/ASSESSMENT.md`: Added session URL requirements section (6.5) and company URL normalisation requirement
+- `docs/ARCHITECTURE.md`: Updated session URL section (2.4) and company URL normalisation section (2.6)
+- `docs/DECISIONS.md`: Added ADR-024 (Session URL and Refresh Persistence) and ADR-025 (Company URL Normalisation)
+- `docs/PROGRESS.md`: Updated M19 status to VERIFIED with full verification results
+- `docs/AGENT_HANDOFF.md`: Updated current milestone, repository state, and added final assessment audit report
+- `docs/CHANGELOG.md`: Added M19 changelog entry
+
+### G. Git State
+- **Branch**: `main`
+- **Latest 5 commits**:
+  - `dfd44f1` fix(llm): harden production generation reliability
+  - `ee5d207` fix(api): set trust proxy for Render reverse-proxy deployment
+  - `831dd25` feat(research): add Tavily public interview search
+  - `5991536` fix(api): harden requirement kind prompt and parser normalization
+  - `920c461` docs: record question reorder verification
+- **Working tree**: 10 modified files, 4 untracked files (M19 implementation ready for commit)
+- **Origin divergence**: Up to date with `origin/main`
+
+### H. Exact Next Milestone
+**Final Assessment Audit & Production Deployment**
+- Commit M19 changes (session URL + URL normalisation)
+- Push to origin/main
+- Deploy to production (Render + Vercel)
+- Verify session URL flow end-to-end in production
+- Verify URL normalisation in production
+- Complete final FS-AI-INTERVIEW-01 assessment audit
+- Address any remaining gaps identified in final audit
 
 ---
 

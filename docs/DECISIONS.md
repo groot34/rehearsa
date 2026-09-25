@@ -31,6 +31,8 @@ This document records the architectural and engineering decisions made for the R
 | [ADR-021](#adr-021-express-trust-proxy-for-render-reverse-proxy-deployment) | Express Trust Proxy for Render Reverse-Proxy Deployment | Accepted | 2026-09-25 |
 | [ADR-022](#adr-022-configurable-gemini-timeout--exponential-backoff-with-jitter) | Configurable Gemini Timeout & Exponential Backoff with Jitter | Accepted | 2026-09-25 |
 | [ADR-023](#adr-023-research-context-size-bounding-for-company-brief-prompt) | Research-Context Size Bounding for Company-Brief Prompt | Accepted | 2026-09-25 |
+| [ADR-024](#adr-024-session-url-and-refresh-persistence) | Session URL and Refresh Persistence | Accepted | 2026-09-26 |
+| [ADR-025](#adr-025-company-url-normalisation) | Company URL Normalisation | Accepted | 2026-09-26 |
 
 ---
 
@@ -885,3 +887,58 @@ This is an accepted trade-off for a client-rendered SPA without a BFF. An `httpO
 * **Trade-offs**:
   - Edge case: If Tavily returned genuinely critical signal buried after the 500th snippet character or the 20,000th combined character, it would be truncated. This is acceptable because (a) snippets are search-result summaries and 500 chars captures the main points, and (b) the crawler text is preserved preferentially over public discussion tail.
   - `MockPublicInterviewSearchProvider` snippets are already short and remain unchanged; truncation helper is a no-op on small inputs so parity is preserved.
+
+---
+
+## ADR-024: Session URL and Refresh Persistence
+
+* **Status**: Accepted — 2026-09-26
+* **Context**:
+  - Current behaviour: Generated kits appear at the base URL and disappear on page refresh because content is stored only in client React state.
+  - Requirement: Generated sessions must have a stable URL that persists across refreshes, with session content restored from the database.
+  - Users should be able to share or bookmark the session URL (subject to security model).
+* **Alternatives Considered**:
+  - Use `/{random-number}` as the session URL — rejected: predictable short numbers expose sequential information and could be enumerated for private content.
+  - Store entire kit in URL hash — rejected: URL length limits would truncate large kits; URLs should be identifiers, not data containers.
+  - Use sessionStorage only — rejected: does not survive across tabs or browser restarts.
+  - Require authentication for session access — rejected: would prevent unauthenticated users from using the generation flow, breaking the batch evaluator contract.
+* **Decision**:
+  - Use high-entropy opaque session IDs (UUID v4) as the URL path: `/session/<uuid-v4>`.
+  - Create a separate MongoDB `SessionDocument` model for anonymous unsaved sessions with 7-day TTL.
+  - Sessions are public (no auth required for fetch), but conversion to a saved kit requires authentication.
+  - Frontend creates a session immediately after generation and navigates to the session URL.
+  - Session URL is the source of truth for the current generation session.
+* **Reasoning**:
+  - UUID v4 provides collision-resistant opaque IDs that don't expose sequential user information.
+  - Separate session model avoids polluting the user-owned KitDocument schema with anonymous data.
+  - 7-day TTL ensures old unsaved sessions are automatically cleaned up.
+  - Public session access allows users to share session URLs without authentication barriers.
+  - Conversion to kit with authentication ensures saved kits are properly owned.
+* **Trade-offs**:
+  - Sessions are addressable by anyone with the URL — this is acceptable because (a) sessions are temporary (7-day TTL), (b) they contain only public company research, and (c) conversion to a permanent kit requires authentication.
+  - Additional database collection increases complexity, but the separation of concerns (anonymous vs owned) is cleaner than a unified model.
+
+---
+
+## ADR-025: Company URL Normalisation
+
+* **Status**: Accepted — 2026-09-26
+* **Context**:
+  - Users frequently paste company URLs without a scheme: `google.com`, `www.google.com`.
+  - Current validation rejects these because URL parsers and Zod's `.url()` validator require a scheme (http:// or https://).
+  - The batch evaluator and production generation should accept these common formats.
+* **Alternatives Considered**:
+  - Weaken URL validation to accept scheme-less strings — rejected: would bypass important protocol checks and could allow malformed URLs.
+  - Require users to always type `https://` — rejected: poor UX, users don't expect this requirement.
+  - Parse and guess the scheme from context — rejected: ambiguous and error-prone.
+* **Decision**:
+  - Implement `normalizeCompanyUrl()` helper that prepends `https://` to scheme-less inputs.
+  - Preserve explicit `http://` and `https://` schemes unchanged.
+  - Preserve other schemes (e.g., `ftp://`, `file://`) unchanged so downstream validation rejects them appropriately.
+  - Normalisation is a pre-validation step; the normalised URL must still pass through Zod URL validation and SSRF guard.
+* **Reasoning**:
+  - Improves UX by accepting common user input formats without weakening security.
+  - Deterministic and pure function with no side effects.
+  - SSRF guard remains the authoritative security gate; normalisation just makes input unambiguous.
+* **Trade-offs**:
+  - Normalisation occurs before validation, so invalid schemes are preserved for downstream rejection — this is intentional to provide correct error messages.

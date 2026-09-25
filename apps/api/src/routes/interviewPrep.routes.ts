@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { CreateKitInputSchema, RegenerateKitSectionInputSchema } from '@rehearsa/shared';
+import { CreateKitInputSchema, RegenerateKitSectionInputSchema, normalizeCompanyUrl } from '@rehearsa/shared';
 import { executeGenerationPipeline, regenerateKitSection } from '../modules/interview-prep';
 import { config } from '../config';
 
@@ -12,7 +12,7 @@ const router = Router();
 router.post('/generate', async (req: Request, res: Response) => {
   const parseResult = CreateKitInputSchema.safeParse({
     jobDescription: req.body.jobDescription || req.body.jd,
-    companyUrl: req.body.companyUrl || req.body.company_url,
+    companyUrl: normalizeCompanyUrl(req.body.companyUrl || req.body.company_url || ''),
     daysAvailable: req.body.daysAvailable || req.body.days,
   });
 

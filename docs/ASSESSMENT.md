@@ -36,6 +36,7 @@ On 2026-09-25, production was manually verified for frontend availability, kit g
 | Public interview discussion and hiring info search | Mandatory | Implemented (mock provider, graceful degradation) | Multi-page crawler fetches about/careers/culture pages (internal). Added `IPublicInterviewSearchProvider` abstraction with `MockPublicInterviewSearchProvider` for tests and `GoogleCustomSearchProvider` for production (optional). Search results integrated into company brief prompt; graceful degradation if provider unavailable. Live external search not yet verified. |
 | Robots.txt compliance and rate limiting | Mandatory | Verified | `robotsParser.ts` enforces `robots.txt` disallow rules. |
 | Treat retrieved pages and pasted JD as untrusted input | Mandatory | Verified | LLM prompts wrap content in `<untrusted_...>` XML tags. Never executed as system instructions. |
+| Company URL normalisation (scheme-less inputs) | Mandatory | Verified | `normalizeCompanyUrl()` in `packages/shared/src/utils/urlNormalizer.ts` accepts `google.com`, `www.google.com` and prepends `https://`. Preserves explicit `http://` and `https://`. 14 unit tests passing. Integrated into `POST /api/interview-prep/generate` and batch evaluator. SSRF guard remains authoritative after normalisation. |
 
 ---
 
@@ -102,6 +103,19 @@ On 2026-09-25, production was manually verified for frontend availability, kit g
 | Interactive flip-card interface | Mandatory | Verified | `FlashcardDeck.tsx` card flip animation & front/back toggle |
 | Record confidence levels per card (e.g., easy, medium, hard) | Mandatory | Verified (E2E journey audit) | Persisted `flashcardConfidence` field in `KitDocumentModel` (outside Appendix A). `PUT /api/kits/:id/flashcard-confidence` endpoint with Zod validation. Three tiers: `easy`, `medium`, `hard`. FlashcardDeck UI replaced binary mastered toggle with three confidence buttons. 9 integration tests passing. **E2E journey audit step 18**: easy/medium/hard set successfully; `unknown` correctly rejected (400); unknown flashcard ID correctly rejected (404). |
 | Track session progress & mastery summary | Mandatory | Verified | `FlashcardDeck.tsx` confidence distribution summary (easy/medium/hard counts) replaces binary mastered counter. |
+
+---
+
+## 6.5. Session URL & Refresh Persistence
+
+|| Requirement | Scope | Status | Notes |
+||---|---|---|---|
+|| Generation session URL with opaque identifier | Mandatory | Verified | `SessionDocument` model with UUID v4 session IDs. `POST /api/sessions` creates session, returns session ID. Frontend navigates to `/session/[id]`. |
+|| Session persistence across page refresh | Mandatory | Verified | `GET /api/sessions/:id` (public) loads session from MongoDB, restoring kit, confidence, and order state. 7-day TTL via `lastAccessedAt` index. 22 unit tests passing. |
+|| Session conversion to saved kit | Mandatory | Verified | `POST /api/sessions/:id/save` (auth required) converts session to user-owned KitDocument, associates with authenticated user, deletes session, redirects to My Kits. |
+|| Session confidence/order tracking | Mandatory | Verified | `PUT /api/sessions/:id/question-confidence`, `PUT /api/sessions/:id/reorder`, `PUT /api/sessions/:id/flashcard-confidence` endpoints. Session state isolated from saved kits. |
+|| Distinguish active session vs saved kit | Mandatory | Verified | Sessions are anonymous (no userId), addressable by opaque UUID. Saved kits are user-owned (userId required). Conversion endpoint enforces auth. |
+|| Existing saved-kit routes unchanged | Mandatory | Verified | All existing `/api/kits` routes remain intact. Session routes are separate (`/api/sessions`). |
 
 ---
 

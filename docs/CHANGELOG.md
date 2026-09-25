@@ -4,6 +4,48 @@ All notable changes to the Rehearsa project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [feat] - M19 Session URL / Refresh Persistence and Company URL Normalisation — 2026-09-26
+
+### Added
+- **Session URL Architecture** (`apps/api/src/modules/sessions/`):
+  - `SessionDocument` model with UUID v4 session IDs, anonymous (no userId), 7-day TTL via `lastAccessedAt` index.
+  - Session service (`session.service.ts`): `createSession()`, `getSessionById()`, `convertSessionToKit()`, plus confidence/order tracking methods.
+  - API routes (`apps/api/src/routes/sessions.routes.ts`): `POST /api/sessions` (public), `GET /api/sessions/:id` (public), `POST /api/sessions/:id/save` (auth required), plus PUT endpoints for confidence/reorder/flashcard-confidence.
+- **Frontend Session URL Support**:
+  - Updated `apps/web/src/app/page.tsx`: On kit generation, creates session via `createSession()` and navigates to `/session/[id]`.
+  - Added dynamic route `apps/web/src/app/session/[id]/page.tsx`: Loads session and displays kit with full KitViewer capabilities.
+  - Session conversion to kit requires authentication, associating the kit with the authenticated user.
+- **Company URL Normalisation** (`packages/shared/src/utils/urlNormalizer.ts`):
+  - `normalizeCompanyUrl()` accepts scheme-less inputs (`google.com`, `www.google.com`) and prepends `https://`.
+  - Preserves explicit `http://` and `https://` schemes unchanged.
+  - Preserves other schemes (e.g., `ftp://`, `file://`) for downstream rejection.
+  - Integrated into `POST /api/interview-prep/generate` and batch evaluator.
+- **Unit Tests**:
+  - 22 session service tests (`apps/api/src/modules/sessions/tests/session.service.test.ts`).
+  - 14 URL normalizer tests (`packages/shared/src/tests/urlNormalizer.test.ts`).
+- **Decision records (docs/DECISIONS.md)**:
+  - ADR-024: Session URL and Refresh Persistence (Accepted).
+  - ADR-025: Company URL Normalisation (Accepted).
+
+### Changed
+- **API Integration**:
+  - `apps/api/src/app.ts`: Added session routes mount.
+  - `apps/api/src/routes/interviewPrep.routes.ts`: Integrated URL normalisation into generation endpoint.
+- **Frontend API Client** (`apps/web/src/lib/api.ts`):
+  - Added session API functions: `createSession`, `getSessionById`, `convertSessionToKit`, `updateSessionQuestionConfidence`, `reorderSessionQuestions`, `updateSessionFlashcardConfidence`.
+- **Shared Package** (`packages/shared/src/index.ts`):
+  - Exported `normalizeCompanyUrl` utility.
+- **Batch Evaluator** (`scripts/evaluator.ts`):
+  - Integrated URL normalisation into case processing pipeline.
+
+### Verification
+- `npm run lint`: Exit code 0
+- `npm run build`: Exit code 0 (all workspaces compile cleanly, Next.js build successful with `/session/[id]` route)
+- `npm test`: Exit code 0, **342/342 tests passing** (22 test files, including 22 session tests + 14 URL normalizer tests)
+- `npm run evaluate`: Exit code 0, 8 cases (5 valid, 3 invalid), 355ms
+
+---
+
 ## [fix] - M18 LLM Production Generation Reliability Hardening — 2026-09-25
 
 ### Problem

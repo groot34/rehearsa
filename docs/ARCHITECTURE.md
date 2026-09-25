@@ -47,6 +47,18 @@ Rehearsa is structured as a TypeScript monorepo providing:
 │      LLM Provider Adapter       │   │  Persistence Layer     │
 │   (Gemini / Groq / OpenAI)      │   │  (MongoDB Database)    │
 └─────────────────────────────────┘   └────────────────────────┘
+                                           │
+                                           ▼
+                                   ┌───────────────────────┐
+                                   │  Session Documents    │
+                                   │  (Anonymous, TTL 7d)  │
+                                   └───────────────────────┘
+                                           │
+                                           ▼
+                                   ┌───────────────────────┐
+                                   │  Kit Documents        │
+                                   │  (User-owned, Auth)    │
+                                   └───────────────────────┘
 ```
 
 ---
@@ -74,16 +86,36 @@ Rehearsa is structured as a TypeScript monorepo providing:
   - **Section Regenerator**: UI triggers to regenerate a specific section (e.g., questions or company brief) while preserving manually edited questions.
   - **Flashcard Practice Mode**: Flip cards with keyboard navigation and confidence recording (`easy`, `medium`, `hard`).
 
-### 2.3. Backend API Service (`apps/api`) `[PROPOSED]`
+### 2.3. Backend API Service (`apps/api`) `[CURRENT / ACTIVE]`
 * **Tech Stack**: Node.js, Express, TypeScript.
 * **Modules**:
   - `auth/`: User registration, password hashing (bcrypt), JWT generation, and auth middleware.
   - `kits/`: RESTful routes for Kit CRUD, user-isolated queries (`{ _id: kitId, userId: req.user.id }`).
+  - `sessions/`: Anonymous generation session management with high-entropy session IDs (UUID v4), 7-day TTL, and confidence/order tracking.
   - `generation/`: Asynchronous job runner or SSE stream executing the 11-step pipeline.
   - `research/`: SSRF-safe URL fetcher, HTML content extractor (using Cheerio/linkedom), robots.txt validator.
   - `llm/`: Replaceable LLM adapter interface (`ILlmProvider`) with implementations for free-tier providers (Google Gemini / Groq) and strict JSON schema output enforcement.
 
-### 2.4. Batch Evaluator CLI (`scripts/evaluator.ts`) `[PROPOSED]`
+### 2.4. Session URL & Refresh Persistence `[CURRENT / ACTIVE]`
+* **Purpose**: Enable URL-based session recovery for unsaved generated kits.
+* **Implementation**:
+  - **Session Model**: MongoDB `SessionDocument` with high-entropy UUID v4 session IDs, anonymous (no userId), 7-day TTL via `lastAccessedAt` index.
+  - **Session Service**: `createSession()`, `getSessionById()`, `convertSessionToKit()`, plus confidence/order tracking methods.
+  - **API Routes**: `POST /api/sessions` (public), `GET /api/sessions/:id` (public), `POST /api/sessions/:id/save` (auth required), plus PUT endpoints for confidence/reorder/flashcard-confidence.
+  - **Frontend**: On kit generation, creates session via `createSession()` and navigates to `/session/[id]`. Dynamic route `/session/[id]/page.tsx` loads session and displays kit.
+  - **Conversion**: User saves session → converts to user-owned KitDocument → session deleted → redirects to My Kits.
+* **Security Model**: Sessions are anonymous and addressable by opaque UUID. No ownership check required for session fetch. Conversion to kit requires authentication, associating the kit with the authenticated user.
+* **URL Format**: `/session/<uuid-v4>` (e.g., `/session/550e8400-e29b-41d4-a716-446655440000`)
+* **Refresh Behaviour**: Refreshing `/session/[id]` loads the session from MongoDB, restoring kit, confidence, and order state. No new generation triggered.
+
+### 2.5. Batch Evaluator CLI (`scripts/evaluator.ts`) `[CURRENT / ACTIVE]`
+### 2.6. Company URL Normalisation `[CURRENT / ACTIVE]`
+* **Purpose**: Accept scheme-less company URLs (e.g., `google.com`, `www.google.com`) and normalise to HTTPS.
+* **Implementation**: `normalizeCompanyUrl()` in `packages/shared/src/utils/urlNormalizer.ts` prepends `https://` to scheme-less inputs, preserves explicit `http://` and `https://`, preserves other schemes for downstream rejection.
+* **SSRF Safety**: Normalisation is pre-validation; the normalised URL must still pass through Zod URL validation and SSRF guard before any network request.
+* **Test Coverage**: 14 tests covering scheme-less inputs, www domains, explicit schemes, edge cases, and SSRF guard expectations.
+
+### 2.7. Batch Evaluator CLI (`scripts/evaluator.ts`) `[CURRENT / ACTIVE]`
 * Implements `npm run evaluate -- --input <cases.json> --output <kits.json>`.
 * Invokes the same pipeline logic as the backend without HTTP server overhead.
 * Produces the exact Appendix B JSON envelope.

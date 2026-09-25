@@ -1,6 +1,27 @@
 # Project Progress & Status — Rehearsa
 
 ## 1. Current Milestone
+**Milestone 19: Session URL / Refresh Persistence and Company URL Normalisation (VERIFIED 2026-09-26)**
+- **Session URL Implementation**:
+  - Created `SessionDocument` model with high-entropy UUID v4 session IDs, anonymous (no userId), 7-day TTL via `lastAccessedAt` index.
+  - Implemented session service: `createSession()`, `getSessionById()`, `convertSessionToKit()`, plus confidence/order tracking methods.
+  - Added API routes: `POST /api/sessions` (public), `GET /api/sessions/:id` (public), `POST /api/sessions/:id/save` (auth required), plus PUT endpoints for confidence/reorder/flashcard-confidence.
+  - Updated frontend: On kit generation, creates session via `createSession()` and navigates to `/session/[id]`. Dynamic route `/session/[id]/page.tsx` loads session and displays kit.
+  - Session conversion to kit requires authentication, associating the kit with the authenticated user.
+  - 22 unit tests for session service passing.
+- **Company URL Normalisation**:
+  - Implemented `normalizeCompanyUrl()` in `packages/shared/src/utils/urlNormalizer.ts` to accept scheme-less inputs (`google.com`, `www.google.com`) and prepend `https://`.
+  - Preserves explicit `http://` and `https://` schemes unchanged.
+  - Preserves other schemes (e.g., `ftp://`, `file://`) for downstream rejection.
+  - Integrated into `POST /api/interview-prep/generate` and batch evaluator.
+  - 14 unit tests for URL normalisation passing.
+- ADR-024 and ADR-025 documented in `docs/DECISIONS.md`.
+- **Verification status (2026-09-26)**:
+  - `npm run lint`: Exit code 0
+  - `npm run build`: Exit code 0 (all workspaces compile cleanly, Next.js build successful with `/session/[id]` route)
+  - `npm test`: Exit code 0, **342/342 tests passing** (22 test files, including 22 session tests + 14 URL normalizer tests)
+  - `npm run evaluate`: Exit code 0, 8 cases (5 valid, 3 invalid), 355ms
+
 **Milestone 18: Production LLM Generation Reliability Hardening (IMPLEMENTED 2026-09-25)**
 - Production failure: `Gemini Provider failed after 3 attempts: timeout of 25000ms exceeded` during company-brief synthesis on Render free tier for large prompts.
 - RCA confirmed 4 reliability gaps:

@@ -341,3 +341,136 @@ export async function updateFlashcardConfidence(
     return { success: false, error: { code: 'NETWORK_ERROR', message: err.message } };
   }
 }
+
+// ---------------------------------------------------------------------------
+// Generation session API (Session URL / Refresh Persistence)
+// ---------------------------------------------------------------------------
+
+export interface SessionMeta {
+  sessionId: string;
+  kit: Kit;
+  createdAt: string;
+  lastAccessedAt: string;
+  /** Maps question ID → confidence level. Absent when no confidence has been set. */
+  questionConfidence?: Record<string, 'unknown' | 'not-ready' | 'somewhat-ready' | 'ready'>;
+  /** Ordered array of question IDs. Absent when no custom order has been set. */
+  questionOrder?: string[];
+  /** Maps flashcard ID → confidence tier. Absent when no confidence has been set. */
+  flashcardConfidence?: Record<string, 'easy' | 'medium' | 'hard'>;
+}
+
+export interface ApiSessionResponse {
+  success: boolean;
+  sessionId?: string;
+  kit?: Kit;
+  createdAt?: string;
+  lastAccessedAt?: string;
+  questionConfidence?: Record<string, 'unknown' | 'not-ready' | 'somewhat-ready' | 'ready'>;
+  questionOrder?: string[];
+  flashcardConfidence?: Record<string, 'easy' | 'medium' | 'hard'>;
+  error?: { code: string; message: string };
+}
+
+export async function createSession(kit: Kit): Promise<ApiSessionResponse> {
+  try {
+    const res = await fetch('/api/sessions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ kit }),
+    });
+    const data = await res.json();
+    if (!res.ok) return { success: false, error: data.error };
+    return { success: true, sessionId: data.sessionId, kit: data.kit, createdAt: data.createdAt, lastAccessedAt: data.lastAccessedAt };
+  } catch (err: any) {
+    return { success: false, error: { code: 'NETWORK_ERROR', message: err.message } };
+  }
+}
+
+export async function getSessionById(sessionId: string): Promise<ApiSessionResponse> {
+  try {
+    const res = await fetch(`/api/sessions/${sessionId}`);
+    const data = await res.json();
+    if (!res.ok) return { success: false, error: data.error };
+    const response: ApiSessionResponse = {
+      success: true,
+      sessionId: data.sessionId,
+      kit: data.kit,
+      createdAt: data.createdAt,
+      lastAccessedAt: data.lastAccessedAt,
+    };
+    if (data.questionConfidence !== undefined) response.questionConfidence = data.questionConfidence;
+    if (data.questionOrder !== undefined) response.questionOrder = data.questionOrder;
+    if (data.flashcardConfidence !== undefined) response.flashcardConfidence = data.flashcardConfidence;
+    return response;
+  } catch (err: any) {
+    return { success: false, error: { code: 'NETWORK_ERROR', message: err.message } };
+  }
+}
+
+export async function convertSessionToKit(sessionId: string, token: string): Promise<ApiKitResponse> {
+  try {
+    const res = await fetch(`/api/sessions/${sessionId}/save`, {
+      method: 'POST',
+      headers: authHeaders(token),
+    });
+    const data = await res.json();
+    if (!res.ok) return { success: false, error: data.error };
+    return { success: true, data: { id: data.id, kit: data.kit, createdAt: data.createdAt, updatedAt: data.updatedAt } };
+  } catch (err: any) {
+    return { success: false, error: { code: 'NETWORK_ERROR', message: err.message } };
+  }
+}
+
+export async function updateSessionQuestionConfidence(
+  sessionId: string,
+  payload: UpdateConfidencePayload
+): Promise<ApiConfidenceResponse> {
+  try {
+    const res = await fetch(`/api/sessions/${sessionId}/confidence`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) return { success: false, error: data.error };
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: { code: 'NETWORK_ERROR', message: err.message } };
+  }
+}
+
+export async function reorderSessionQuestions(
+  sessionId: string,
+  payload: ReorderQuestionsPayload
+): Promise<ApiReorderResponse> {
+  try {
+    const res = await fetch(`/api/sessions/${sessionId}/reorder`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) return { success: false, error: data.error };
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: { code: 'NETWORK_ERROR', message: err.message } };
+  }
+}
+
+export async function updateSessionFlashcardConfidence(
+  sessionId: string,
+  payload: UpdateFlashcardConfidencePayload
+): Promise<ApiFlashcardConfidenceResponse> {
+  try {
+    const res = await fetch(`/api/sessions/${sessionId}/flashcard-confidence`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) return { success: false, error: data.error };
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: { code: 'NETWORK_ERROR', message: err.message } };
+  }
+}

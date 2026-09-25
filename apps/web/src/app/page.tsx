@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useCallback, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { Kit } from '@rehearsa/shared';
 import {
   generateInterviewKit,
@@ -11,6 +12,7 @@ import {
   updateQuestionConfidence,
   reorderQuestions,
   updateFlashcardConfidence,
+  createSession,
   GenerateKitPayload,
 } from '../lib/api';
 import { syncQuestionOrder } from '../lib/kitEditing';
@@ -38,6 +40,7 @@ import {
 type View = 'home' | 'auth' | 'my-kits' | 'kit-viewer';
 
 export default function HomePage() {
+  const router = useRouter();
   const { token, user, isLoading: authLoading, logout } = useAuth();
 
   // Navigation
@@ -146,9 +149,16 @@ export default function HomePage() {
     setIsGenerating(false);
 
     if (result.success && result.kit) {
-      setGeneratedKit(result.kit);
-      setQuestionOrder(result.kit.questions.map((q) => q.id));
-      setView('kit-viewer');
+      // Create a session and navigate to the session URL
+      const sessionResult = await createSession(result.kit);
+      if (sessionResult.success && sessionResult.sessionId) {
+        router.push(`/session/${sessionResult.sessionId}`);
+      } else {
+        // Fallback: display kit directly if session creation fails
+        setGeneratedKit(result.kit);
+        setQuestionOrder(result.kit.questions.map((q) => q.id));
+        setView('kit-viewer');
+      }
     } else {
       setGenError(result.error || { code: 'GENERATION_FAILED', message: 'Failed to generate kit.' });
     }

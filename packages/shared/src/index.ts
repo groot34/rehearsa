@@ -5,4 +5,5 @@ export * from './schemas/auth.schema';
 export * from './algorithms/coverageChecker';
 export * from './algorithms/scheduleAllocator';
 export * from './validation/kitValidator';
+export * from './utils/urlNormalizer';
 export * from './types';

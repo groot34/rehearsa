@@ -4,6 +4,7 @@ import { healthRoutes } from './routes/health.routes';
 import { interviewPrepRoutes } from './routes/interviewPrep.routes';
 import { authRoutes } from './routes/auth.routes';
 import { kitsRoutes } from './routes/kits.routes';
+import { sessionsRoutes } from './routes/sessions.routes';
 import { config } from './config';
 
 export const createApp = (): Express => {
@@ -41,6 +42,9 @@ export const createApp = (): Express => {
   // Decision: generation itself does not require auth so the headless batch evaluator
   // (npm run evaluate) continues to work without credentials. Saving a kit requires auth.
   app.use('/api/interview-prep', interviewPrepRoutes);
+
+  // Generation session routes (public — sessions are anonymous, conversion to kit requires auth)
+  app.use('/api/sessions', sessionsRoutes);
 
   // Persistent kit CRUD routes (authenticated — all routes behind requireAuth)
   app.use('/api/kits', kitsRoutes);
