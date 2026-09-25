@@ -15,8 +15,8 @@
 ## 2. Latest Known Repository State
 
 * **Branch**: `main`
-* **HEAD Commit**: `fbb2564` — `feat: prepare production deployment` (pending finalization commit)
-* **Sync status**: `main` is 1 ahead of `origin/main`. M12.2 deployment preparation finalized, not yet pushed.
+* **HEAD Commit**: `9e92eea` — `docs: finalise production deployment preparation`
+* **Sync status**: `main` is 2 ahead of `origin/main`; deployment build compatibility fixes are currently uncommitted.
 * **Commit history (most recent first)**:
   - `fbb2564` — `feat: prepare production deployment`
   - `13fa78c` — `docs: sync handoff/progress with final M11 state`
@@ -28,7 +28,7 @@
   - `1981ab6` — `docs: record live MongoDB verification`
   - `d947b87` — `docs: record flashcard confidence tiers implementation` (M10.3 docs)
   - `085cc0f` — `feat: add persisted flashcard confidence tiers` (M10.3 impl)
-* **Working Tree**: Clean.
+* **Working Tree**: Contains the uncommitted deployment build compatibility fix.
 
 ---
 

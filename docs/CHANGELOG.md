@@ -4,6 +4,16 @@ All notable changes to the Rehearsa project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [fix] - Deployment Build Compatibility — 2026-09-25
+
+### Changed
+- **TypeScript workspace builds**: Use explicit `Node16` module and module resolution settings; exclude API test files from the production compiler.
+- **Render build**: Install dev dependencies so TypeScript and Tailwind CSS are available during the monorepo build.
+
+### Verification
+- `npm run build` passed across shared, API, and web workspaces.
+- `npm test` passed with 257/257 tests.
+
 ## [feat] - M12.2 Production Deployment Preparation — 2026-09-24
 
 ### Added

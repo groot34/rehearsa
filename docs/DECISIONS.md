@@ -720,3 +720,14 @@ This is an accepted trade-off for a client-rendered SPA without a BFF. An `httpO
   - JWT_SECRET enforced to be ≥32 characters at startup in production.
   - ALLOW_LOOPBACK_IN_DEV set to false in production to enforce SSRF protection.
   - CORS_ORIGIN restricted to Vercel domain only.
+
+### ADR-017: Production Build Toolchain Compatibility
+
+* **Status**: Accepted
+* **Date**: 2026-09-25
+* **Context**:
+  Render's compiler rejected the implicit `node10` TypeScript resolution mode, and the production workspace build did not install web build-time dependencies such as Tailwind CSS.
+* **Decision**:
+  Use explicit `Node16` module and module resolution settings for the shared and API packages, exclude API test files from production compilation, and install dev dependencies during the Render build.
+* **Verification**:
+  `npm run build` passes across all workspaces and `npm test` passes with 257/257 tests.
