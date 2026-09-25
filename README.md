@@ -118,9 +118,10 @@ LLM_PROVIDER=gemini
 GEMINI_API_KEY=<Gemini API key>
 GEMINI_MODEL=gemini-1.5-flash
 ALLOW_LOOPBACK_IN_DEV=false
-INTERVIEW_SEARCH_PROVIDER=mock
-GOOGLE_SEARCH_API_KEY=<optional Google Search API key>
-GOOGLE_SEARCH_CX=<optional Custom Search Engine ID>
+INTERVIEW_SEARCH_PROVIDER=mock # or 'tavily' for production search, 'google' for historical/alternative
+TAVILY_API_KEY=<Tavily API key, intended production search provider>
+GOOGLE_SEARCH_API_KEY=<optional historical Google Search API key>
+GOOGLE_SEARCH_CX=<optional historical Custom Search Engine ID>
 ```
 
 #### MongoDB Atlas

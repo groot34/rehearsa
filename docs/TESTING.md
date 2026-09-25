@@ -75,7 +75,7 @@ Must verify:
 - `apps/api/src/modules/research/tests/ssrfGuard.test.ts`: 6 tests — SSRF protection, private IP blocking, DNS rebinding, loopback dev override.
 - `apps/api/src/modules/research/tests/htmlCleaner.test.ts`: 2 tests — script stripping, clean text extraction, link discovery.
 - `apps/api/src/modules/research/tests/robotsParser.test.ts`: 2 tests — robots.txt parsing and allow/disallow rule enforcement.
-- `apps/api/src/modules/research/tests/interviewSearchProvider.test.ts`: 11 tests **(NEW — Milestone 11)** — Mock provider returns results for Google/Amazon/generic, handles role parameter, Google provider configuration check, throws error without credentials, URL source extraction, factory returns mock by default/when google unconfigured.
+- `apps/api/src/modules/research/tests/interviewSearchProvider.test.ts`: 24 tests **(UPDATED — Milestone 16)** — Mock provider returns results for Google/Amazon/generic, handles role parameter; Google provider configuration check, error on unconfigured, URL source extraction; **Tavily provider (10 tests)**: configuration checks, missing key error, platform source extraction (Glassdoor, Reddit, Blind, Indeed, LeetCode, Web), successful payload & response parsing, URL deduplication, empty results handling, malformed response handling, HTTP 401 error isolation, network timeout isolation; factory selection for tavily/google/mock and graceful credential fallback.
 - `apps/api/src/modules/llm/tests/llmProvider.test.ts`: 6 tests — provider interface, mock generation, key normalisation, missing key handling.
 - `apps/api/src/modules/interview-prep/tests/pipelineOrchestrator.test.ts`: 4 tests — end-to-end pipeline with MockLlmProvider, SSRF rejection.
 - `apps/api/src/modules/interview-prep/tests/sectionRegenerator.test.ts`: 18 tests — preservation, cross-section isolation, ID collision prevention, LLM failure, sanitisation.
@@ -100,7 +100,7 @@ The deployed application was manually tested. Verified:
 - User B created/logged in separately and unable to see User A's saved kit.
 - **Question reordering UI (M14, commit `a1dda57`)**: Question reorder controls (`ArrowUp`/`ArrowDown`) visible in Questions UI, distinct from accordion expand/collapse chevrons (`ChevronUp`/`ChevronDown`). Question moved successfully, new question order persisted via Update Saved Kit, reordered question order intact after browser refresh and reopening saved kit. Boundary behavior verified (first question cannot move up, last question cannot move down).
 
-Live Google Custom Search remains unverified. No Playwright or browser automation was performed.
+Google Custom Search was production-tested but returned HTTP 403 because the API is closed to new customers. Google remains as an optional historical/alternative provider implementation. Tavily Search is now implemented as the intended production provider; live Tavily production verification has not happened yet. No Playwright or browser automation was performed.
 
 ---
 

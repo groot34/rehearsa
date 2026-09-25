@@ -35,6 +35,8 @@ services:
         value: 2097152
       - key: INTERVIEW_SEARCH_PROVIDER
         value: mock
+      - key: TAVILY_API_KEY
+        sync: false
       - key: GOOGLE_SEARCH_API_KEY
         sync: false
       - key: GOOGLE_SEARCH_CX

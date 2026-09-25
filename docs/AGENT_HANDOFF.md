@@ -8,15 +8,28 @@
 
 * **Project**: Rehearsa — Full-Stack AI-Powered Interview Preparation Platform
 * **Assessment ID**: `FS-AI-INTERVIEW-01` (Trao Assessment)
-* **Active Milestone**: `M15: LLM Requirement Kind Robustness & Normalisation` (COMPLETED 2026-09-25)
+* **Active Milestone**: `M16: Tavily Public Interview Discussion Search Integration` (IMPLEMENTED & LOCALLY VERIFIED 2026-09-25)
 
 ---
 
 ## 2. Latest Known Repository State
 
 * **Branch**: `main`
-* **HEAD Commit**: `920c461` — `docs: record question reorder verification`
-* **Sync status**: Working tree updated for M15 LLM requirement kind robustness and normalisation.
+* **HEAD Commit**: `5991536` — `fix(api): harden requirement kind prompt and parser normalization`
+* **Sync status**: Working tree updated for M16 Tavily search provider integration.
+
+### M16 Tavily Search Provider Integration — implemented 2026-09-25
+
+Implementation summary:
+- Production testing identified that Google Custom Search JSON API returns HTTP 403 on new projects because it is closed to new customers.
+- Retained `GoogleCustomSearchProvider` as a historical/alternative provider implementation.
+- Added `TavilySearchProvider` (`apps/api/src/modules/research/tavilySearchProvider.ts`) implementing `IPublicInterviewSearchProvider` using Tavily's official Search API (`https://api.tavily.com/search`, POST request).
+- Added `TAVILY_API_KEY` configuration and `INTERVIEW_SEARCH_PROVIDER=tavily` support in `interviewSearchFactory.ts`.
+- Retained bounded query structure, deduplication by URL, and timeout protection (10000ms).
+- Retained provenance invariant: search results populate `<untrusted_web_content>` for brief synthesis and are **not** added to `source.pages_used`.
+- Retained graceful degradation: query or provider errors log warnings and do not break overall kit generation.
+- Added 10 unit tests for `TavilySearchProvider` and factory provider selection in `apps/api/src/modules/research/tests/interviewSearchProvider.test.ts`. 24/24 tests pass in suite.
+- Note: Live production Tavily verification has NOT happened yet.
 
 ### M15 LLM Requirement Kind Robustness & Normalisation — completed 2026-09-25
 
@@ -25,6 +38,7 @@ Implementation summary:
 - Added `normalizeRequirementKind` helper in `geminiProvider.ts` to map common LLM semantic aliases (e.g., `leadership`, `management`, `communication` -> `behavioural`; `tech` -> `technical`; `domain_knowledge` -> `domain`) in the pre-validation JSON normalization loop before strict Zod validation against Appendix A.
 - Maintained strict runtime validation and Appendix A schema integrity. Unknown/invalid kinds are preserved as-is and rejected by Zod schema.
 - Added 30+ assertions in `apps/api/src/modules/llm/tests/llmProvider.test.ts`. 262/262 tests passing, clean build and lint.
+- Verified in production with complex Senior Backend Engineer JD.
 
 ### M14 Question Reordering UI Exposure — completed 2026-09-25
 

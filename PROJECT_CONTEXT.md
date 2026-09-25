@@ -206,15 +206,16 @@ npm run evaluate -- --input <cases.json> --output <kits.json>
 * **Frontend (`apps/web`)**: Next.js (App Router), React, Tailwind CSS.
 * **Backend (`apps/api`)**: Node.js, Express, TypeScript.
 * **Shared Layer (`packages/shared`)**: Shared Zod schemas, TypeScript types, constants, and utilities.
-* **Database**: MongoDB (Mongoose or native driver).
-* **LLM Provider**: Flexible abstraction supporting providers with a free tier (e.g., Google Gemini, Groq, or OpenAI-compatible).
+* **Database**: MongoDB (Mongoose).
+* **LLM Provider**: Replaceable abstraction supporting Google Gemini (default production) and Mock for testing/evaluation.
+* **Public Discussion Search Provider**: Replaceable abstraction (`IPublicInterviewSearchProvider`) supporting Tavily Search API (intended production), Google Custom Search (historical/alternative; returns HTTP 403 on new projects as API is closed to new customers), and Mock (deterministic for testing and headless evaluation).
 
 ---
 
 ## 7. Current Project State & Milestones
 
-* **Current Milestone**: `M14 — Expose Question Reorder Controls in UI (Production Verified)`
-* **Repository State**: Milestone 14 implementation complete and manually verified in production (commit `a1dda57`). Question reorder UI controls (`ArrowUp`/`ArrowDown`) exposed and bounded in `QuestionBankCard.tsx`, distinct from accordion expand/collapse chevrons (`ChevronUp`/`ChevronDown`). Question moved, new order persisted via "Update Saved Kit", order retained across browser refresh and kit reopening. Boundary behavior verified. 262/262 tests passing. Monorepo build and lint passing.
+* **Current Milestone**: `M16 — Tavily Public Interview Discussion Search Integration`
+* **Repository State**: M14 (question reordering UI exposure) production verified. M15 (prompt constraint and requirement kind normalization) production verified. M16 implemented: added `TavilySearchProvider` for official Tavily Search API, added `TAVILY_API_KEY` configuration, updated factory and environment templates. Tests, build, lint, and evaluator passing.
 
 ---
 

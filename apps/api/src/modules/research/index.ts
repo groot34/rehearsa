@@ -6,4 +6,6 @@ export * from './companyCrawler';
 export * from './interviewSearchProvider';
 export * from './mockInterviewSearchProvider';
 export * from './googleCustomSearchProvider';
+export * from './tavilySearchProvider';
 export * from './interviewSearchFactory';
+

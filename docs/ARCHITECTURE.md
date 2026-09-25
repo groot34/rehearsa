@@ -148,3 +148,15 @@ When fetching company web pages:
 3. **Payload Capping**: Stream response with a maximum size cutoff (e.g., 2MB) to prevent memory exhaustion (Zip bomb / huge file attacks).
 4. **Robots.txt Enforcement**: Fetch `/robots.txt` and respect Disallow rules for user-agent.
 5. **Prompt Injection Barrier**: All crawled text and user JDs are injected into LLM prompts inside designated XML tags (`<untrusted_job_description>` / `<untrusted_web_content>`) with instructions to parse strictly as data, never instructions.
+
+---
+
+## 6. Public Interview Discussion Search Architecture
+
+Public interview discussion search (`IPublicInterviewSearchProvider`) abstracts the retrieval of external community hiring experiences (from sources such as Glassdoor, Blind, Reddit, and LeetCode):
+- **Tavily Search Provider (`TavilySearchProvider`)**: Intended production implementation using Tavily's official Search API (`https://api.tavily.com/search`) with bounded queries, timeout protection, and per-query failure isolation.
+- **Google Custom Search Provider (`GoogleCustomSearchProvider`)**: Historical/alternative implementation. (Note: Google Custom Search JSON API is closed to new customers, returning HTTP 403 on new projects).
+- **Mock Search Provider (`MockPublicInterviewSearchProvider`)**: Deterministic provider for local unit tests, CI test runs, and headless batch evaluation (`scripts/evaluator.ts`), requiring zero external network calls.
+- **Provenance Invariant**: Search result snippets are combined into `<untrusted_web_content>` for company brief synthesis; search URLs are **not** recorded into `source.pages_used` (only actually crawled web pages are recorded).
+- **Graceful Degradation**: If search fails or returns zero results, the pipeline logs a warning and continues without failing kit generation.
+

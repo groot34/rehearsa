@@ -47,7 +47,7 @@ On 2026-09-25, production was manually verified for frontend availability, kit g
 | 2 | Retrieve & clean individual seed pages | Crawler/Fetcher | Mandatory | Verified (Live crawler tested) |
 | 3 | Crawl company site & rank useful links dynamically | Dynamic Crawler | Mandatory | Verified (Live multi-page crawl) |
 | 4 | Search for company hiring information | Search/Research | Mandatory | Verified (Crawl extracted about/culture info) |
-| 5 | Search public interview discussions | Search/Research | Mandatory | Implemented (Mock provider, graceful degradation) |
+| 5 | Search public interview discussions | Search/Research | Mandatory | Implemented (Tavily production provider + Mock provider + graceful degradation; Google returned 403 in prod) |
 | 6 | Generate category-specific questions for requirements | AI Generation | Mandatory | Verified (Live Gemini tested) |
 | 7 | Generate flashcards & company brief | AI Generation | Mandatory | Verified (Live Gemini tested) |
 | 8 | Detect uncovered requirements via set-difference | **Deterministic Code** | Mandatory | Verified (Deterministic set difference) |

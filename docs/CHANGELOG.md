@@ -4,6 +4,26 @@ All notable changes to the Rehearsa project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [feat] - M16 Tavily Public Interview Discussion Search Integration — 2026-09-25
+
+### Added
+- **`TavilySearchProvider`** (`apps/api/src/modules/research/tavilySearchProvider.ts`): Implemented `IPublicInterviewSearchProvider` using Tavily's official Search API (`https://api.tavily.com/search`, POST request) with `search_depth: 'basic'`, `max_results: 5`, and 10000ms timeout protection.
+- **Provider Factory Support** (`apps/api/src/modules/research/interviewSearchFactory.ts`): Added `INTERVIEW_SEARCH_PROVIDER=tavily` support in `createInterviewSearchProvider()`, checking `TAVILY_API_KEY` configuration and falling back to mock provider if unconfigured.
+- **Platform Source Mapping**: Added domain extraction for search result citations (`Glassdoor`, `Reddit`, `Blind`, `Indeed`, `LeetCode`, `Web`).
+- **Comprehensive Unit Tests** (`apps/api/src/modules/research/tests/interviewSearchProvider.test.ts`): Added 10 new tests for `TavilySearchProvider` covering configuration checks, query execution, payload validation, result deduplication, empty results, malformed data, HTTP 401 error isolation, network timeout isolation, and factory selection/fallback.
+- **Configuration Templates**: Added `TAVILY_API_KEY` to `.env.example` and `render.yaml`.
+
+### Changed
+- **Provider Strategy & Architecture**: Documented that Google Custom Search was production-tested but returned HTTP 403 due to Google closing the API to new customers. Google provider remains in codebase as a historical/alternative implementation. Tavily is now the designated production search provider.
+- **Provenance & Graceful Degradation Invariants Maintained**: Search snippets feed into `<untrusted_web_content>` for brief synthesis; search URLs are strictly **not** added to `source.pages_used`. Search errors never abort kit generation.
+
+### Verification
+- `npm test`: 24/24 tests passing in `interviewSearchProvider.test.ts`. Full test suite clean.
+- `npm run lint`: Passed (Exit code 0).
+- `npm run build`: Passed (Exit code 0).
+- `npm run evaluate`: Passed (8 benchmark cases in Appendix B format).
+- *Note*: Live Tavily production verification has not occurred yet.
+
 ## [fix] - M15 LLM Requirement Kind Robustness & Normalisation — 2026-09-25
 
 ### Fixed

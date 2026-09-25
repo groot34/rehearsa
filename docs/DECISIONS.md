@@ -27,6 +27,7 @@ This document records the architectural and engineering decisions made for the R
 | [ADR-017](#adr-017-production-build-toolchain-compatibility) | Production Build Toolchain Compatibility | Accepted | 2026-09-25 |
 | [ADR-018](#adr-018-declare-api-runtime-type-dependencies) | Declare API Runtime Type Dependencies | Accepted | 2026-09-25 |
 | [ADR-019](#adr-019-llm-requirement-kind-robustness-and-normalization) | LLM Requirement Kind Robustness and Normalization | Accepted | 2026-09-25 |
+| [ADR-020](#adr-020-tavily-search-provider-for-public-interview-discussions) | Tavily Search Provider for Public Interview Discussions | Accepted | 2026-09-25 |
 
 ---
 
@@ -770,3 +771,29 @@ This is an accepted trade-off for a client-rendered SPA without a BFF. An `httpO
 * **Verification**:
   - 30+ assertions in `apps/api/src/modules/llm/tests/llmProvider.test.ts` verifying all aliases, canonical preservation, unknown preservation, and full `KitSchema` validation.
   - Monorepo test suite and build passing.
+
+---
+
+### ADR-020: Tavily Search Provider for Public Interview Discussions
+
+* **Status**: Accepted
+* **Date**: 2026-09-25
+* **Context**:
+  The assessment specifies researching company hiring nuances and public interview discussions (Step 5 of the pipeline). In production testing, Google Custom Search JSON API was found to be closed to new customers, returning HTTP 403 on newly provisioned projects.
+* **Alternatives Considered**:
+  - Keep Google Custom Search only (Rejected: Broken for new API projects due to Google's product retirement).
+  - Unbounded web scraping via headless browser (Rejected: Fragile, slow, breaks SSRF and timeout guarantees).
+  - Adopt Tavily Search API as the production search provider (Accepted).
+* **Decision**:
+  1. Implement `TavilySearchProvider` adhering to `IPublicInterviewSearchProvider` using Tavily's official Search API (`https://api.tavily.com/search`, POST request).
+  2. Maintain bounded query generation, rate limiting, and per-query error isolation.
+  3. Support `INTERVIEW_SEARCH_PROVIDER=tavily` and `TAVILY_API_KEY` in `createInterviewSearchProvider()`.
+  4. Retain `GoogleCustomSearchProvider` as a historical/alternative provider and `MockPublicInterviewSearchProvider` for offline testing and headless batch evaluation (`scripts/evaluator.ts`).
+  5. Preserve the invariant that search results are injected into `<untrusted_web_content>` for brief synthesis and **not** into `source.pages_used`.
+  6. Maintain graceful degradation so that search failure never breaks overall kit generation.
+* **Reasoning**:
+  - Provides a reliable, developer-friendly search API suited for AI application contexts.
+  - Maintains strict architectural boundaries and provider modularity.
+* **Verification**:
+  - Unit tests in `interviewSearchProvider.test.ts` with 10 dedicated test cases covering parsing, multiple results, deduplication, empty results, malformed data, HTTP 401 error isolation, network timeouts, and factory provider selection/fallback.
+  - Full test suite, lint, and build passing cleanly.

@@ -1,6 +1,16 @@
 # Project Progress & Status — Rehearsa
 
 ## 1. Current Milestone
+**Milestone 16: Tavily Public Interview Discussion Search Integration (IMPLEMENTED & LOCALLY VERIFIED 2026-09-25)**
+- Investigated Google Custom Search HTTP 403 in production: Google Custom Search JSON API is closed to new customers, returning 403 on new projects. Retained `GoogleCustomSearchProvider` as a historical/alternative implementation.
+- Implemented `TavilySearchProvider` in `apps/api/src/modules/research/tavilySearchProvider.ts` implementing `IPublicInterviewSearchProvider` using Tavily's official Search API (`https://api.tavily.com/search`, POST request).
+- Added `TAVILY_API_KEY` configuration and `INTERVIEW_SEARCH_PROVIDER=tavily` support in `interviewSearchFactory.ts`.
+- Preserved bounded query generation, per-query error isolation, and graceful pipeline degradation on error/timeout.
+- Preserved provenance invariant: search results populate `<untrusted_web_content>` for brief synthesis and are **not** added to `source.pages_used`.
+- Added 10 new unit tests covering Tavily result parsing, multiple results, deduplication, empty results, malformed data, HTTP 401 error isolation, network timeouts, and factory provider selection/fallback.
+- Updated `.env.example`, `render.yaml`, and documentation.
+- **Verification Status**: Unit tests pass (24/24 in `interviewSearchProvider.test.ts`), full test suite pass, lint pass, build pass, batch evaluator pass. *Live production Tavily verification has NOT happened yet.*
+
 **Milestone 15: LLM Requirement Kind Robustness & Normalisation (COMPLETED 2026-09-25)**
 - Fixed schema inconsistency in `pipelineOrchestrator.ts` system prompt where `"leadership"` was listed in example JSON. Constrained `kind` strictly to `"technical" | "behavioural" | "domain"` with explicit categorization guidance.
 - Added `normalizeRequirementKind` in `geminiProvider.ts` to map common LLM semantic aliases (e.g., `leadership`, `management`, `communication` -> `behavioural`; `tech` -> `technical`; `domain_knowledge` -> `domain`) in the pre-validation JSON normalization loop before strict Zod validation against Appendix A.
