@@ -8,15 +8,24 @@
 
 * **Project**: Rehearsa — Full-Stack AI-Powered Interview Preparation Platform
 * **Assessment ID**: `FS-AI-INTERVIEW-01` (Trao Assessment)
-* **Active Milestone**: `M16: Tavily Public Interview Discussion Search Integration` (IMPLEMENTED & LOCALLY VERIFIED 2026-09-25)
+* **Active Milestone**: `M17: Express Trust Proxy Fix for Render Deployment` (COMPLETED & LOCALLY VERIFIED 2026-09-25)
 
 ---
 
 ## 2. Latest Known Repository State
 
 * **Branch**: `main`
-* **HEAD Commit**: `5991536` — `fix(api): harden requirement kind prompt and parser normalization`
-* **Sync status**: Working tree updated for M16 Tavily search provider integration.
+* **HEAD Commit**: `831dd25` — `feat(research): add Tavily public interview search` (M16)
+* **Pending commit**: M17 trust proxy fix — `apps/api/src/app.ts` — `app.set('trust proxy', 1)` — ready to commit as `fix(api): set trust proxy for Render reverse-proxy deployment`
+
+### M17 Express Trust Proxy Fix — completed 2026-09-25
+
+Implementation summary:
+- **Root cause**: Production deployment on Render immediately crashed after M16 deploy. `express-rate-limit` v8 throws a `ValidationError` (plain text, not JSON) when `X-Forwarded-For` is present but Express `trust proxy` is `false`. Render's load balancer always injects `X-Forwarded-For` on every request. The plain-text error caused `res.json()` on the frontend to throw `SyntaxError`, surfacing as `NETWORK_ERROR: Unexpected token 'A', "An error o"... is not valid JSON`.
+- **Fix**: Added `app.set('trust proxy', 1)` in `apps/api/src/app.ts` immediately after `const app = express()` and before all middleware and route registration. `1` trusts exactly one proxy hop (Render's edge); this is intentionally not `true` (which would trust unlimited hops — unsafe in public-internet deployments).
+- **Effect**: (1) `express-rate-limit` no longer throws, so all responses remain JSON; (2) rate-limit counters are keyed on real client IPs from `X-Forwarded-For`, not the proxy IP.
+- **Files changed**: `apps/api/src/app.ts` (1-line functional change + explanatory comments).
+- **Test result**: 274/274 tests passing, lint clean, build clean. No test changes required.
 
 ### M16 Tavily Search Provider Integration — implemented 2026-09-25
 
@@ -151,15 +160,19 @@ git log -n 5 --oneline --decorate
 
 ## 6. Remaining Gaps / Next Steps
 
-The following items are genuinely outstanding as of 2026-09-24:
+The following items are genuinely outstanding as of 2026-09-25:
 
 1. ~~**Question reordering production verification**~~: **Resolved** — Question reordering UI controls (`ArrowUp`/`ArrowDown`) exposed in commit `a1dda57` and manually verified in production on 2026-09-25 (controls visible, distinct from expand/collapse chevrons, question moved, new order persisted via Update Saved Kit, order intact after refresh and kit reopening, boundary limits enforced).
 
-2. **Live Google Custom Search verification**: `IPublicInterviewSearchProvider` abstraction with `MockPublicInterviewSearchProvider` for tests and `GoogleCustomSearchProvider` for production. Mock provider used by default; graceful degradation if provider unavailable. Live external search (Google Custom Search with real API key) not yet verified — requires real credentials and Custom Search Engine ID configuration.
+2. ~~**Live Google Custom Search verification**~~: **Superseded** — Google Custom Search JSON API is closed to new customers (HTTP 403). Replaced with Tavily provider (M16). Live Tavily production verification is pending.
 
 3. ~~**Confidence and order not returned in GET response**~~: **Resolved** — `GET /api/kits/:id` now returns `questionConfidence`, `questionOrder`, and `flashcardConfidence` as optional fields. Frontend restores state on kit open. See ADR-014.
 
 4. ~~**Final project audit**~~: **Resolved** — `apps/api/src/routes/tests/e2eJourney.test.ts` provides a 59-test API-level sequential journey audit covering all 16 documented journey steps.
+
+5. ~~**Render deployment crash (trust proxy)**~~: **Resolved in M17** — `app.set('trust proxy', 1)` added to `apps/api/src/app.ts`. All responses are now JSON; rate limiting uses real client IP.
+
+6. **Live Tavily production verification**: `INTERVIEW_SEARCH_PROVIDER=tavily` + `TAVILY_API_KEY` must be configured in Render environment variables to activate Tavily in production. Live end-to-end verification (kit generation with real Tavily search results) has not happened yet. Mock provider is currently configured in `render.yaml`.
 
 ---
 

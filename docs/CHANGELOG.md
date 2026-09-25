@@ -4,6 +4,24 @@ All notable changes to the Rehearsa project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [fix] - M17 Express Trust Proxy Fix for Render Deployment — 2026-09-25
+
+### Problem
+Production deployment on Render failed immediately after deploying M16.
+Symptom: Frontend displayed `Generation Failed (NETWORK_ERROR): Unexpected token 'A', "An error o"... is not valid JSON`.
+Root cause: `express-rate-limit` v8 throws a `ValidationError` — with a plain-text "An error occurred..." message, not JSON — when `X-Forwarded-For` is present in the request headers but Express's `trust proxy` setting is `false` (the default). Render's load balancer always sets `X-Forwarded-For`, triggering this on every request to auth endpoints with rate limiting.
+
+### Fix
+- **`apps/api/src/app.ts`**: Added `app.set('trust proxy', 1)` immediately after `const app = express()`, before any middleware registration. This tells Express to trust the first hop in the proxy chain (Render's edge load balancer), which:
+  1. Silences the `ValidationError` from `express-rate-limit` v8 — all responses are now JSON.
+  2. Ensures rate-limit counters are keyed on the real client IP from `X-Forwarded-For`, not the proxy IP.
+- Setting is `1` (trust one hop), not `true` (trust unlimited hops), which is the safe choice for single-layer PaaS deployments.
+
+### Verification
+- `npm run lint`: Exit code 0
+- `npm test` (274 tests, excluding scripts): Exit code 0 — all passing
+- `npm run build`: Exit code 0 — all three workspaces compile cleanly
+
 ## [feat] - M16 Tavily Public Interview Discussion Search Integration — 2026-09-25
 
 ### Added

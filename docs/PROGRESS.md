@@ -1,6 +1,12 @@
 # Project Progress & Status — Rehearsa
 
 ## 1. Current Milestone
+**Milestone 17: Express Trust Proxy Fix for Render Deployment (COMPLETED 2026-09-25)**
+- Production failure after M16 deploy: `express-rate-limit` v8 throws a `ValidationError` (plain-text, not JSON) when `X-Forwarded-For` is present but Express's `trust proxy` is false. Render's load balancer always sets `X-Forwarded-For`.
+- Frontend received plain-text error body, `res.json()` threw `SyntaxError`, displayed as `NETWORK_ERROR: Unexpected token 'A', "An error o"... is not valid JSON`.
+- Fix: Added `app.set('trust proxy', 1)` in `apps/api/src/app.ts` before all middleware. Value of `1` trusts the first proxy hop (Render's edge), ensures correct real client IP for rate-limit keying, and silences the `ValidationError`.
+- Verification: 274/274 tests passing, lint clean, full monorepo build clean.
+
 **Milestone 16: Tavily Public Interview Discussion Search Integration (IMPLEMENTED & LOCALLY VERIFIED 2026-09-25)**
 - Investigated Google Custom Search HTTP 403 in production: Google Custom Search JSON API is closed to new customers, returning 403 on new projects. Retained `GoogleCustomSearchProvider` as a historical/alternative implementation.
 - Implemented `TavilySearchProvider` in `apps/api/src/modules/research/tavilySearchProvider.ts` implementing `IPublicInterviewSearchProvider` using Tavily's official Search API (`https://api.tavily.com/search`, POST request).

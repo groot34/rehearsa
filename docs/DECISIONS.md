@@ -28,6 +28,7 @@ This document records the architectural and engineering decisions made for the R
 | [ADR-018](#adr-018-declare-api-runtime-type-dependencies) | Declare API Runtime Type Dependencies | Accepted | 2026-09-25 |
 | [ADR-019](#adr-019-llm-requirement-kind-robustness-and-normalization) | LLM Requirement Kind Robustness and Normalization | Accepted | 2026-09-25 |
 | [ADR-020](#adr-020-tavily-search-provider-for-public-interview-discussions) | Tavily Search Provider for Public Interview Discussions | Accepted | 2026-09-25 |
+| [ADR-021](#adr-021-express-trust-proxy-for-render-reverse-proxy-deployment) | Express Trust Proxy for Render Reverse-Proxy Deployment | Accepted | 2026-09-25 |
 
 ---
 
@@ -797,3 +798,25 @@ This is an accepted trade-off for a client-rendered SPA without a BFF. An `httpO
 * **Verification**:
   - Unit tests in `interviewSearchProvider.test.ts` with 10 dedicated test cases covering parsing, multiple results, deduplication, empty results, malformed data, HTTP 401 error isolation, network timeouts, and factory provider selection/fallback.
   - Full test suite, lint, and build passing cleanly.
+
+---
+
+## ADR-021: Express Trust Proxy for Render Reverse-Proxy Deployment
+
+* **Status**: Accepted — 2026-09-25
+* **Context**:
+  - Production deployment on Render failed after M16 deploy. Every request returned a plain-text `ValidationError: The 'X-Forwarded-For' header is set but the Express 'trust proxy' setting is false` instead of JSON.
+  - Root cause: `express-rate-limit` v6+ performs a startup/runtime check: if `X-Forwarded-For` is present and `trust proxy` is false, it throws a `ValidationError`. Render's edge load-balancer always injects `X-Forwarded-For`.
+  - The plain-text error response caused the frontend's `res.json()` call to throw a `SyntaxError`, surfacing to the user as `NETWORK_ERROR: Unexpected token 'A', "An error o"... is not valid JSON`.
+* **Decision**: Add `app.set('trust proxy', 1)` in `apps/api/src/app.ts` immediately after `const app = express()` and before any middleware.
+* **Value of `1` vs `true`**:
+  - `true` means "trust all hops in the X-Forwarded-For chain" — dangerous in public-internet deployments because a client can forge the header.
+  - `1` means "trust the rightmost one hop" — safe for single-layer PaaS (Render adds exactly one hop). Rate-limit counters are keyed on the actual client IP.
+* **Alternatives considered**:
+  - `validate: { trustProxy: false }` in the rate-limiter config — silences the error but does NOT enable correct client IP detection. Rejected.
+  - Disabling rate limiting in production — not acceptable; we need basic brute-force protection on auth endpoints.
+  - Moving rate limiting to Render's edge — out of scope; would require Render paid plan features.
+* **Verification**:
+  - `npm run lint`: Exit code 0.
+  - `npx vitest run --exclude **/scripts/**`: 274/274 tests passing, Exit code 0.
+  - `npm run build`: Exit code 0. All three workspaces compile cleanly.

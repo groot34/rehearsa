@@ -9,6 +9,22 @@ import { config } from './config';
 export const createApp = (): Express => {
   const app = express();
 
+  // ---------------------------------------------------------------------------
+  // Reverse-proxy trust configuration
+  // ---------------------------------------------------------------------------
+  // Render (and most PaaS providers) deploy Express behind a load-balancer /
+  // reverse-proxy that appends an X-Forwarded-For header.  express-rate-limit
+  // v6+ throws a ValidationError when that header is present but Express's
+  // 'trust proxy' setting is false (the default).  Setting it to 1 tells
+  // Express to trust the first hop in the proxy chain, which:
+  //   1. Silences the rate-limiter ValidationError that caused non-JSON
+  //      "An error occurred…" text responses in production.
+  //   2. Ensures rate-limit counters are keyed on the real client IP rather
+  //      than the proxy/load-balancer IP.
+  // The value 1 is intentional — we trust exactly one proxy (Render's edge).
+  // Do NOT set this to `true` (unlimited hops) in public-internet deployments.
+  app.set('trust proxy', 1);
+
   // Middleware
   app.use(cors({ origin: config.corsOrigin, credentials: true }));
   app.use(express.json({ limit: '2mb' }));
