@@ -1,13 +1,14 @@
 # Project Progress & Status — Rehearsa
 
 ## 1. Current Milestone
-**Milestone 14: Expose Question Reorder Controls in UI (COMPLETED 2026-09-25)**
+**Milestone 14: Expose Question Reorder Controls in UI & Production Verification (COMPLETED 2026-09-25)**
 - Added `syncQuestionOrder` helper to `apps/web/src/lib/kitEditing.ts` for deterministic question order synchronization during generation, fetching, manual edits, and section regeneration.
 - Updated `QuestionBankCard.tsx` to compute `effectiveOrder` fallback and render `ArrowUp`/`ArrowDown` reorder buttons whenever `onReorderQuestions` is provided.
 - Bounded reorder controls: first question cannot move up (`disabled`), last question cannot move down (`disabled`).
 - Kept question accordion expand/collapse controls (`ChevronUp`/`ChevronDown`) 100% unchanged.
 - Updated `apps/web/src/app/page.tsx` to initialize `questionOrder` from kit question IDs on generation and fetch, preserve custom order across edits, and persist reordering via the existing backend API.
 - Added 5 unit tests for `syncQuestionOrder` in `apps/web/src/tests/kitEditing.test.ts`. 262/262 tests passing across 20 test files. Monorepo build and lint passing.
+- **Production Verification Complete (commit a1dda57)**: Deployed application manually tested on 2026-09-25. Question reorder controls (`ArrowUp`/`ArrowDown`) visible in Questions UI, distinct from accordion expand/collapse chevrons (`ChevronUp`/`ChevronDown`). Question moved, new order persisted via Update Saved Kit, order intact after browser refresh and kit reopening. Boundary behavior verified (first question cannot move further up, last question cannot move further down).
 
 **Milestone 13: Assessment Gap Audit (COMPLETED 2026-09-25)**
 - Strict audit completed across all assessment requirements. Recorded known limitations (live search and question reorder UI exposure). P0/P1/P2/P3 gap report generated. No code or schema changes made during audit.
@@ -18,8 +19,7 @@
 - Question readiness changed from Unknown to Ready and persisted after update, browser refresh, and reopening the saved kit.
 - Flashcard confidence changed to Hard and persisted after update, browser refresh, and reopening the saved kit.
 - User B was created and logged in separately and could not see User A's saved kit.
-- No production issue was found during these tested flows.
-- Question reordering was not verified because the deployed UI does not expose reorder controls; visible chevrons are question expand/collapse controls.
+- Question reordering verified manually in production after commit a1dda57 (controls visible, distinct from expand/collapse chevrons, order persisted via Update Saved Kit, intact post refresh, boundary limits enforced).
 - Live Google Custom Search remains unverified. No Playwright or browser automation was performed.
 
 **Milestone 12.2: Production Deployment Preparation (COMMITTED + FINALIZED)**
@@ -559,8 +559,7 @@ ALLOW_LOOPBACK_IN_DEV=false  # Must be false in production
 ---
 
 ## 7. Next Recommended Task
-All Milestone 10 interactive features committed, live-verified, and fully restored on kit reload. E2E journey audit completed (gap #4 resolved). M10 state restoration gap resolved (ADR-014). Remaining gaps:
-- Deployment verification (production environment not yet tested)
-- Public interview discussion search: multi-page crawler covers about/careers/culture pages; no dedicated external search-engine integration (e.g. Glassdoor, Blind)
+All Milestone 10 interactive features and Milestone 14 question reordering UI controls are committed, live-verified, and fully restored on kit reload. E2E journey audit completed (gap #4 resolved). M10 state restoration gap resolved (ADR-014). M14 question reordering UI manually verified in production (commit a1dda57). Remaining gap:
+- Live Google Custom Search verification (requires live API key and Custom Search Engine ID).
 
-Next: deployment verification or public interview search integration.
+Next: optional live Google Custom Search credential testing.

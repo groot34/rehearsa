@@ -25,6 +25,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `npm test`: Passed (262/262 tests passing across 20 test files).
 - `npm run lint`: Passed (Exit code 0).
 - `npm run build`: Passed (Exit code 0, Next.js build clean).
+- **Production Verification Complete (commit `a1dda57`)**:
+  - Question reorder controls (`ArrowUp`/`ArrowDown`) visible in Questions UI.
+  - Reorder controls are distinct from accordion expand/collapse chevrons (`ChevronUp`/`ChevronDown`).
+  - Question moved successfully using reorder control.
+  - New question order persisted via Update Saved Kit.
+  - Order intact after browser refresh and reopening saved kit.
+  - Boundary behavior verified (first question cannot move up, last question cannot move down).
+  - Verification was manual; no Playwright or browser automation was performed.
 
 ## [docs] - M12.3 Production Verification — 2026-09-25
 
@@ -33,10 +41,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Question readiness changed from Unknown to Ready and persisted after update, browser refresh, and reopening the saved kit.
 - Flashcard confidence changed to Hard and persisted after update, browser refresh, and reopening the saved kit.
 - User B was created and logged in separately and could not see User A's saved kit.
-- No production issue was found during these tested flows.
+- Question reordering verified manually in production after commit `a1dda57` (controls visible, distinct from expand/collapse chevrons, order persisted via Update Saved Kit, intact post refresh, boundary limits enforced).
 
 ### Limitations
-- Question reordering was not verified because the deployed UI does not expose reorder controls; visible chevrons are question expand/collapse controls.
 - Live Google Custom Search remains unverified.
 - Verification was manual; no Playwright or browser automation was performed.
 

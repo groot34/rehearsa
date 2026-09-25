@@ -10,7 +10,7 @@
 
 ### Deployment verification note
 
-On 2026-09-25, production was manually verified for frontend availability, kit generation, kit saving, question readiness persistence, flashcard confidence persistence, and User B ownership isolation. Question reordering was not verified because the deployed UI does not expose reorder controls, and live Google Custom Search remains unverified. No Playwright or browser automation was performed.
+On 2026-09-25, production was manually verified for frontend availability, kit generation, kit saving, question readiness persistence, flashcard confidence persistence, question reordering (commit a1dda57), and User B ownership isolation. Live Google Custom Search remains unverified. No Playwright or browser automation was performed.
 
 ---
 
@@ -148,7 +148,7 @@ On 2026-09-25, production was manually verified for frontend availability, kit g
 || Requirement | Scope | Status | Notes / Evidence |
 ||---|---|---|---|
 || Deployment configuration (Vercel + Render + MongoDB Atlas) | Infrastructure | Implemented, not yet verified | `render.yaml` added for Express API backend deployment. Vercel deployment configured via automatic Next.js detection (no vercel.json needed). README.md updated with deployment architecture and environment variable requirements. |
-|| Production deployment verification | Infrastructure | Verified (manual production verification, partial scope) | Frontend availability, kit generation, saving, question readiness persistence, flashcard confidence persistence, and User B ownership isolation were manually verified in production. Question reordering was not verified because the deployed UI does not expose reorder controls. |
+|| Production deployment verification | Infrastructure | Verified (manual production verification, partial scope) | Frontend availability, kit generation, saving, question readiness persistence, flashcard confidence persistence, question reordering (commit a1dda57), and User B ownership isolation were manually verified in production. Live Google Custom Search remains unverified. |
 || Live Google Custom Search verification | External Service | Not started | `GoogleCustomSearchProvider` implemented but not tested with live credentials. Mock provider used by default. |
 
 ---

@@ -91,11 +91,16 @@ Must verify:
 
 Automated auth and kit persistence tests use `mongodb-memory-server`; they do not verify connectivity to a real MongoDB deployment. Live MongoDB verification was completed on 2026-09-24 against a Docker MongoDB instance with real credentials — results are recorded in the Test Execution Log above.
 
-### M12.3 Manual Production Verification — 2026-09-25
+### M12.3 & M14 Manual Production Verification — 2026-09-25
 
-The deployed application was manually tested. Verified: frontend availability, interview kit generation, kit saving, question readiness changing from Unknown to Ready and persisting after update/refresh/reopen, flashcard confidence changing to Hard and persisting after update/refresh/reopen, and User B being unable to see User A's saved kit. No production issue was found during these tested flows.
+The deployed application was manually tested. Verified:
+- Frontend availability, interview kit generation, and kit saving.
+- Question readiness changing from Unknown to Ready and persisting after update, browser refresh, and reopening the saved kit.
+- Flashcard confidence changing to Hard and persisting after update, browser refresh, and reopening the saved kit.
+- User B created/logged in separately and unable to see User A's saved kit.
+- **Question reordering UI (M14, commit `a1dda57`)**: Question reorder controls (`ArrowUp`/`ArrowDown`) visible in Questions UI, distinct from accordion expand/collapse chevrons (`ChevronUp`/`ChevronDown`). Question moved successfully, new question order persisted via Update Saved Kit, reordered question order intact after browser refresh and reopening saved kit. Boundary behavior verified (first question cannot move up, last question cannot move down).
 
-Not verified: question reordering, because the deployed UI does not expose reorder controls; visible chevrons are question expand/collapse controls. Live Google Custom Search also remains unverified. No Playwright or browser automation was performed.
+Live Google Custom Search remains unverified. No Playwright or browser automation was performed.
 
 ---
 
@@ -155,3 +160,5 @@ Not verified: question reordering, because the deployed UI does not expose reord
 | 2026-09-24 | M11 public interview search | `npm run lint` | Passed | All workspaces lint cleanly (Exit Code 0) |
 | 2026-09-24 | M11 public interview search | `npm run evaluate -- --input scratch/synthetic-benchmark-cases.json --output scratch/synthetic-benchmark-output.json` | Passed | 8 cases: 5 valid kits, 3 isolated invalid, 1519ms (Exit Code 0) — Mock provider used, no external API calls |
 | 2026-09-24 | M11 public interview search | `git diff --check` | Passed | Exit Code 0, stdout clean; LF→CRLF warnings on stderr are expected on Windows |
+| 2026-09-25 | M14 question reordering UI | `npm test` | Passed | **262/262 tests passing** across 20 test files (5 new tests for syncQuestionOrder) |
+| 2026-09-25 | M14 production verification | Manual — Deployed App (`a1dda57`) | Passed | Question reorder controls (`ArrowUp`/`ArrowDown`) visible in UI, distinct from expand/collapse chevrons. Question moved, persisted via Update Saved Kit, retained across browser refresh and kit reopening. Boundary behavior verified. No Playwright or browser automation used. |

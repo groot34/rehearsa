@@ -213,9 +213,8 @@ npm run evaluate -- --input <cases.json> --output <kits.json>
 
 ## 7. Current Project State & Milestones
 
-* **Current Milestone**: `M14 — Expose Question Reorder Controls in UI`
-* **Repository State**: Milestone 14 implementation complete. Question reorder UI controls (`ArrowUp`/`ArrowDown`) exposed and bounded in `QuestionBankCard.tsx`. State initialization and preservation implemented via `syncQuestionOrder` in `page.tsx` and `kitEditing.ts`. 262/262 tests passing. Monorepo build and lint passing.
-* **Git Status**: Changes staged for commit on `main`.
+* **Current Milestone**: `M14 — Expose Question Reorder Controls in UI (Production Verified)`
+* **Repository State**: Milestone 14 implementation complete and manually verified in production (commit `a1dda57`). Question reorder UI controls (`ArrowUp`/`ArrowDown`) exposed and bounded in `QuestionBankCard.tsx`, distinct from accordion expand/collapse chevrons (`ChevronUp`/`ChevronDown`). Question moved, new order persisted via "Update Saved Kit", order retained across browser refresh and kit reopening. Boundary behavior verified. 262/262 tests passing. Monorepo build and lint passing.
 
 ---
 

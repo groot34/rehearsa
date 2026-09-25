@@ -8,22 +8,22 @@
 
 * **Project**: Rehearsa — Full-Stack AI-Powered Interview Preparation Platform
 * **Assessment ID**: `FS-AI-INTERVIEW-01` (Trao Assessment)
-* **Active Milestone**: `M14: Expose Question Reorder Controls in UI` (COMPLETED 2026-09-25)
+* **Active Milestone**: `M14: Expose Question Reorder Controls in UI (Production Verified)` (COMPLETED 2026-09-25)
 
 ---
 
 ## 2. Latest Known Repository State
 
 * **Branch**: `main`
-* **HEAD Commit**: `427ca5c` — `docs: record production deployment verification`
-* **Sync status**: `main` working tree updated for M14.
+* **HEAD Commit**: `a1dda57` — `feat(web): expose question reorder controls`
+* **Sync status**: `main` working tree updated for M14 production verification.
 * **Commit history (most recent first)**:
+  - `a1dda57` — `feat(web): expose question reorder controls`
   - `427ca5c` — `docs: record production deployment verification`
   - `7e5dc32` — `fix(api): declare auth type dependencies`
   - `5edeb9b` — `fix: stabilize cloud workspace builds`
   - `9e92eea` — `docs: finalise production deployment preparation`
   - `fbb2564` — `feat: prepare production deployment`
-  - `13fa78c` — `docs: sync handoff/progress with final M11 state`
 
 ### M14 Question Reordering UI Exposure — completed 2026-09-25
 
@@ -34,7 +34,7 @@ Implementation summary:
 - Accordion `ChevronUp`/`ChevronDown` expand/collapse controls left 100% unchanged.
 - Updated `apps/web/src/app/page.tsx` to initialize `questionOrder` from kit question IDs on generation and fetch, preserve custom order across edits, and persist reordering via the existing backend API.
 - Added 5 unit tests for `syncQuestionOrder` in `apps/web/src/tests/kitEditing.test.ts`. 262/262 tests passing.
-- Verification was manual; no Playwright or browser automation was performed.
+- **Production Verification Complete (commit a1dda57)**: Deployed application manually tested on 2026-09-25. Question reorder controls (`ArrowUp`/`ArrowDown`) visible in Questions UI, distinct from accordion expand/collapse chevrons (`ChevronUp`/`ChevronDown`). Question moved, new order persisted via Update Saved Kit, order intact after browser refresh and kit reopening. Boundary behavior verified (first question cannot move up, last question cannot move down). Verification was manual; no Playwright or browser automation was performed.
 
 ---
 
@@ -138,7 +138,7 @@ git log -n 5 --oneline --decorate
 
 The following items are genuinely outstanding as of 2026-09-24:
 
-1. **Question reordering production verification**: Not verified because the deployed UI does not expose reorder controls. The visible chevrons are question expand/collapse controls. The API and automated tests remain verified separately.
+1. ~~**Question reordering production verification**~~: **Resolved** — Question reordering UI controls (`ArrowUp`/`ArrowDown`) exposed in commit `a1dda57` and manually verified in production on 2026-09-25 (controls visible, distinct from expand/collapse chevrons, question moved, new order persisted via Update Saved Kit, order intact after refresh and kit reopening, boundary limits enforced).
 
 2. **Live Google Custom Search verification**: `IPublicInterviewSearchProvider` abstraction with `MockPublicInterviewSearchProvider` for tests and `GoogleCustomSearchProvider` for production. Mock provider used by default; graceful degradation if provider unavailable. Live external search (Google Custom Search with real API key) not yet verified — requires real credentials and Custom Search Engine ID configuration.
 
