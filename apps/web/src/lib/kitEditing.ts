@@ -211,3 +211,22 @@ export function deleteFlashcardFromKit(kit: Kit, cardId: string): KitEditResult 
 
   return { success: true, kit: updatedKit };
 }
+
+/**
+ * Synchronizes an existing question order with current kit questions.
+ * Preserves the relative order of existing valid question IDs, removes obsolete IDs,
+ * and appends any newly added question IDs.
+ */
+export function syncQuestionOrder(existingOrder: string[], questions: { id: string }[]): string[] {
+  const questionIds = questions.map((q) => q.id);
+  const validIdSet = new Set(questionIds);
+  const synced = existingOrder.filter((id) => validIdSet.has(id));
+  const syncedSet = new Set(synced);
+  for (const q of questions) {
+    if (!syncedSet.has(q.id)) {
+      synced.push(q.id);
+      syncedSet.add(q.id);
+    }
+  }
+  return synced.length > 0 ? synced : questionIds;
+}

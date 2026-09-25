@@ -213,9 +213,9 @@ npm run evaluate -- --input <cases.json> --output <kits.json>
 
 ## 7. Current Project State & Milestones
 
-* **Current Milestone**: `M12.3 — Production Verification`
-* **Repository State**: Production deployment was manually verified on 2026-09-25 for frontend availability, kit generation, saving, question readiness persistence, flashcard confidence persistence, and User B ownership isolation. Question reordering was not verified because the deployed UI does not expose reorder controls; live Google Custom Search remains unverified.
-* **Git Status**: Git is initialized on `main`; the latest committed documentation/build fixes are synchronized with `origin/main`.
+* **Current Milestone**: `M14 — Expose Question Reorder Controls in UI`
+* **Repository State**: Milestone 14 implementation complete. Question reorder UI controls (`ArrowUp`/`ArrowDown`) exposed and bounded in `QuestionBankCard.tsx`. State initialization and preservation implemented via `syncQuestionOrder` in `page.tsx` and `kitEditing.ts`. 262/262 tests passing. Monorepo build and lint passing.
+* **Git Status**: Changes staged for commit on `main`.
 
 ---
 

@@ -7,6 +7,7 @@ import {
   updateFlashcardInKit,
   addFlashcardToKit,
   deleteFlashcardFromKit,
+  syncQuestionOrder,
 } from '../lib/kitEditing';
 
 const sampleKit: Kit = {
@@ -247,6 +248,43 @@ describe('Kit Manual Editing Utilities', () => {
     // 5. Appendix A validation holds throughout
     const validation = validateKit(workingKit);
     expect(validation.valid).toBe(true);
+  });
+});
+
+describe('Question Order Synchronization (syncQuestionOrder)', () => {
+  const sampleQuestions = [{ id: 'q1' }, { id: 'q2' }, { id: 'q3' }];
+
+  it('initializes questionOrder deterministically from questions when existingOrder is empty', () => {
+    const synced = syncQuestionOrder([], sampleQuestions);
+    expect(synced).toEqual(['q1', 'q2', 'q3']);
+  });
+
+  it('preserves existing custom questionOrder when all questions remain present', () => {
+    const customOrder = ['q3', 'q1', 'q2'];
+    const synced = syncQuestionOrder(customOrder, sampleQuestions);
+    expect(synced).toEqual(['q3', 'q1', 'q2']);
+  });
+
+  it('retains relative order of remaining questions when a question is deleted', () => {
+    const customOrder = ['q3', 'q1', 'q2'];
+    const remainingQuestions = [{ id: 'q2' }, { id: 'q3' }];
+    const synced = syncQuestionOrder(customOrder, remainingQuestions);
+    expect(synced).toEqual(['q3', 'q2']);
+  });
+
+  it('appends new question IDs while preserving existing custom order', () => {
+    const customOrder = ['q3', 'q1', 'q2'];
+    const questionsWithNew = [{ id: 'q1' }, { id: 'q2' }, { id: 'q3' }, { id: 'q_custom_99' }];
+    const synced = syncQuestionOrder(customOrder, questionsWithNew);
+    expect(synced).toEqual(['q3', 'q1', 'q2', 'q_custom_99']);
+  });
+
+  it('handles section regeneration by retaining preserved IDs order and appending new IDs', () => {
+    const customOrder = ['q3', 'q1', 'q2'];
+    // Suppose q2 was replaced by q_regen_1 and q_regen_2 during section regeneration
+    const regenQuestions = [{ id: 'q1' }, { id: 'q3' }, { id: 'q_regen_1' }, { id: 'q_regen_2' }];
+    const synced = syncQuestionOrder(customOrder, regenQuestions);
+    expect(synced).toEqual(['q3', 'q1', 'q_regen_1', 'q_regen_2']);
   });
 });
 

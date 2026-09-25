@@ -1,6 +1,17 @@
 # Project Progress & Status — Rehearsa
 
 ## 1. Current Milestone
+**Milestone 14: Expose Question Reorder Controls in UI (COMPLETED 2026-09-25)**
+- Added `syncQuestionOrder` helper to `apps/web/src/lib/kitEditing.ts` for deterministic question order synchronization during generation, fetching, manual edits, and section regeneration.
+- Updated `QuestionBankCard.tsx` to compute `effectiveOrder` fallback and render `ArrowUp`/`ArrowDown` reorder buttons whenever `onReorderQuestions` is provided.
+- Bounded reorder controls: first question cannot move up (`disabled`), last question cannot move down (`disabled`).
+- Kept question accordion expand/collapse controls (`ChevronUp`/`ChevronDown`) 100% unchanged.
+- Updated `apps/web/src/app/page.tsx` to initialize `questionOrder` from kit question IDs on generation and fetch, preserve custom order across edits, and persist reordering via the existing backend API.
+- Added 5 unit tests for `syncQuestionOrder` in `apps/web/src/tests/kitEditing.test.ts`. 262/262 tests passing across 20 test files. Monorepo build and lint passing.
+
+**Milestone 13: Assessment Gap Audit (COMPLETED 2026-09-25)**
+- Strict audit completed across all assessment requirements. Recorded known limitations (live search and question reorder UI exposure). P0/P1/P2/P3 gap report generated. No code or schema changes made during audit.
+
 **Milestone 12.3: Production Verification (COMPLETED 2026-09-25)**
 - Production frontend deployed and working.
 - Interview kit generation and kit saving verified manually in production.

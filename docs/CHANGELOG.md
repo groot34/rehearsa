@@ -4,6 +4,28 @@ All notable changes to the Rehearsa project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [feat] - M14 Expose Question Reorder Controls in UI — 2026-09-25
+
+### Added
+- **`syncQuestionOrder` helper function** (`apps/web/src/lib/kitEditing.ts`): Pure utility function to synchronize question order state with current kit questions. Preserves relative order of existing valid question IDs, removes obsolete IDs, and appends newly added question IDs.
+- **Unit tests for question order synchronization** (`apps/web/src/tests/kitEditing.test.ts`): 5 new tests verifying default initialization, custom order preservation on edits, deletion cleanup, question addition appending, and section regeneration handling.
+
+### Changed
+- **`apps/web/src/components/QuestionBankCard.tsx`**:
+  - Computed `effectiveOrder` fallback (`questionOrder.length > 0 ? questionOrder : questions.map(q => q.id)`).
+  - Rendered `ArrowUp` / `ArrowDown` reorder buttons whenever `onReorderQuestions` is provided (removed `questionOrder.length > 0` condition).
+  - Bounded controls: disabled `ArrowUp` for first question (`effectiveOrder.indexOf(q.id) <= 0`) and disabled `ArrowDown` for last question (`effectiveOrder.indexOf(q.id) >= effectiveOrder.length - 1`).
+  - Accordion expand/collapse chevrons (`ChevronUp` / `ChevronDown`) left 100% unchanged.
+- **`apps/web/src/app/page.tsx`**:
+  - Initialized `questionOrder` from kit question IDs on kit generation and kit fetch.
+  - Used `syncQuestionOrder` to preserve custom ordering during manual kit updates and section regeneration.
+  - Persisted question reordering atomically to backend API when kit is saved.
+
+### Verification
+- `npm test`: Passed (262/262 tests passing across 20 test files).
+- `npm run lint`: Passed (Exit code 0).
+- `npm run build`: Passed (Exit code 0, Next.js build clean).
+
 ## [docs] - M12.3 Production Verification — 2026-09-25
 
 ### Verified manually in production

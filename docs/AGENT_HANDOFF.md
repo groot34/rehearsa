@@ -1,4 +1,4 @@
-﻿# Agent Handoff Briefing — Rehearsa
+# Agent Handoff Briefing — Rehearsa
 
 > **To the Incoming Coding Agent**: Read this document first, along with [`AGENTS.md`](file:///d:/Assignemt/Rehearsa/AGENTS.md) and [`PROJECT_CONTEXT.md`](file:///d:/Assignemt/Rehearsa/PROJECT_CONTEXT.md), before modifying any code.
 
@@ -8,41 +8,32 @@
 
 * **Project**: Rehearsa — Full-Stack AI-Powered Interview Preparation Platform
 * **Assessment ID**: `FS-AI-INTERVIEW-01` (Trao Assessment)
-* **Active Milestone**: `M12.3: Production Verification` (COMPLETED 2026-09-25)
+* **Active Milestone**: `M14: Expose Question Reorder Controls in UI` (COMPLETED 2026-09-25)
 
 ---
 
 ## 2. Latest Known Repository State
 
 * **Branch**: `main`
-* **HEAD Commit**: `7e5dc32` — `fix(api): declare auth type dependencies`
-* **Sync status**: `main` is synchronized with `origin/main`; the working tree is clean before this documentation commit.
+* **HEAD Commit**: `427ca5c` — `docs: record production deployment verification`
+* **Sync status**: `main` working tree updated for M14.
 * **Commit history (most recent first)**:
+  - `427ca5c` — `docs: record production deployment verification`
+  - `7e5dc32` — `fix(api): declare auth type dependencies`
+  - `5edeb9b` — `fix: stabilize cloud workspace builds`
+  - `9e92eea` — `docs: finalise production deployment preparation`
   - `fbb2564` — `feat: prepare production deployment`
   - `13fa78c` — `docs: sync handoff/progress with final M11 state`
-  - `240fdf2` — `docs: final handoff/progress update for M11`
-  - `b2a5628` — `docs: update handoff and progress for M11 commit`
-  - `342e4fd` — `feat: add public interview discussion search`
-  - `a4cbbc0` — `feat: restore persisted kit state on fetch`
-  - `54a2b9b` — `docs: record end-to-end journey audit`
-  - `1981ab6` — `docs: record live MongoDB verification`
-  - `d947b87` — `docs: record flashcard confidence tiers implementation` (M10.3 docs)
-  - `085cc0f` — `feat: add persisted flashcard confidence tiers` (M10.3 impl)
-* **Working Tree**: Clean before this documentation commit.
 
-### M12.3 Production Verification — completed 2026-09-25
+### M14 Question Reordering UI Exposure — completed 2026-09-25
 
-Manual production verification confirmed:
-- The deployed frontend loads and works.
-- Interview kit generation and saving work.
-- Question readiness changed from Unknown to Ready and persisted after update, refresh, and reopening the saved kit.
-- Flashcard confidence changed to Hard and persisted after update, refresh, and reopening the saved kit.
-- User B could not see User A's saved kit.
-- No production issue was found during these tested flows.
-
-Limitations:
-- Question reordering was not verified because the deployed UI does not expose reorder controls; visible chevrons are expand/collapse controls.
-- Live Google Custom Search remains unverified.
+Implementation summary:
+- Added `syncQuestionOrder` in `apps/web/src/lib/kitEditing.ts` to sync question order state without destroying custom ordering on edits/regen.
+- Updated `QuestionBankCard.tsx` to compute `effectiveOrder` fallback and render `ArrowUp`/`ArrowDown` buttons whenever `onReorderQuestions` is provided.
+- Bounded reorder controls: first question `ArrowUp` disabled, last question `ArrowDown` disabled.
+- Accordion `ChevronUp`/`ChevronDown` expand/collapse controls left 100% unchanged.
+- Updated `apps/web/src/app/page.tsx` to initialize `questionOrder` from kit question IDs on generation and fetch, preserve custom order across edits, and persist reordering via the existing backend API.
+- Added 5 unit tests for `syncQuestionOrder` in `apps/web/src/tests/kitEditing.test.ts`. 262/262 tests passing.
 - Verification was manual; no Playwright or browser automation was performed.
 
 ---

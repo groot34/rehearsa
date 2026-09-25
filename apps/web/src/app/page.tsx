@@ -13,6 +13,7 @@ import {
   updateFlashcardConfidence,
   GenerateKitPayload,
 } from '../lib/api';
+import { syncQuestionOrder } from '../lib/kitEditing';
 import { useAuth } from '../lib/auth';
 import { KitGeneratorForm } from '../components/KitGeneratorForm';
 import { GenerationProgressTracker } from '../components/GenerationProgressTracker';
@@ -111,13 +112,11 @@ export default function HomePage() {
   }, [savedKitId, token]);
 
   const handleReorderQuestions = useCallback(async (newOrder: string[]) => {
+    setQuestionOrder(newOrder);
     if (!savedKitId || !token) return;
     setIsReordering(true);
     const res = await reorderQuestions(savedKitId, { questionIds: newOrder }, token);
     setIsReordering(false);
-    if (res.success) {
-      setQuestionOrder(newOrder);
-    }
   }, [savedKitId, token]);
 
   const handleUpdateFlashcardConfidence = useCallback(async (flashcardId: string, confidence: 'easy' | 'medium' | 'hard') => {
@@ -148,6 +147,7 @@ export default function HomePage() {
 
     if (result.success && result.kit) {
       setGeneratedKit(result.kit);
+      setQuestionOrder(result.kit.questions.map((q) => q.id));
       setView('kit-viewer');
     } else {
       setGenError(result.error || { code: 'GENERATION_FAILED', message: 'Failed to generate kit.' });
@@ -184,6 +184,9 @@ export default function HomePage() {
 
       if (result.success && result.kit) {
         setGeneratedKit(result.kit);
+        if (section === 'questions') {
+          setQuestionOrder((prev) => syncQuestionOrder(prev, result.kit!.questions));
+        }
         setSaveSuccess(false); // regenerated kit diverges from last save
         onDone();
       } else {
@@ -200,6 +203,7 @@ export default function HomePage() {
   const handleUpdateKit = useCallback((updatedKit: Kit) => {
     kitRevisionRef.current += 1;
     setGeneratedKit(updatedKit);
+    setQuestionOrder((prev) => syncQuestionOrder(prev, updatedKit.questions));
     setSaveSuccess(false); // edited kit diverges from last save
   }, []);
 
@@ -219,6 +223,9 @@ export default function HomePage() {
       const res = await updateKitOnServer(savedKitId, generatedKit, token);
       setIsSaving(false);
       if (res.success) {
+        if (questionOrder.length > 0) {
+          await reorderQuestions(savedKitId, { questionIds: questionOrder }, token);
+        }
         setSaveSuccess(kitRevisionRef.current === saveRevision);
         setNewlySavedKitId(savedKitId);
         if (kitRevisionRef.current !== saveRevision) {
@@ -233,6 +240,9 @@ export default function HomePage() {
       setIsSaving(false);
       if (res.success && res.data) {
         setSavedKitId(res.data.id);
+        if (questionOrder.length > 0) {
+          await reorderQuestions(res.data.id, { questionIds: questionOrder }, token);
+        }
         setSaveSuccess(kitRevisionRef.current === saveRevision);
         setNewlySavedKitId(res.data.id);
         if (kitRevisionRef.current !== saveRevision) {
@@ -261,10 +271,13 @@ export default function HomePage() {
       setSaveError(null);
       setEditedItemIds(new Set());
       // Restore persisted M10 state from the API response.
-      // Fall back to empty maps/arrays when fields are absent (pre-M10 kits
-      // or kits where confidence/order has never been set).
+      // Fall back to question IDs array order when questionOrder is absent/empty.
       setQuestionConfidence(res.data.questionConfidence ?? {});
-      setQuestionOrder(res.data.questionOrder ?? []);
+      setQuestionOrder(
+        res.data.questionOrder && res.data.questionOrder.length > 0
+          ? syncQuestionOrder(res.data.questionOrder, res.data.kit.questions)
+          : res.data.kit.questions.map((q) => q.id)
+      );
       setFlashcardConfidence(res.data.flashcardConfidence ?? {});
       regenRequestRef.current = 0;
       setView('kit-viewer');
@@ -286,9 +299,13 @@ export default function HomePage() {
     setSaveError(null);
     setOpenKitError(null);
     setEditedItemIds(new Set());
+    setQuestionConfidence({});
+    setQuestionOrder([]);
+    setFlashcardConfidence({});
     regenRequestRef.current = 0;
     setView('home');
   };
+
 
   // ---------------------------------------------------------------------------
   // Header

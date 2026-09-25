@@ -79,10 +79,15 @@ export const QuestionBankCard: React.FC<Props> = ({
       ? questions
       : questions.filter((q) => q.category === selectedCategory);
 
+  // Determine effective question order (fallback to questions array order when questionOrder is empty)
+  const effectiveOrder = React.useMemo(() => {
+    return questionOrder.length > 0 ? questionOrder : questions.map((q) => q.id);
+  }, [questionOrder, questions]);
+
   // Apply custom order if available
   const orderedQuestions = React.useMemo(() => {
-    if (questionOrder.length > 0) {
-      const orderMap = new Map(questionOrder.map((id, idx) => [id, idx]));
+    if (effectiveOrder.length > 0) {
+      const orderMap = new Map(effectiveOrder.map((id, idx) => [id, idx]));
       return [...filteredQuestions].sort((a, b) => {
         const aIdx = orderMap.get(a.id) ?? filteredQuestions.indexOf(a);
         const bIdx = orderMap.get(b.id) ?? filteredQuestions.indexOf(b);
@@ -90,7 +95,7 @@ export const QuestionBankCard: React.FC<Props> = ({
       });
     }
     return filteredQuestions;
-  }, [filteredQuestions, questionOrder]);
+  }, [filteredQuestions, effectiveOrder]);
 
   const toggleExpand = (id: string) => {
     if (editingId === id) return; // Don't toggle collapse while editing
@@ -99,10 +104,10 @@ export const QuestionBankCard: React.FC<Props> = ({
 
   const handleMoveUp = (questionId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!onReorderQuestions || questionOrder.length === 0) return;
-    const currentIdx = questionOrder.indexOf(questionId);
+    if (!onReorderQuestions || effectiveOrder.length === 0) return;
+    const currentIdx = effectiveOrder.indexOf(questionId);
     if (currentIdx > 0) {
-      const newOrder = [...questionOrder];
+      const newOrder = [...effectiveOrder];
       [newOrder[currentIdx], newOrder[currentIdx - 1]] = [newOrder[currentIdx - 1], newOrder[currentIdx]];
       onReorderQuestions(newOrder);
     }
@@ -110,10 +115,10 @@ export const QuestionBankCard: React.FC<Props> = ({
 
   const handleMoveDown = (questionId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!onReorderQuestions || questionOrder.length === 0) return;
-    const currentIdx = questionOrder.indexOf(questionId);
-    if (currentIdx < questionOrder.length - 1) {
-      const newOrder = [...questionOrder];
+    if (!onReorderQuestions || effectiveOrder.length === 0) return;
+    const currentIdx = effectiveOrder.indexOf(questionId);
+    if (currentIdx >= 0 && currentIdx < effectiveOrder.length - 1) {
+      const newOrder = [...effectiveOrder];
       [newOrder[currentIdx], newOrder[currentIdx + 1]] = [newOrder[currentIdx + 1], newOrder[currentIdx]];
       onReorderQuestions(newOrder);
     }
@@ -440,14 +445,14 @@ export const QuestionBankCard: React.FC<Props> = ({
                     </div>
 
                     <div className="flex items-center gap-1">
-                      {onReorderQuestions && questionOrder.length > 0 && (
+                      {onReorderQuestions && (
                         <>
                           <button
                             type="button"
                             onClick={(e) => handleMoveUp(q.id, e)}
                             title="Move Up"
-                            disabled={isReordering}
-                            className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 disabled:opacity-50 rounded-lg transition-colors"
+                            disabled={isReordering || effectiveOrder.indexOf(q.id) <= 0}
+                            className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
                           >
                             <ArrowUp className="w-3.5 h-3.5" />
                           </button>
@@ -455,8 +460,12 @@ export const QuestionBankCard: React.FC<Props> = ({
                             type="button"
                             onClick={(e) => handleMoveDown(q.id, e)}
                             title="Move Down"
-                            disabled={isReordering}
-                            className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 disabled:opacity-50 rounded-lg transition-colors"
+                            disabled={
+                              isReordering ||
+                              effectiveOrder.indexOf(q.id) < 0 ||
+                              effectiveOrder.indexOf(q.id) >= effectiveOrder.length - 1
+                            }
+                            className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
                           >
                             <ArrowDown className="w-3.5 h-3.5" />
                           </button>
