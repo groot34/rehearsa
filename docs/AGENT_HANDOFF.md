@@ -8,15 +8,15 @@
 
 * **Project**: Rehearsa — Full-Stack AI-Powered Interview Preparation Platform
 * **Assessment ID**: `FS-AI-INTERVIEW-01` (Trao Assessment)
-* **Active Milestone**: `M12.2: Production Deployment Preparation` (COMMITTED + FINALIZED)
+* **Active Milestone**: `M12.3: Production Verification` (COMPLETED 2026-09-25)
 
 ---
 
 ## 2. Latest Known Repository State
 
 * **Branch**: `main`
-* **HEAD Commit**: `9e92eea` — `docs: finalise production deployment preparation`
-* **Sync status**: `main` is synchronized with `origin/main`; the API type dependency fix is currently uncommitted.
+* **HEAD Commit**: `7e5dc32` — `fix(api): declare auth type dependencies`
+* **Sync status**: `main` is synchronized with `origin/main`; the working tree is clean before this documentation commit.
 * **Commit history (most recent first)**:
   - `fbb2564` — `feat: prepare production deployment`
   - `13fa78c` — `docs: sync handoff/progress with final M11 state`
@@ -28,7 +28,22 @@
   - `1981ab6` — `docs: record live MongoDB verification`
   - `d947b87` — `docs: record flashcard confidence tiers implementation` (M10.3 docs)
   - `085cc0f` — `feat: add persisted flashcard confidence tiers` (M10.3 impl)
-* **Working Tree**: Contains the uncommitted API type dependency fix.
+* **Working Tree**: Clean before this documentation commit.
+
+### M12.3 Production Verification — completed 2026-09-25
+
+Manual production verification confirmed:
+- The deployed frontend loads and works.
+- Interview kit generation and saving work.
+- Question readiness changed from Unknown to Ready and persisted after update, refresh, and reopening the saved kit.
+- Flashcard confidence changed to Hard and persisted after update, refresh, and reopening the saved kit.
+- User B could not see User A's saved kit.
+- No production issue was found during these tested flows.
+
+Limitations:
+- Question reordering was not verified because the deployed UI does not expose reorder controls; visible chevrons are expand/collapse controls.
+- Live Google Custom Search remains unverified.
+- Verification was manual; no Playwright or browser automation was performed.
 
 ---
 
@@ -132,7 +147,7 @@ git log -n 5 --oneline --decorate
 
 The following items are genuinely outstanding as of 2026-09-24:
 
-1. **Production deployment verification**: No production/cloud deployment has been performed or verified. All verification has been local (Docker MongoDB + local API server on port 4000 + local Next.js on port 3000). **Deployment preparation completed (M12.2)** — see `docs/PROGRESS.md` for deployment configuration files (`render.yaml`), environment variable requirements, and deployment architecture (Vercel + Render + MongoDB Atlas). Repository is ready for deployment but actual deployment and verification have not been performed.
+1. **Question reordering production verification**: Not verified because the deployed UI does not expose reorder controls. The visible chevrons are question expand/collapse controls. The API and automated tests remain verified separately.
 
 2. **Live Google Custom Search verification**: `IPublicInterviewSearchProvider` abstraction with `MockPublicInterviewSearchProvider` for tests and `GoogleCustomSearchProvider` for production. Mock provider used by default; graceful degradation if provider unavailable. Live external search (Google Custom Search with real API key) not yet verified — requires real credentials and Custom Search Engine ID configuration.
 

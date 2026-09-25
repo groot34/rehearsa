@@ -4,6 +4,20 @@ All notable changes to the Rehearsa project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [docs] - M12.3 Production Verification — 2026-09-25
+
+### Verified manually in production
+- Frontend availability, interview kit generation, and kit saving.
+- Question readiness changed from Unknown to Ready and persisted after update, browser refresh, and reopening the saved kit.
+- Flashcard confidence changed to Hard and persisted after update, browser refresh, and reopening the saved kit.
+- User B was created and logged in separately and could not see User A's saved kit.
+- No production issue was found during these tested flows.
+
+### Limitations
+- Question reordering was not verified because the deployed UI does not expose reorder controls; visible chevrons are question expand/collapse controls.
+- Live Google Custom Search remains unverified.
+- Verification was manual; no Playwright or browser automation was performed.
+
 ## [fix] - API Type Declarations — 2026-09-25
 
 ### Added

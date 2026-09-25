@@ -213,9 +213,9 @@ npm run evaluate -- --input <cases.json> --output <kits.json>
 
 ## 7. Current Project State & Milestones
 
-* **Current Milestone**: `Milestone 9 — Kit Persistence + User-Scoped CRUD`
-* **Repository State**: Milestones 8 and 9 are implemented and committed. Automated auth, ownership, build, lint, and batch verification pass; live MongoDB/auth verification remains pending.
-* **Git Status**: Git is initialized on `main`; M8 and M9 are committed locally and the branch is ahead of `origin/main`. No push has been performed.
+* **Current Milestone**: `M12.3 — Production Verification`
+* **Repository State**: Production deployment was manually verified on 2026-09-25 for frontend availability, kit generation, saving, question readiness persistence, flashcard confidence persistence, and User B ownership isolation. Question reordering was not verified because the deployed UI does not expose reorder controls; live Google Custom Search remains unverified.
+* **Git Status**: Git is initialized on `main`; the latest committed documentation/build fixes are synchronized with `origin/main`.
 
 ---
 

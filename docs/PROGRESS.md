@@ -1,6 +1,16 @@
 # Project Progress & Status — Rehearsa
 
 ## 1. Current Milestone
+**Milestone 12.3: Production Verification (COMPLETED 2026-09-25)**
+- Production frontend deployed and working.
+- Interview kit generation and kit saving verified manually in production.
+- Question readiness changed from Unknown to Ready and persisted after update, browser refresh, and reopening the saved kit.
+- Flashcard confidence changed to Hard and persisted after update, browser refresh, and reopening the saved kit.
+- User B was created and logged in separately and could not see User A's saved kit.
+- No production issue was found during these tested flows.
+- Question reordering was not verified because the deployed UI does not expose reorder controls; visible chevrons are question expand/collapse controls.
+- Live Google Custom Search remains unverified. No Playwright or browser automation was performed.
+
 **Milestone 12.2: Production Deployment Preparation (COMMITTED + FINALIZED)**
 - **Deployment build compatibility fix (2026-09-25)**: Explicit `Node16` TypeScript resolution for shared/API packages, API test exclusion from production compilation, and Render installation with dev dependencies. Local build and all 257 tests pass.
 - **Render API type dependency fix (2026-09-25)**: Declared `@types/bcrypt` and `@types/jsonwebtoken` in the API workspace after Render's clean install exposed missing declarations. Build and all 257 tests pass.
@@ -115,7 +125,7 @@ GOOGLE_SEARCH_CX=<optional>
    - Set `CORS_ORIGIN` on Render to Vercel domain
 
 ### Production Verification Status
-**NOT YET DEPLOYED**. Repository is prepared with deployment configuration files (render.yaml), environment variable documentation, and deployment instructions. Actual deployment to Vercel, Render, and MongoDB Atlas has not been performed. Production verification pending.
+**COMPLETED for tested flows on 2026-09-25**. The deployed frontend, generation, saving, question readiness persistence, flashcard confidence persistence, and User B ownership isolation were manually verified. Question reordering and live Google Custom Search remain unverified.
 
 ---
 

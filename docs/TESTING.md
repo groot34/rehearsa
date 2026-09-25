@@ -89,7 +89,13 @@ Must verify:
 - `scripts/tests/evaluator.test.ts`: 2 tests — CLI batch evaluation, Appendix B envelope formatting, per-case failure isolation, error exit codes.
 - `apps/api/src/routes/tests/e2eJourney.test.ts`: **59 tests (NEW — E2E Journey Audit)** — Full sequential user journey: health check, registration, duplicate-email rejection, second-user registration, login, wrong-password/unknown-email rejection (no enumeration), authenticated session (`/auth/me`), unauthenticated rejection, kit generation (MockLlmProvider), Appendix A structure validation (source/role/questions/flashcards/schedule/coverage/referential integrity), save kit, list kits, open kit by ID, edit+update kit, verify edit persisted, question confidence (all 4 tiers + invalid rejection), question reorder (reverse + empty rejection + duplicate rejection), flashcard confidence (easy/medium/hard + `unknown` rejection + unknown ID rejection), section regeneration (questions), section regeneration (flashcards + preserved_ids), multiple kits, ownership isolation (Bob cannot list/GET/PUT/DELETE Alice's kits), delete kit 2, delete kit 1, access deleted kit returns 404, logout Alice, logout Bob.
 
-Automated auth and kit persistence tests use `mongodb-memory-server`; they do not verify connectivity to a real MongoDB deployment. Live MongoDB verification was completed on 2026-09-24 against a Docker MongoDB instance with real credentials — results are recorded in the Test Execution Log above. Deployment verification (production cloud environment) has not been performed.
+Automated auth and kit persistence tests use `mongodb-memory-server`; they do not verify connectivity to a real MongoDB deployment. Live MongoDB verification was completed on 2026-09-24 against a Docker MongoDB instance with real credentials — results are recorded in the Test Execution Log above.
+
+### M12.3 Manual Production Verification — 2026-09-25
+
+The deployed application was manually tested. Verified: frontend availability, interview kit generation, kit saving, question readiness changing from Unknown to Ready and persisting after update/refresh/reopen, flashcard confidence changing to Hard and persisting after update/refresh/reopen, and User B being unable to see User A's saved kit. No production issue was found during these tested flows.
+
+Not verified: question reordering, because the deployed UI does not expose reorder controls; visible chevrons are question expand/collapse controls. Live Google Custom Search also remains unverified. No Playwright or browser automation was performed.
 
 ---
 

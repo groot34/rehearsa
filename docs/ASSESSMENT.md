@@ -10,7 +10,7 @@
 
 ### Deployment verification note
 
-The production build configuration is implemented. On 2026-09-25, the workspace build was made compatible with Render's compiler and dependency environment, including clean-install API type declarations, and verified locally with `npm run build` and `npm test` (257/257 passing). Cloud deployment and endpoint verification remain pending.
+On 2026-09-25, production was manually verified for frontend availability, kit generation, kit saving, question readiness persistence, flashcard confidence persistence, and User B ownership isolation. Question reordering was not verified because the deployed UI does not expose reorder controls, and live Google Custom Search remains unverified. No Playwright or browser automation was performed.
 
 ---
 
@@ -148,7 +148,7 @@ The production build configuration is implemented. On 2026-09-25, the workspace 
 || Requirement | Scope | Status | Notes / Evidence |
 ||---|---|---|---|
 || Deployment configuration (Vercel + Render + MongoDB Atlas) | Infrastructure | Implemented, not yet verified | `render.yaml` added for Express API backend deployment. Vercel deployment configured via automatic Next.js detection (no vercel.json needed). README.md updated with deployment architecture and environment variable requirements. |
-|| Production deployment verification | Infrastructure | Not started | Repository is prepared with deployment configuration, but actual deployment to Vercel, Render, and MongoDB Atlas has not been performed. Production verification pending. |
+|| Production deployment verification | Infrastructure | Verified (manual production verification, partial scope) | Frontend availability, kit generation, saving, question readiness persistence, flashcard confidence persistence, and User B ownership isolation were manually verified in production. Question reordering was not verified because the deployed UI does not expose reorder controls. |
 || Live Google Custom Search verification | External Service | Not started | `GoogleCustomSearchProvider` implemented but not tested with live credentials. Mock provider used by default. |
 
 ---
