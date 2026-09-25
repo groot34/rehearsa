@@ -23,6 +23,10 @@ This document records the architectural and engineering decisions made for the R
 | [ADR-013](#adr-013-flashcard-confidence-tiers-persistence) | Flashcard Confidence Tiers Persistence | Accepted | 2026-09-24 |
 | [ADR-014](#adr-014-return-m10-persistence-metadata-in-get-apikitsid-response) | Return M10 Persistence Metadata in GET /api/kits/:id Response | Accepted | 2026-09-24 |
 | [ADR-015](#adr-015-public-interview-discussion-search-provider-abstraction) | Public Interview Discussion Search Provider Abstraction | Accepted | 2026-09-24 |
+| [ADR-016](#adr-016-production-deployment-architecture) | Production Deployment Architecture | Accepted | 2026-09-24 |
+| [ADR-017](#adr-017-production-build-toolchain-compatibility) | Production Build Toolchain Compatibility | Accepted | 2026-09-25 |
+| [ADR-018](#adr-018-declare-api-runtime-type-dependencies) | Declare API Runtime Type Dependencies | Accepted | 2026-09-25 |
+| [ADR-019](#adr-019-llm-requirement-kind-robustness-and-normalization) | LLM Requirement Kind Robustness and Normalization | Accepted | 2026-09-25 |
 
 ---
 
@@ -742,3 +746,27 @@ This is an accepted trade-off for a client-rendered SPA without a BFF. An `httpO
   Declare `@types/bcrypt` and `@types/jsonwebtoken` in `apps/api` development dependencies and lock them through the workspace lockfile.
 * **Verification**:
   `npm run build` passes across all workspaces and `npm test` passes with 257/257 tests.
+
+---
+
+### ADR-019: LLM Requirement Kind Robustness and Normalization
+
+* **Status**: Accepted
+* **Date**: 2026-09-25
+* **Context**:
+  During live production testing of kit generation on realistic Senior Backend Engineer job descriptions, Gemini returned `"kind": "leadership"`. The Appendix A specification and `@rehearsa/shared` Zod schema strictly enforce `RequirementKindEnum` as `"technical" | "behavioural" | "domain"`. Additionally, the prompt schema example in `pipelineOrchestrator.ts` (`roleSysInst`) had mistakenly listed `"leadership"` as an example choice.
+* **Alternatives Considered**:
+  - Weaken Appendix A Zod schema to allow `"leadership"`, `"management"`, etc. (Rejected: Violates Appendix A assessment contract invariant).
+  - Rely exclusively on prompt engineering without parser normalization (Rejected: LLMs can still occasionally emit semantic aliases under edge-case job descriptions, leading to 3 retry failures).
+  - Coerce all unknown strings to a fallback value (Rejected: Unsound; masks actual schema/prompt bugs and accepts invalid garbage).
+* **Decision**:
+  Adopt a two-tier defense:
+  1. Fix the prompt system instruction (`roleSysInst`) to strictly list `"technical" | "behavioural" | "domain"` and explicitly guide that leadership, management, teamwork, ownership, and communication belong under `"behavioural"`.
+  2. Implement deterministic pre-validation normalization (`normalizeRequirementKind`) within `geminiProvider.ts` in the JSON normalization pipeline before Zod validation. Map known semantic aliases (`leadership`, `management`, `communication`, `mentoring`, etc. -> `"behavioural"`; `tech` -> `"technical"`; `domain_knowledge` -> `"domain"`) while passing canonical values unchanged and preserving unknown/invalid values for strict Zod schema rejection.
+* **Reasoning**:
+  - Preserves exact Appendix A schema compliance without regression.
+  - Hardens LLM resilience against natural language variations in real-world JDs.
+  - Maintains strict deterministic validation boundaries.
+* **Verification**:
+  - 30+ assertions in `apps/api/src/modules/llm/tests/llmProvider.test.ts` verifying all aliases, canonical preservation, unknown preservation, and full `KitSchema` validation.
+  - Monorepo test suite and build passing.

@@ -8,22 +8,23 @@
 
 * **Project**: Rehearsa — Full-Stack AI-Powered Interview Preparation Platform
 * **Assessment ID**: `FS-AI-INTERVIEW-01` (Trao Assessment)
-* **Active Milestone**: `M14: Expose Question Reorder Controls in UI (Production Verified)` (COMPLETED 2026-09-25)
+* **Active Milestone**: `M15: LLM Requirement Kind Robustness & Normalisation` (COMPLETED 2026-09-25)
 
 ---
 
 ## 2. Latest Known Repository State
 
 * **Branch**: `main`
-* **HEAD Commit**: `a1dda57` — `feat(web): expose question reorder controls`
-* **Sync status**: `main` working tree updated for M14 production verification.
-* **Commit history (most recent first)**:
-  - `a1dda57` — `feat(web): expose question reorder controls`
-  - `427ca5c` — `docs: record production deployment verification`
-  - `7e5dc32` — `fix(api): declare auth type dependencies`
-  - `5edeb9b` — `fix: stabilize cloud workspace builds`
-  - `9e92eea` — `docs: finalise production deployment preparation`
-  - `fbb2564` — `feat: prepare production deployment`
+* **HEAD Commit**: `920c461` — `docs: record question reorder verification`
+* **Sync status**: Working tree updated for M15 LLM requirement kind robustness and normalisation.
+
+### M15 LLM Requirement Kind Robustness & Normalisation — completed 2026-09-25
+
+Implementation summary:
+- Fixed prompt schema example in `pipelineOrchestrator.ts` (`roleSysInst`) which had erroneously listed `"leadership"`. Constrained `kind` strictly to `"technical" | "behavioural" | "domain"` with explicit categorization guidance.
+- Added `normalizeRequirementKind` helper in `geminiProvider.ts` to map common LLM semantic aliases (e.g., `leadership`, `management`, `communication` -> `behavioural`; `tech` -> `technical`; `domain_knowledge` -> `domain`) in the pre-validation JSON normalization loop before strict Zod validation against Appendix A.
+- Maintained strict runtime validation and Appendix A schema integrity. Unknown/invalid kinds are preserved as-is and rejected by Zod schema.
+- Added 30+ assertions in `apps/api/src/modules/llm/tests/llmProvider.test.ts`. 262/262 tests passing, clean build and lint.
 
 ### M14 Question Reordering UI Exposure — completed 2026-09-25
 

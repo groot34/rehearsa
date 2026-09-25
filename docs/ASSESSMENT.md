@@ -70,7 +70,7 @@ On 2026-09-25, production was manually verified for frontend availability, kit g
 | `company_brief.summary`, `what_they_do`, `sources` | `string`, `string`, `string[]` | Verified | Sourced company background |
 | `role.title`, `seniority`, `responsibilities` | `string`, `string`, `string[]` | Verified | Extracted role profile |
 | `role.requirements[].id` | `string` (e.g. `r1`, `r2`) | Verified | Stable requirement identifiers |
-| `role.requirements[].kind` | `"technical"` \| `"behavioural"` \| `"domain"` | Verified | Strict enum |
+| `role.requirements[].kind` | `"technical"` \| `"behavioural"` \| `"domain"` | Verified | Strict enum; hardened via prompt constraint and pre-validation normalisation (ADR-019) |
 | `role.requirements[].priority` | `"must"` \| `"nice"` | Verified | Strict enum |
 | `questions[].id`, `requirement_ids` | `string`, `string[]` | Verified | Referential integrity to `role.requirements` |
 | `questions[].category` | `"technical"` \| `"behavioural"` \| `"system-design"` \| `"company-fit"` | Verified | Strict enum |

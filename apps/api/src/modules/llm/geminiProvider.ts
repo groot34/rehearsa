@@ -3,8 +3,65 @@ import { z } from 'zod';
 import { ILlmProvider } from './ILlmProvider';
 
 /**
- * Normalizes common LLM key naming variations (e.g. job_title -> title).
- * Pure helper function to assist schema validation without mutating values.
+ * Conservative normalization map for requirement `kind` enum aliases.
+ * Maps known semantic aliases for role requirement categories to exact Appendix A values.
+ * Unknown or unsupported values are preserved as-is so Zod runtime validation
+ * continues to strictly reject them.
+ *
+ * Mapping rules:
+ * - 'leadership', 'communication', 'management', 'mentoring', 'teamwork', 'ownership',
+ *   'collaboration', 'interpersonal', 'soft_skills', 'behavioral' -> 'behavioural'
+ * - 'tech', 'technical_skills' -> 'technical'
+ * - 'domain_knowledge', 'industry' -> 'domain'
+ */
+export function normalizeRequirementKind(val: string): string {
+  if (typeof val !== 'string') return val;
+  const clean = val.toLowerCase().replace(/[^a-z_]/g, '');
+
+  const behaviouralAliases = new Set([
+    'leadership',
+    'communication',
+    'management',
+    'mentoring',
+    'teamwork',
+    'ownership',
+    'collaboration',
+    'interpersonal',
+    'soft_skills',
+    'softskills',
+    'soft',
+    'behaviour',
+    'behavior',
+    'behavioral',
+  ]);
+
+  const technicalAliases = new Set([
+    'tech',
+    'technical_skills',
+    'technicalskills',
+  ]);
+
+  const domainAliases = new Set([
+    'domain_knowledge',
+    'domainknowledge',
+    'industry',
+  ]);
+
+  if (clean === 'technical') return 'technical';
+  if (clean === 'behavioural' || clean === 'behavioral') return 'behavioural';
+  if (clean === 'domain') return 'domain';
+
+  if (behaviouralAliases.has(clean)) return 'behavioural';
+  if (technicalAliases.has(clean)) return 'technical';
+  if (domainAliases.has(clean)) return 'domain';
+
+  return val;
+}
+
+/**
+ * Normalizes common LLM key naming variations (e.g. job_title -> title)
+ * and conservative enum value aliases (e.g. leadership -> behavioural for requirement kind).
+ * Pure helper function to assist schema validation without mutating original data structures.
  */
 export function normalizeLlmJsonKeys(obj: any): any {
   if (!obj || typeof obj !== 'object') return obj;
@@ -19,7 +76,13 @@ export function normalizeLlmJsonKeys(obj: any): any {
     else if (lk === 'prioritized_requirements' || lk === 'core_requirements') targetKey = 'requirements';
     else if (lk === 'category' && (obj.text || obj.description)) targetKey = 'kind';
     else if (lk === 'description' && obj.id) targetKey = 'text';
-    res[targetKey] = normalizeLlmJsonKeys(v);
+
+    let val = v;
+    if (targetKey === 'kind' && typeof v === 'string') {
+      val = normalizeRequirementKind(v);
+    }
+
+    res[targetKey] = normalizeLlmJsonKeys(val);
   }
   return res;
 }

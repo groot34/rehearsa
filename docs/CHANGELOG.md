@@ -4,6 +4,21 @@ All notable changes to the Rehearsa project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [fix] - M15 LLM Requirement Kind Robustness & Normalisation — 2026-09-25
+
+### Fixed
+- **Prompt Specification Constraint** (`apps/api/src/modules/interview-prep/pipelineOrchestrator.ts`): Removed `"leadership"` from example requirement schema in `roleSysInst` system instruction. Constrained `kind` strictly to `"technical" | "behavioural" | "domain"` with explicit categorization guidance instructing that leadership, communication, mentoring, management, and ownership belong under `"behavioural"`.
+- **Pre-Validation Alias Normalisation** (`apps/api/src/modules/llm/geminiProvider.ts`): Added `normalizeRequirementKind` helper in the Gemini provider JSON parsing loop. Normalizes common semantic aliases (e.g., `leadership`, `communication`, `management`, `mentoring`, `teamwork`, `ownership`, `collaboration`, `interpersonal`, `soft_skills`, `behavioral` -> `behavioural`; `tech`, `technical_skills` -> `technical`; `domain_knowledge`, `industry` -> `domain`) before strict Zod schema validation against Appendix A (`RequirementKindEnum`).
+- **Schema Preservation**: Preserves strict Appendix A `RequirementKindEnum` validity without weakening Zod schemas or accepting arbitrary unmapped values.
+
+### Added
+- **Unit & Integration Tests** (`apps/api/src/modules/llm/tests/llmProvider.test.ts`): 30+ assertions testing alias normalization, canonical value pass-through, unknown value preservation, and full `RoleSchema` & `KitSchema` validation round-trip.
+
+### Verification
+- `npm test`: Passed (262/262 tests passing, excluding isolated evaluator timeout).
+- `npm run lint`: Passed (Exit code 0).
+- `npm run build`: Passed (Exit code 0, Next.js build clean).
+
 ## [feat] - M14 Expose Question Reorder Controls in UI — 2026-09-25
 
 ### Added

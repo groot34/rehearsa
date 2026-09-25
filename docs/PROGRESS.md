@@ -1,6 +1,12 @@
 # Project Progress & Status — Rehearsa
 
 ## 1. Current Milestone
+**Milestone 15: LLM Requirement Kind Robustness & Normalisation (COMPLETED 2026-09-25)**
+- Fixed schema inconsistency in `pipelineOrchestrator.ts` system prompt where `"leadership"` was listed in example JSON. Constrained `kind` strictly to `"technical" | "behavioural" | "domain"` with explicit categorization guidance.
+- Added `normalizeRequirementKind` in `geminiProvider.ts` to map common LLM semantic aliases (e.g., `leadership`, `management`, `communication` -> `behavioural`; `tech` -> `technical`; `domain_knowledge` -> `domain`) in the pre-validation JSON normalization loop before strict Zod validation against Appendix A.
+- Maintained strict runtime validation and Appendix A schema integrity. Unknown/invalid kinds are preserved as-is and rejected by Zod schema.
+- Added 30+ assertions in `apps/api/src/modules/llm/tests/llmProvider.test.ts`. 262/262 tests passing, clean build and lint.
+
 **Milestone 14: Expose Question Reorder Controls in UI & Production Verification (COMPLETED 2026-09-25)**
 - Added `syncQuestionOrder` helper to `apps/web/src/lib/kitEditing.ts` for deterministic question order synchronization during generation, fetching, manual edits, and section regeneration.
 - Updated `QuestionBankCard.tsx` to compute `effectiveOrder` fallback and render `ArrowUp`/`ArrowDown` reorder buttons whenever `onReorderQuestions` is provided.
