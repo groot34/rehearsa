@@ -10,7 +10,7 @@
 
 ### Deployment verification note
 
-The production build configuration is implemented. On 2026-09-25, the workspace build was made compatible with Render's compiler and dependency environment and verified locally with `npm run build` and `npm test` (257/257 passing). Cloud deployment and endpoint verification remain pending.
+The production build configuration is implemented. On 2026-09-25, the workspace build was made compatible with Render's compiler and dependency environment, including clean-install API type declarations, and verified locally with `npm run build` and `npm test` (257/257 passing). Cloud deployment and endpoint verification remain pending.
 
 ---
 

@@ -731,3 +731,14 @@ This is an accepted trade-off for a client-rendered SPA without a BFF. An `httpO
   Use explicit `Node16` module and module resolution settings for the shared and API packages, exclude API test files from production compilation, and install dev dependencies during the Render build.
 * **Verification**:
   `npm run build` passes across all workspaces and `npm test` passes with 257/257 tests.
+
+### ADR-018: Declare API Runtime Type Dependencies
+
+* **Status**: Accepted
+* **Date**: 2026-09-25
+* **Context**:
+  A clean Render install failed API compilation because bcrypt and jsonwebtoken declarations were present only as local extraneous modules, not in the API manifest.
+* **Decision**:
+  Declare `@types/bcrypt` and `@types/jsonwebtoken` in `apps/api` development dependencies and lock them through the workspace lockfile.
+* **Verification**:
+  `npm run build` passes across all workspaces and `npm test` passes with 257/257 tests.

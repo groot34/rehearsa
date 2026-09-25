@@ -3,6 +3,7 @@
 ## 1. Current Milestone
 **Milestone 12.2: Production Deployment Preparation (COMMITTED + FINALIZED)**
 - **Deployment build compatibility fix (2026-09-25)**: Explicit `Node16` TypeScript resolution for shared/API packages, API test exclusion from production compilation, and Render installation with dev dependencies. Local build and all 257 tests pass.
+- **Render API type dependency fix (2026-09-25)**: Declared `@types/bcrypt` and `@types/jsonwebtoken` in the API workspace after Render's clean install exposed missing declarations. Build and all 257 tests pass.
 - **Commit 1 (M8)**: `1a0dfc7` — `feat(api): add user authentication and MongoDB connection`
 - **Commit 2 (M9)**: `8a94003` — `feat(api,web): add persistent user-owned interview kits`
 - **Commit 3 (M10.1)**: `2bbd21e` — `feat: add persisted question confidence tracking`

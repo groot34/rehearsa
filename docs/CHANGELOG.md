@@ -4,6 +4,15 @@ All notable changes to the Rehearsa project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [fix] - API Type Declarations — 2026-09-25
+
+### Added
+- Declared `@types/bcrypt` and `@types/jsonwebtoken` as API development dependencies so clean Render installs pass TypeScript compilation.
+
+### Verification
+- `npm run build` passed across all workspaces.
+- `npm test` passed with 257/257 tests.
+
 ## [fix] - Deployment Build Compatibility — 2026-09-25
 
 ### Changed

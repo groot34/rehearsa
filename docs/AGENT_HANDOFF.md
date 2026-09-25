@@ -16,7 +16,7 @@
 
 * **Branch**: `main`
 * **HEAD Commit**: `9e92eea` — `docs: finalise production deployment preparation`
-* **Sync status**: `main` is 2 ahead of `origin/main`; deployment build compatibility fixes are currently uncommitted.
+* **Sync status**: `main` is synchronized with `origin/main`; the API type dependency fix is currently uncommitted.
 * **Commit history (most recent first)**:
   - `fbb2564` — `feat: prepare production deployment`
   - `13fa78c` — `docs: sync handoff/progress with final M11 state`
@@ -28,7 +28,7 @@
   - `1981ab6` — `docs: record live MongoDB verification`
   - `d947b87` — `docs: record flashcard confidence tiers implementation` (M10.3 docs)
   - `085cc0f` — `feat: add persisted flashcard confidence tiers` (M10.3 impl)
-* **Working Tree**: Contains the uncommitted deployment build compatibility fix.
+* **Working Tree**: Contains the uncommitted API type dependency fix.
 
 ---
 
