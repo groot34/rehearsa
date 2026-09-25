@@ -1,5 +1,9 @@
 import axios from 'axios';
-import { IPublicInterviewSearchProvider, InterviewSearchResult } from './interviewSearchProvider';
+import {
+  IPublicInterviewSearchProvider,
+  InterviewSearchResult,
+  truncateResultSnippet,
+} from './interviewSearchProvider';
 
 /**
  * Tavily Search API provider for public interview discussion search.
@@ -86,12 +90,15 @@ export class TavilySearchProvider implements IPublicInterviewSearchProvider {
 
     return items
       .filter((item: any) => item && typeof item === 'object')
-      .map((item: any) => ({
-        title: String(item.title || ''),
-        url: String(item.url || ''),
-        snippet: String(item.content || item.snippet || ''),
-        source: this.extractSource(String(item.url || '')),
-      }));
+      .map((item: any) => {
+        const raw: InterviewSearchResult = {
+          title: String(item.title || ''),
+          url: String(item.url || ''),
+          snippet: String(item.content || item.snippet || ''),
+          source: this.extractSource(String(item.url || '')),
+        };
+        return truncateResultSnippet(raw);
+      });
   }
 
   private extractSource(url: string): string {

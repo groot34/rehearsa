@@ -4,6 +4,50 @@ All notable changes to the Rehearsa project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [fix] - M18 LLM Production Generation Reliability Hardening — 2026-09-25
+
+### Problem
+Production generation on Render free tier failed with: `Gemini Provider failed after 3 attempts: timeout of 25000ms exceeded`. Investigation (RCA) confirmed four contributing gaps:
+1. Hard-coded 25000 ms axios timeout for structured JSON, 20000 ms for text — too low for ~15-20K character company-brief synthesis prompts on Render shared free-tier CPU.
+2. `generateStructuredJson` had exactly 3 identical attempts with **no backoff, no jitter, no sleep** between retries. Transient API slowness caused three identical 25 s failures within ~75 ms of real wall-clock and surfaced to the user as `PIPELINE_ERROR`.
+3. `generateText` had **zero retries** (single-shot at 20 s).
+4. No upper bound on Tavily/Google per-result snippet length or on `combinedResearchText` before company-brief prompt injection → prompt growth was theoretically unbounded.
+
+### Fixed
+- **`apps/api/src/modules/llm/geminiProvider.ts`** — full reliability rewrite:
+  - `DEFAULT_GEMINI_TIMEOUT_MS = 60000` default; `GEMINI_TIMEOUT_MS` env var overrides (clamped ≥ 1000 else fallback to default). Constructor 3rd arg `timeoutMs` explicit override for tests. `getRequestTimeoutMs()` getter.
+  - `GEMINI_MAX_ATTEMPTS = 3` retained for BOTH `generateStructuredJson` and `generateText`.
+  - Pure `geminiRetryDelayMs(attempt)` with exponential backoff + jitter: attempt 1 = 0 ms, attempt 2 = [1000, 1999] ms, attempt 3 = [2000, 2999] ms.
+  - Delay block is at the TOP of the attempt loop guarded by `if (attempt > 1)` → **no sleep after the final failed attempt #3**.
+  - Error messages preserved compatible prefixes: `Gemini Provider failed after 3 attempts: ...` and `Gemini generateText failed after 3 attempts: ...`.
+  - No external retry library introduced (pure setTimeout / Promise-based).
+
+### Added
+- **Research context bounding constants & helper (`apps/api/src/modules/research/interviewSearchProvider.ts`)**:
+  - `MAX_PUBLIC_INTERVIEW_SNIPPET_CHARS = 500` — per-search-result snippet cap.
+  - `MAX_COMBINED_RESEARCH_CHARS = 20000` — post-concatenation company research + public-discussion cap.
+  - `SNIPPET_TRUNCATION_MARKER = '... [truncated]'` — marker appended only on actual overflow.
+  - `truncateResultSnippet(result, maxChars?)` — deterministic helper: preserves `title`/`url`/`source` 100% verbatim, only slices `snippet`, appends marker only when snippet exceeds cap.
+- **Per-provider snippet truncation application**:
+  - `apps/api/src/modules/research/tavilySearchProvider.ts` — applies `truncateResultSnippet` in `executeSearch` result map.
+  - `apps/api/src/modules/research/googleCustomSearchProvider.ts` — applies `truncateResultSnippet` in `executeSearch` result map.
+- **Combined research text cap (`apps/api/src/modules/interview-prep/pipelineOrchestrator.ts`)**:
+  - Imports `MAX_COMBINED_RESEARCH_CHARS` constant; applies `.slice(0, MAX_COMBINED_RESEARCH_CHARS)` on `combinedResearchText` immediately after concatenation, before brief prompt interpolation. Crawler text precedes public-interview text so overflow deterministically trims public-interview tail preferentially.
+- **Configuration templates**:
+  - `.env.example` — added `GEMINI_TIMEOUT_MS=60000` entry with documentation comment.
+  - `render.yaml` — added `- key: GEMINI_TIMEOUT_MS / value: 60000` envVar entry after `GEMINI_MODEL`.
+- **Decision records (docs/DECISIONS.md)**:
+  - ADR-022: Configurable Gemini Timeout & Exponential Backoff with Jitter (Accepted).
+  - ADR-023: Research-Context Size Bounding for Company-Brief Prompt (Accepted).
+- **Unit tests** (see test files): Configurable timeout assertion, constructor arg override, env fallback, retry delay ranges, `no sleep after final attempt` setTimeout spy-count, Tavily/Google snippet truncation with title/URL preservation, combined research text cap, existing provider behaviour compatibility.
+
+### Verification
+- `npm run lint`: Exit code 0 — all three workspaces lint cleanly.
+- `npm run build`: Exit code 0 — `@rehearsa/shared` (tsc) clean, `@rehearsa/api` (tsc) clean, Next.js `@rehearsa/web` build clean (4/4 static pages generated).
+- `npx vitest run --isolate=false` excluding 4 MongoDB-memory-server suites that cannot start on this Windows host (pre-existing infrastructure issue): **16 test files, 171/171 tests passing, exit code 0**. Full `npm test` run: 190 tests passing, 114 skipped (all MongoDB-skipped suites), 0 test-logic failures in M18-affected test files.
+- `npm run evaluate -- --input scratch/synthetic-benchmark-cases.json --output scratch/_eval_post_fix_out.json`: Exit code 0 — 8 benchmark cases processed, 5 valid kits generated, 3 invalid input cases correctly rejected with schema validation, total time 5459 ms, Appendix B envelope successfully written.
+- Test categories newly added for M18: Configurable Gemini timeout env parsing (5 tests), Gemini retry delay ranges + backoff/jitter shape (4 tests), fake-timer retry loop: exactly 3 axios attempts + exactly 2 setTimeout sleeps (no sleep after final attempt) for both `generateStructuredJson` and `generateText` (2 tests), compatibility (3 tests), research constants (4 tests), `truncateResultSnippet` helper with title/URL verbatim preservation (4 tests), Tavily content/snippet field truncation with byte-identical title+URL (2 tests), Google items.snippet truncation (1 test), combined research 20K hard cap crawler-first preference (2 tests), research provider compatibility (3 tests). Total new: ~30 tests.
+
 ## [fix] - M17 Express Trust Proxy Fix for Render Deployment — 2026-09-25
 
 ### Problem

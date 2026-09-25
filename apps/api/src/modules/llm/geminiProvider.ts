@@ -87,14 +87,69 @@ export function normalizeLlmJsonKeys(obj: any): any {
   return res;
 }
 
+/**
+ * Default per-request timeout for Gemini generateContent API calls
+ * when `GEMINI_TIMEOUT_MS` is not configured. Chosen to be conservative
+ * enough for Render free-tier hosting and large structured prompts.
+ */
+export const DEFAULT_GEMINI_TIMEOUT_MS = 60000;
+
+/**
+ * Maximum number of retry attempts for Gemini structured JSON and text calls.
+ * Kept intentionally bounded to prevent infinite retries.
+ */
+export const GEMINI_MAX_ATTEMPTS = 3;
+
+/**
+ * Deterministic exponential backoff with jitter delay (in milliseconds)
+ * between failed Gemini retry attempts.
+ *
+ * Attempt 1 → 0 ms (first attempt, no prior delay).
+ * Attempt 2 → delay after first failure.
+ * Attempt 3 → delay after second failure.
+ *
+ * Base = 1000 ms, multiplier = attempt-1 (1..2), jitter range = 0..base.
+ * This keeps tests fast while still providing decorrelation in real deployments.
+ */
+export function geminiRetryDelayMs(attempt: number): number {
+  if (attempt <= 1) return 0;
+  const base = 1000;
+  const exponent = attempt - 1;
+  const backoff = base * Math.pow(2, exponent - 1);
+  const jitter = Math.floor(Math.random() * base);
+  return backoff + jitter;
+}
+
+/**
+ * Read and validate the configured Gemini timeout (in ms).
+ * Falls back to {@link DEFAULT_GEMINI_TIMEOUT_MS} when missing or invalid.
+ */
+function resolveGeminiTimeoutMs(): number {
+  const raw = process.env.GEMINI_TIMEOUT_MS;
+  if (!raw) return DEFAULT_GEMINI_TIMEOUT_MS;
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isFinite(parsed) || parsed < 1000) return DEFAULT_GEMINI_TIMEOUT_MS;
+  return parsed;
+}
+
 export class GeminiProvider implements ILlmProvider {
   public name = 'Google Gemini';
   private apiKey: string;
   private model: string;
+  private timeoutMs: number;
 
-  constructor(apiKey?: string, model?: string) {
+  constructor(apiKey?: string, model?: string, timeoutMs?: number) {
     this.apiKey = apiKey || process.env.GEMINI_API_KEY || '';
     this.model = model || process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+    this.timeoutMs =
+      typeof timeoutMs === 'number' && Number.isFinite(timeoutMs) && timeoutMs > 0
+        ? timeoutMs
+        : resolveGeminiTimeoutMs();
+  }
+
+  /** Returns the resolved per-request timeout (ms) used for axios calls. */
+  getRequestTimeoutMs(): number {
+    return this.timeoutMs;
   }
 
   async generateStructuredJson<T>(
@@ -107,10 +162,17 @@ export class GeminiProvider implements ILlmProvider {
     }
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent`;
-    const maxAttempts = 3;
+    const maxAttempts = GEMINI_MAX_ATTEMPTS;
     let lastError: Error | null = null;
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      if (attempt > 1) {
+        const delay = geminiRetryDelayMs(attempt);
+        if (delay > 0) {
+          await new Promise((resolve) => setTimeout(resolve, delay));
+        }
+      }
+
       try {
         const payload = {
           contents: [
@@ -134,7 +196,7 @@ export class GeminiProvider implements ILlmProvider {
             'Content-Type': 'application/json',
             'x-goog-api-key': this.apiKey,
           },
-          timeout: 25000,
+          timeout: this.timeoutMs,
         });
 
         const candidates = res.data?.candidates;
@@ -147,7 +209,6 @@ export class GeminiProvider implements ILlmProvider {
           throw new Error('Gemini API candidate contained empty text.');
         }
 
-        // Clean json markers if present
         const cleanedJson = rawText
           .replace(/^```json\s*/i, '')
           .replace(/^```\s*/i, '')
@@ -172,7 +233,6 @@ export class GeminiProvider implements ILlmProvider {
         const issueMsgs = validated.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ');
         throw new Error(`Schema validation failed on Gemini response: ${issueMsgs}`);
       } catch (err: any) {
-        // Sanitize error message to ensure API key is never exposed
         const safeMessage = (err.message || 'Unknown error').replace(new RegExp(this.apiKey, 'g'), '[REDACTED_API_KEY]');
         lastError = new Error(safeMessage);
         if (attempt === maxAttempts) {
@@ -190,41 +250,57 @@ export class GeminiProvider implements ILlmProvider {
     }
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent`;
+    const maxAttempts = GEMINI_MAX_ATTEMPTS;
+    let lastError: Error | null = null;
 
-    const payload = {
-      contents: [
-        {
-          role: 'user',
-          parts: [
-            {
-              text: systemInstruction ? `${systemInstruction}\n\n${prompt}` : prompt,
-            },
-          ],
-        },
-      ],
-      generationConfig: {
-        temperature: 0.3,
-      },
-    };
-
-    try {
-      const res = await axios.post(url, payload, {
-        headers: {
-          'Content-Type': 'application/json',
-          'x-goog-api-key': this.apiKey,
-        },
-        timeout: 20000,
-      });
-
-      const rawText = res.data?.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (!rawText) {
-        throw new Error('Gemini API returned empty text response.');
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      if (attempt > 1) {
+        const delay = geminiRetryDelayMs(attempt);
+        if (delay > 0) {
+          await new Promise((resolve) => setTimeout(resolve, delay));
+        }
       }
 
-      return rawText.trim();
-    } catch (err: any) {
-      const safeMessage = (err.message || 'Unknown error').replace(new RegExp(this.apiKey, 'g'), '[REDACTED_API_KEY]');
-      throw new Error(`Gemini generateText failed: ${safeMessage}`);
+      try {
+        const payload = {
+          contents: [
+            {
+              role: 'user',
+              parts: [
+                {
+                  text: systemInstruction ? `${systemInstruction}\n\n${prompt}` : prompt,
+                },
+              ],
+            },
+          ],
+          generationConfig: {
+            temperature: 0.3,
+          },
+        };
+
+        const res = await axios.post(url, payload, {
+          headers: {
+            'Content-Type': 'application/json',
+            'x-goog-api-key': this.apiKey,
+          },
+          timeout: this.timeoutMs,
+        });
+
+        const rawText = res.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!rawText) {
+          throw new Error('Gemini API returned empty text response.');
+        }
+
+        return rawText.trim();
+      } catch (err: any) {
+        const safeMessage = (err.message || 'Unknown error').replace(new RegExp(this.apiKey, 'g'), '[REDACTED_API_KEY]');
+        lastError = new Error(safeMessage);
+        if (attempt === maxAttempts) {
+          break;
+        }
+      }
     }
+
+    throw new Error(`Gemini generateText failed after ${maxAttempts} attempts: ${lastError?.message || 'Unknown error'}`);
   }
 }

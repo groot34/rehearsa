@@ -1,8 +1,14 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import axios from 'axios';
 import { z } from 'zod';
 import { MockLlmProvider } from '../mockProvider';
 import { createLlmProvider } from '../llmFactory';
-import { GeminiProvider } from '../geminiProvider';
+import {
+  GeminiProvider,
+  DEFAULT_GEMINI_TIMEOUT_MS,
+  GEMINI_MAX_ATTEMPTS,
+  geminiRetryDelayMs,
+} from '../geminiProvider';
 
 describe('LlmProvider Abstraction', () => {
   it('instantiates MockLlmProvider when no API key is set', () => {
@@ -209,6 +215,198 @@ describe('LlmProvider Abstraction', () => {
       const kitValidated = KitSchema.safeParse(fullKitPayload);
       expect(kitValidated.success).toBe(true);
     });
+  });
+});
+
+describe('GeminiProvider Timeout Configuration', () => {
+  let originalTimeout: string | undefined;
+
+  beforeEach(() => {
+    originalTimeout = process.env.GEMINI_TIMEOUT_MS;
+  });
+
+  afterEach(() => {
+    if (originalTimeout === undefined) {
+      delete process.env.GEMINI_TIMEOUT_MS;
+    } else {
+      process.env.GEMINI_TIMEOUT_MS = originalTimeout;
+    }
+  });
+
+  it('falls back to DEFAULT_GEMINI_TIMEOUT_MS (60000) when env var is absent', () => {
+    delete process.env.GEMINI_TIMEOUT_MS;
+    const provider = new GeminiProvider('test-key', 'gemini-1.5-flash');
+    expect(provider.getRequestTimeoutMs()).toBe(DEFAULT_GEMINI_TIMEOUT_MS);
+    expect(DEFAULT_GEMINI_TIMEOUT_MS).toBe(60000);
+  });
+
+  it('picks up GEMINI_TIMEOUT_MS env var when valid and >= 1000', () => {
+    process.env.GEMINI_TIMEOUT_MS = '90000';
+    const provider = new GeminiProvider('test-key', 'gemini-1.5-flash');
+    expect(provider.getRequestTimeoutMs()).toBe(90000);
+  });
+
+  it('falls back to default when env var is below 1000 ms clamp', () => {
+    process.env.GEMINI_TIMEOUT_MS = '500';
+    const provider = new GeminiProvider('test-key', 'gemini-1.5-flash');
+    expect(provider.getRequestTimeoutMs()).toBe(DEFAULT_GEMINI_TIMEOUT_MS);
+  });
+
+  it('falls back to default when env var is non-numeric garbage', () => {
+    process.env.GEMINI_TIMEOUT_MS = 'banana';
+    const provider = new GeminiProvider('test-key', 'gemini-1.5-flash');
+    expect(provider.getRequestTimeoutMs()).toBe(DEFAULT_GEMINI_TIMEOUT_MS);
+  });
+
+  it('explicit constructor timeoutMs 3rd arg overrides env var and default', () => {
+    process.env.GEMINI_TIMEOUT_MS = '120000';
+    const provider = new GeminiProvider('test-key', 'gemini-1.5-flash', 30000);
+    expect(provider.getRequestTimeoutMs()).toBe(30000);
+  });
+});
+
+describe('Gemini Retry Delay (Exponential Backoff + Jitter)', () => {
+  it('attempt 1 always returns 0 (first attempt, no prior delay)', () => {
+    for (let i = 0; i < 20; i++) {
+      expect(geminiRetryDelayMs(1)).toBe(0);
+    }
+    expect(geminiRetryDelayMs(0)).toBe(0);
+    expect(geminiRetryDelayMs(-5)).toBe(0);
+  });
+
+  it('attempt 2 returns delay in [1000, 2000) ms range (exponential base 1000 + 0..999 jitter)', () => {
+    const samples: number[] = [];
+    for (let i = 0; i < 50; i++) {
+      const d = geminiRetryDelayMs(2);
+      samples.push(d);
+      expect(d).toBeGreaterThanOrEqual(1000);
+      expect(d).toBeLessThan(2000);
+      expect(Number.isInteger(d)).toBe(true);
+    }
+    // Very low probability both min and max never appear in 50 samples
+    expect(samples.some((d) => d < 1200)).toBe(true);
+    expect(samples.some((d) => d >= 1700)).toBe(true);
+  });
+
+  it('attempt 3 returns delay in [2000, 3000) ms range (exponential base 2000 + 0..999 jitter)', () => {
+    for (let i = 0; i < 50; i++) {
+      const d = geminiRetryDelayMs(3);
+      expect(d).toBeGreaterThanOrEqual(2000);
+      expect(d).toBeLessThan(3000);
+    }
+  });
+
+  it('GEMINI_MAX_ATTEMPTS is exactly 3 (bounded retries, no infinite loop)', () => {
+    expect(GEMINI_MAX_ATTEMPTS).toBe(3);
+  });
+});
+
+describe('GeminiProvider Retry Behaviour (no sleep after final attempt)', () => {
+  let postSpy: any;
+  let setTimeoutSpy: any;
+  const TestSchema = z.object({ ok: z.literal(true) });
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    postSpy = vi
+      .spyOn(axios, 'post')
+      .mockImplementation(() => Promise.reject(new Error('timeout of 60000ms exceeded')));
+    setTimeoutSpy = vi.spyOn(global, 'setTimeout');
+  });
+
+  afterEach(() => {
+    postSpy.mockRestore();
+    setTimeoutSpy.mockRestore();
+    vi.useRealTimers();
+  });
+
+  function driveRetryLoop(promise: Promise<any>): Promise<void> {
+    // Drive the retry loop: timers and microtasks.
+    // With GEMINI_MAX_ATTEMPTS=3 and backoff at the loop TOP, setTimeout should
+    // fire TWICE (before attempt 2, before attempt 3) — never after attempt 3.
+    // Return a promise that resolves once the inner promise has definitely settled.
+    return new Promise((resolve) => {
+      promise.catch(() => {}).finally(() => resolve());
+      let iter = 0;
+      const tick = () => {
+        iter++;
+        if (iter > 30) {
+          resolve();
+          return;
+        }
+        Promise.resolve()
+          .then(() => vi.advanceTimersByTimeAsync(10000))
+          .then(tick)
+          .catch(() => resolve());
+      };
+      tick();
+    });
+  }
+
+  it('generates structured JSON with exactly 3 axios attempts and exactly 2 setTimeout sleeps (no sleep after attempt #3)', async () => {
+    const provider = new GeminiProvider('test-key', 'gemini-1.5-flash', 1000);
+
+    // Kick off the call
+    const promise = provider.generateStructuredJson('prompt', 'sys', TestSchema);
+
+    // Drive the fake-timer retry loop to completion
+    await driveRetryLoop(promise);
+
+    // Await the rejection (now already settled, no unhandled warning)
+    await expect(promise).rejects.toThrow(/Gemini Provider failed after 3 attempts:/);
+
+    // Exactly 3 axios.post calls (one per attempt)
+    expect(postSpy).toHaveBeenCalledTimes(3);
+    // Exactly 2 setTimeout sleeps: once before attempt 2, once before attempt 3.
+    // No sleep should be scheduled AFTER the 3rd (final) failed attempt.
+    expect(setTimeoutSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it('generateText retries 3 times and surfaces aggregate "after 3 attempts" error without extra final sleep', async () => {
+    const provider = new GeminiProvider('test-key', 'gemini-1.5-flash', 1000);
+
+    const promise = provider.generateText('prompt', 'sys');
+    await driveRetryLoop(promise);
+
+    await expect(promise).rejects.toThrow(/Gemini generateText failed after 3 attempts:/);
+    expect(postSpy).toHaveBeenCalledTimes(3);
+    expect(setTimeoutSpy).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('Existing Gemini and Mock Provider Behaviour (Compatibility / Not Weakened)', () => {
+  it('createLlmProvider still returns Mock LLM Provider explicitly', () => {
+    const p = createLlmProvider('mock');
+    expect(p.name).toBe('Mock LLM Provider');
+  });
+
+  it('GeminiProvider still throws on missing API key (unchanged error contract)', async () => {
+    const provider = new GeminiProvider('', 'gemini-1.5-flash');
+    const Schema = z.object({ k: z.string() });
+    await expect(provider.generateStructuredJson('x', 'y', Schema)).rejects.toThrow(
+      'Gemini API key is not configured'
+    );
+    await expect(provider.generateText('x', 'y')).rejects.toThrow(
+      'Gemini API key is not configured'
+    );
+  });
+
+  it('MockLlmProvider still produces schema-validated structured data end-to-end (role extraction prompt keyword path)', async () => {
+    const Schema = z.object({
+      title: z.string(),
+      requirements: z.array(z.object({ id: z.string(), text: z.string() })),
+    });
+    const provider = new MockLlmProvider();
+    // Use a prompt that contains the role-extraction keywords so MockProvider
+    // returns the role-shaped output (not default questions/flashcards).
+    const res = await provider.generateStructuredJson(
+      'Please extract role and requirements from the job description',
+      'system instruction',
+      Schema
+    );
+    expect(typeof res.title).toBe('string');
+    expect(Array.isArray(res.requirements)).toBe(true);
+    expect(res.requirements.length).toBeGreaterThan(0);
   });
 });
 

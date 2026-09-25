@@ -8,15 +8,33 @@
 
 * **Project**: Rehearsa — Full-Stack AI-Powered Interview Preparation Platform
 * **Assessment ID**: `FS-AI-INTERVIEW-01` (Trao Assessment)
-* **Active Milestone**: `M17: Express Trust Proxy Fix for Render Deployment` (COMPLETED & LOCALLY VERIFIED 2026-09-25)
+* **Active Milestone**: `M18: Production LLM Generation Reliability Hardening` (IMPLEMENTED & LOCALLY VERIFIED 2026-09-25)
 
 ---
 
 ## 2. Latest Known Repository State
 
 * **Branch**: `main`
-* **HEAD Commit**: `831dd25` — `feat(research): add Tavily public interview search` (M16)
-* **Pending commit**: M17 trust proxy fix — `apps/api/src/app.ts` — `app.set('trust proxy', 1)` — ready to commit as `fix(api): set trust proxy for Render reverse-proxy deployment`
+* **HEAD Commit**: (see latest git log; commit with M18 changes is `fix(llm): harden production generation reliability`)
+
+### M18 Production LLM Reliability Hardening — implemented 2026-09-25
+
+Implementation summary:
+- **Root cause**: `"Gemini Provider failed after 3 attempts: timeout of 25000ms exceeded"` on Render free tier during company-brief synthesis. Four pre-fix gaps: (1) hard-coded 25/20 s axios timeouts too low for ~20K-char prompts; (2) 3 identical retries with zero backoff/jitter; (3) `generateText` zero retries; (4) no per-snippet or combined research-text cap before brief prompt injection.
+- **Gemini reliability (`apps/api/src/modules/llm/geminiProvider.ts`)**:
+  - Exported constants: `DEFAULT_GEMINI_TIMEOUT_MS = 60000`, `GEMINI_MAX_ATTEMPTS = 3`, `geminiRetryDelayMs(attempt)` pure function with exponential backoff + jitter (attempt1=0ms, attempt2=[1000,1999], attempt3=[2000,2999] ms).
+  - Configurable via `GEMINI_TIMEOUT_MS` env var (clamped ≥1000, else 60000). Constructor 3rd arg `timeoutMs` overrides env for tests. `getRequestTimeoutMs()` getter.
+  - Both `generateStructuredJson` and `generateText` use identical 3-attempt loop with pre-attempt backoff (`attempt > 1` guard → no sleep after final attempt #3).
+  - Error messages preserved structurally: `Gemini Provider failed after 3 attempts: ...` / `Gemini generateText failed after 3 attempts: ...`.
+- **Research context safety (`apps/api/src/modules/research/*` + pipeline)**:
+  - `MAX_PUBLIC_INTERVIEW_SNIPPET_CHARS = 500`, `MAX_COMBINED_RESEARCH_CHARS = 20000`, `SNIPPET_TRUNCATION_MARKER = '... [truncated]'` all exported from `interviewSearchProvider.ts`.
+  - Shared `truncateResultSnippet(result, maxChars?)` helper preserves `title`/`url`/`source` 100%; only slices `snippet`, appends marker only on overflow.
+  - Applied to both `TavilySearchProvider.executeSearch` and `GoogleCustomSearchProvider.executeSearch` result maps.
+  - `pipelineOrchestrator.ts` applies `.slice(0, MAX_COMBINED_RESEARCH_CHARS)` on `combinedResearchText` immediately after concatenation (crawler-first, so public-interview tail is preferentially trimmed on overflow).
+- **Config templates**: `GEMINI_TIMEOUT_MS=60000` added to `.env.example` and `render.yaml` envVars.
+- **Docs**: ADR-022 (Gemini timeout/backoff) + ADR-023 (research bounding) recorded in `docs/DECISIONS.md`. PROGRESS, AGENT_HANDOFF, CHANGELOG all updated.
+- **Files changed**: `apps/api/src/modules/llm/geminiProvider.ts`, `apps/api/src/modules/research/interviewSearchProvider.ts`, `apps/api/src/modules/research/tavilySearchProvider.ts`, `apps/api/src/modules/research/googleCustomSearchProvider.ts`, `apps/api/src/modules/interview-prep/pipelineOrchestrator.ts`, `.env.example`, `render.yaml`, `docs/DECISIONS.md`, `docs/PROGRESS.md`, `docs/AGENT_HANDOFF.md`, `docs/CHANGELOG.md`, test files for LLM and research modules.
+- **Verification**: (see commit message/test output)
 
 ### M17 Express Trust Proxy Fix — completed 2026-09-25
 
@@ -173,6 +191,7 @@ The following items are genuinely outstanding as of 2026-09-25:
 5. ~~**Render deployment crash (trust proxy)**~~: **Resolved in M17** — `app.set('trust proxy', 1)` added to `apps/api/src/app.ts`. All responses are now JSON; rate limiting uses real client IP.
 
 6. **Live Tavily production verification**: `INTERVIEW_SEARCH_PROVIDER=tavily` + `TAVILY_API_KEY` must be configured in Render environment variables to activate Tavily in production. Live end-to-end verification (kit generation with real Tavily search results) has not happened yet. Mock provider is currently configured in `render.yaml`.
+7. **M18 live verification**: After deploying M18, verify the fix against a company that previously produced 25 s timeouts (e.g. large crawled research + full 10 Tavily results). `GEMINI_TIMEOUT_MS=60000` is already set in `render.yaml`; no additional env changes needed.
 
 ---
 

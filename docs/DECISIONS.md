@@ -29,6 +29,8 @@ This document records the architectural and engineering decisions made for the R
 | [ADR-019](#adr-019-llm-requirement-kind-robustness-and-normalization) | LLM Requirement Kind Robustness and Normalization | Accepted | 2026-09-25 |
 | [ADR-020](#adr-020-tavily-search-provider-for-public-interview-discussions) | Tavily Search Provider for Public Interview Discussions | Accepted | 2026-09-25 |
 | [ADR-021](#adr-021-express-trust-proxy-for-render-reverse-proxy-deployment) | Express Trust Proxy for Render Reverse-Proxy Deployment | Accepted | 2026-09-25 |
+| [ADR-022](#adr-022-configurable-gemini-timeout--exponential-backoff-with-jitter) | Configurable Gemini Timeout & Exponential Backoff with Jitter | Accepted | 2026-09-25 |
+| [ADR-023](#adr-023-research-context-size-bounding-for-company-brief-prompt) | Research-Context Size Bounding for Company-Brief Prompt | Accepted | 2026-09-25 |
 
 ---
 
@@ -820,3 +822,66 @@ This is an accepted trade-off for a client-rendered SPA without a BFF. An `httpO
   - `npm run lint`: Exit code 0.
   - `npx vitest run --exclude **/scripts/**`: 274/274 tests passing, Exit code 0.
   - `npm run build`: Exit code 0. All three workspaces compile cleanly.
+
+---
+
+## ADR-022: Configurable Gemini Timeout & Exponential Backoff with Jitter
+
+* **Status**: Accepted — 2026-09-25
+* **Context**:
+  - Production failure in the free-tier Render deployment: `Gemini Provider failed after 3 attempts: timeout of 25000ms exceeded`.
+  - Pre-fix state in `geminiProvider.ts`:
+    - `generateStructuredJson` used a hard-coded 25,000 ms axios timeout.
+    - `generateText` used a hard-coded 20,000 ms axios timeout with zero retries.
+    - Structured retries were exactly 3 identical attempts with NO backoff, NO jitter, and NO sleep between retries — meaning transient API slowness on the first attempt produced three identical 25 s failures in ~75 ms and surfaced to the user as `PIPELINE_ERROR`.
+    - Company-brief prompts routinely contain ~15,000-20,000 characters of crawled research; on Render's shared free-tier CPU, the Google `v1beta` Gemini endpoint often exceeds 25 s end-to-end for large structured-JSON requests.
+* **Decision**:
+  1. Introduce a `GEMINI_TIMEOUT_MS` environment variable read during `GeminiProvider` construction.
+  2. Default value: **60,000 ms (60 seconds)**. Values below 1000 ms or non-numeric values fall back to the default to protect against accidental misconfiguration.
+  3. Bounded maximum attempts retained at **3 attempts** (both `generateStructuredJson` and `generateText`).
+  4. Exponential backoff with jitter between failed attempts. Pure dependency-free implementation:
+     - Attempt 1 → no delay (first try is immediate).
+     - Attempt 2 → `1000 + random(0..999)` ms, i.e. [1000, 1999] ms.
+     - Attempt 3 → `2000 + random(0..999)` ms, i.e. [2000, 2999] ms.
+  5. **No sleep after the final failed attempt**: the delay block sits at the TOP of the attempt loop guarded by `if (attempt > 1)`, so after attempt #3 exhausts the loop exits and throws immediately.
+  6. Error messages preserve their structural prefix: `Gemini Provider failed after 3 attempts: ...` and `Gemini generateText failed after 3 attempts: ...` so existing log parsers and error envelopes remain compatible.
+  7. Constructor accepts optional explicit `timeoutMs` 3rd argument for deterministic tests (overrides env).
+* **Alternatives Considered**:
+  - Keep hard-coded timeout but bump to 120 s — rejected; produces slow failure UX for transient errors and doesn't address the zero-backoff retry problem.
+  - Use `axios-retry` / `p-retry` external library — rejected; scope forbids new dependencies and the retry matrix is small enough for a 10-line vanilla implementation.
+  - Unlimited retries with a 10-minute ceiling — rejected; user explicitly forbade unbounded retries and Render free-tier requests have a hard 30 s/request gateway limit so long-running requests are impossible anyway.
+  - `generateText` left as single-attempt (pre-fix state) — rejected; both methods hit the *same API endpoint* and share the same failure modes, so they should share retry semantics.
+* **Trade-offs**:
+  - Worst-case wall-clock for a fully-failing generation is now ~0 (A1) + 1.5 s (avg A2 delay) + 60 s (A2 timeout) + 2.5 s (avg A3 delay) + 60 s (A3 timeout) ≈ **124 s**. This is bounded and acceptable for a background generation flow; prior worst-case was ~75 s (three 25 s attempts with negligible delay between).
+  - Random jitter cannot be fully deterministic in tests; tests instead assert `>= lowerBound && < upperBound` ranges and use `vi.useFakeTimers()` + spy-counting to avoid real wall-clock waits.
+
+---
+
+## ADR-023: Research-Context Size Bounding for Company-Brief Prompt
+
+* **Status**: Accepted — 2026-09-25
+* **Context**:
+  - Pre-fix state had partial per-input caps but NO aggregated cap before the company-brief LLM prompt, creating risk of prompt-size blowups that correlate directly with the "timeout of 25000 ms exceeded" production failure:
+    - Company crawler text: capped at 15,000 chars ✔️ (unchanged).
+    - Tavily search: max 10 results, 4 queries — but individual result snippets were **not truncated** before string concatenation (snippet could in theory be arbitrarily large depending on Tavily's `content` field).
+    - Google Custom Search: identical unbounded-snippet situation.
+    - `combinedResearchText = extracted_text + publicInterviewText` → sliced to 20K chars **after** the fix.
+  - Analysis of production-size inputs showed worst-case legitimate combined research ~19.6K chars; any value above ~20K chars is likely unbounded growth, not signal.
+* **Decision**:
+  1. Named constants (exported from the provider interface module so they're co-located with usage and testable):
+     - `MAX_PUBLIC_INTERVIEW_SNIPPET_CHARS = 500` per individual search-result snippet.
+     - `MAX_COMBINED_RESEARCH_CHARS = 20000` for post-concatenation `combinedResearchText`.
+     - `SNIPPET_TRUNCATION_MARKER = '... [truncated]'` appended so the LLM can recognize partial context.
+  2. Deterministic truncation helper `truncateResultSnippet(result, maxChars?)`:
+     - Preserves `title`, `url`, and `source` 100% verbatim (never sliced).
+     - Only touches the `snippet` field; appends truncation marker only when the snippet actually exceeded the cap (no marker for already-small snippets).
+  3. Helper applied in both `TavilySearchProvider.executeSearch` and `GoogleCustomSearchProvider.executeSearch` result maps, so both providers produce bounded snippets regardless of upstream API behaviour.
+  4. Combined research cap applied in `pipelineOrchestrator.ts` immediately after concatenation with `.slice(0, MAX_COMBINED_RESEARCH_CHARS)`. Because crawler text precedes public-interview text in the concatenation order, overflow always trims the **tail of public interview text** preferentially — the higher-signal internal crawler research is preserved.
+  5. Research is NEVER silently dropped wholesale if it exceeds caps; truncation is a deterministic `.slice` operation with markers so partial context is always better than no context.
+* **Alternatives Considered**:
+  - Raise crawler cap and drop public search entirely if the total is large — rejected; public discussions provide real interview nuance the company crawl cannot.
+  - Put the combined cap only at the brief prompt interpolation without per-snippet caps — rejected; leaves an attack surface where a single Tavily result with a 50,000-char snippet forces `combinedResearchText` to discard ALL crawler content.
+  - Larger combined cap (e.g. 30,000 chars) — rejected; Render free-tier latency grows faster-than-linearly with prompt size, and real legitimate worst-case is below 20K.
+* **Trade-offs**:
+  - Edge case: If Tavily returned genuinely critical signal buried after the 500th snippet character or the 20,000th combined character, it would be truncated. This is acceptable because (a) snippets are search-result summaries and 500 chars captures the main points, and (b) the crawler text is preserved preferentially over public discussion tail.
+  - `MockPublicInterviewSearchProvider` snippets are already short and remain unchanged; truncation helper is a no-op on small inputs so parity is preserved.

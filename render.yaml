@@ -25,6 +25,8 @@ services:
         sync: false
       - key: GEMINI_MODEL
         value: gemini-1.5-flash
+      - key: GEMINI_TIMEOUT_MS
+        value: 60000
       - key: ALLOW_LOOPBACK_IN_DEV
         value: false
       - key: CRAWL_MAX_PAGES_PER_SITE

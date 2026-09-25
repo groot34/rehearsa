@@ -1,5 +1,9 @@
 import axios from 'axios';
-import { IPublicInterviewSearchProvider, InterviewSearchResult } from './interviewSearchProvider';
+import {
+  IPublicInterviewSearchProvider,
+  InterviewSearchResult,
+  truncateResultSnippet,
+} from './interviewSearchProvider';
 
 /**
  * Google Custom Search API provider for public interview discussion search.
@@ -74,12 +78,15 @@ export class GoogleCustomSearchProvider implements IPublicInterviewSearchProvide
     const res = await axios.get(url, { params, timeout: 10000 });
 
     const items = res.data?.items || [];
-    return items.map((item: any) => ({
-      title: item.title || '',
-      url: item.link || '',
-      snippet: item.snippet || '',
-      source: this.extractSource(item.link),
-    }));
+    return items.map((item: any) => {
+      const raw: InterviewSearchResult = {
+        title: item.title || '',
+        url: item.link || '',
+        snippet: item.snippet || '',
+        source: this.extractSource(item.link),
+      };
+      return truncateResultSnippet(raw);
+    });
   }
 
   private extractSource(url: string): string {

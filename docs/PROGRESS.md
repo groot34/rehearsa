@@ -1,6 +1,27 @@
 # Project Progress & Status — Rehearsa
 
 ## 1. Current Milestone
+**Milestone 18: Production LLM Generation Reliability Hardening (IMPLEMENTED 2026-09-25)**
+- Production failure: `Gemini Provider failed after 3 attempts: timeout of 25000ms exceeded` during company-brief synthesis on Render free tier for large prompts.
+- RCA confirmed 4 reliability gaps:
+  1. Hard-coded 25000 ms axios timeout for structured JSON, 20000 ms for text (too low for 15-20K char prompts on Render shared CPU).
+  2. 3 identical retries with NO backoff/jitter between attempts (identical 25 s timeouts → immediate 3x failure).
+  3. `generateText` had ZERO retries (single-shot at 20 s).
+  4. No upper bound on Tavily/Google per-result snippet length OR on `combinedResearchText` before brief prompt injection → unbounded prompt growth was possible.
+- Fix applied to `apps/api/src/modules/llm/geminiProvider.ts`:
+  - Introduced `GEMINI_TIMEOUT_MS` env-configurable per-request timeout with `DEFAULT_GEMINI_TIMEOUT_MS = 60000` and `< 1000` clamp.
+  - `GEMINI_MAX_ATTEMPTS = 3` retained for both `generateStructuredJson` and `generateText`.
+  - `geminiRetryDelayMs(attempt)` with exponential backoff + jitter: attempt1=0, attempt2=[1000,1999], attempt3=[2000,2999] ms.
+  - Delay block is at the TOP of the for-loop guarded by `attempt > 1` → NO sleep after the final attempt #3.
+  - Constructor 3rd arg `timeoutMs` override for tests; `getRequestTimeoutMs()` getter for assertion.
+- Research-context bounding (`apps/api/src/modules/research/interviewSearchProvider.ts` + providers + pipeline):
+  - `MAX_PUBLIC_INTERVIEW_SNIPPET_CHARS = 500`, `MAX_COMBINED_RESEARCH_CHARS = 20000`, `SNIPPET_TRUNCATION_MARKER = '... [truncated]'`.
+  - Shared `truncateResultSnippet()` preserves `title`/`url`/`source` verbatim; only slices the snippet body and appends marker only on overflow.
+  - Applied to both Tavily and Google result maps; combined `.slice(0, 20000)` in `pipelineOrchestrator.ts` with crawler-first preference.
+- Config templates: `GEMINI_TIMEOUT_MS=60000` added to `.env.example` and `render.yaml` envVars.
+- ADR-022 and ADR-023 documented in `docs/DECISIONS.md`.
+- Verification status (pending at time of writing): lint, build, tests, evaluator TBD in this commit.
+
 **Milestone 17: Express Trust Proxy Fix for Render Deployment (COMPLETED 2026-09-25)**
 - Production failure after M16 deploy: `express-rate-limit` v8 throws a `ValidationError` (plain-text, not JSON) when `X-Forwarded-For` is present but Express's `trust proxy` is false. Render's load balancer always sets `X-Forwarded-For`.
 - Frontend received plain-text error body, `res.json()` threw `SyntaxError`, displayed as `NETWORK_ERROR: Unexpected token 'A', "An error o"... is not valid JSON`.
