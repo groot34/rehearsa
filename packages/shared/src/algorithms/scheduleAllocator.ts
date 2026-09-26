@@ -90,9 +90,11 @@ export function allocateSchedule(options: ScheduleAllocationOptions): Schedule {
       dayQuestionBins[clampedBinIdx].push(q);
     });
   } else {
-    // Fewer questions than days: assign 1 question per day for first N days
+    // Fewer questions than days: spread questions evenly across all days
     sortedQuestions.forEach((q, idx) => {
-      dayQuestionBins[idx].push(q);
+      const binIdx = Math.floor((idx * days_available) / sortedQuestions.length);
+      const clampedBinIdx = Math.min(binIdx, days_available - 1);
+      dayQuestionBins[clampedBinIdx].push(q);
     });
   }
 
