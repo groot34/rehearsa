@@ -150,20 +150,23 @@ export default function HomePage() {
     setEditedItemIds(new Set());
 
     const result = await generateInterviewKit(payload);
-    setIsGenerating(false);
 
     if (result.success && result.kit) {
       // Create a session and navigate to the session URL
       const sessionResult = await createSession(result.kit);
       if (sessionResult.success && sessionResult.sessionId) {
+        console.log('Session created:', sessionResult.sessionId);
         router.push(`/session/${sessionResult.sessionId}`);
       } else {
+        console.error('Session creation failed:', sessionResult.error);
+        setIsGenerating(false);
         // Fallback: display kit directly if session creation fails
         setGeneratedKit(result.kit);
         setQuestionOrder(result.kit.questions.map((q) => q.id));
         handleViewChange('kit-viewer');
       }
     } else {
+      setIsGenerating(false);
       setGenError(result.error || { code: 'GENERATION_FAILED', message: 'Failed to generate kit.' });
     }
   };

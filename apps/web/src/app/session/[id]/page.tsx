@@ -66,9 +66,11 @@ export default function SessionPage() {
   // Load session on mount
   useEffect(() => {
     const loadSession = async () => {
+      console.log('Loading session:', sessionId);
       setIsLoading(true);
       setSessionError(null);
       const res = await getSessionById(sessionId);
+      console.log('Session response:', res);
       setIsLoading(false);
 
       if (res.success && res.kit) {
@@ -77,6 +79,7 @@ export default function SessionPage() {
         setQuestionConfidence(res.questionConfidence ?? {});
         setFlashcardConfidence(res.flashcardConfidence ?? {});
       } else {
+        console.error('Session load failed:', res.error);
         setSessionError(res.error?.message ?? 'Failed to load session. It may have expired or does not exist.');
       }
     };
