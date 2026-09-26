@@ -4,23 +4,20 @@ import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Kit } from '@rehearsa/shared';
 import {
-  getSessionById,
-  convertSessionToKit,
+  fetchKitById,
+  updateKitOnServer,
   regenerateKitSection,
-  updateSessionQuestionConfidence,
-  reorderSessionQuestions,
-  updateSessionFlashcardConfidence,
-  RegenerateSection,
+  updateQuestionConfidence,
   reorderQuestions,
+  updateFlashcardConfidence,
+  RegenerateSection,
 } from '../../../lib/api';
 import { syncQuestionOrder } from '../../../lib/kitEditing';
 import { useAuth } from '../../../lib/auth';
 import { KitViewer } from '../../../components/KitViewer';
-import { GenerationProgressTracker } from '../../../components/GenerationProgressTracker';
 import {
   LogOut,
   BookMarked,
-  ChevronLeft,
   Save,
   CheckCircle2,
   Loader2,
@@ -28,22 +25,21 @@ import {
   User,
 } from 'lucide-react';
 
-export default function SessionPage() {
+export default function KitPage() {
   const params = useParams();
   const router = useRouter();
   const { token, user, isLoading: authLoading, logout } = useAuth();
-  const sessionId = params.id as string;
+  const kitId = params.id as string;
 
-  // Session state
+  // Kit state
   const [isLoading, setIsLoading] = useState(true);
-  const [sessionError, setSessionError] = useState<string | null>(null);
+  const [kitError, setKitError] = useState<string | null>(null);
   const [generatedKit, setGeneratedKit] = useState<Kit | null>(null);
 
   // Save / update UI state
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
-  const [savedKitId, setSavedKitId] = useState<string | null>(null);
 
   // Edit-preservation tracking
   const [editedItemIds, setEditedItemIds] = useState<Set<string>>(new Set());
@@ -61,28 +57,34 @@ export default function SessionPage() {
   const [flashcardConfidence, setFlashcardConfidence] = useState<Record<string, 'easy' | 'medium' | 'hard'>>({});
   const [isUpdatingFlashcardConfidence, setIsUpdatingFlashcardConfidence] = useState(false);
 
-  // Load session on mount
+  // Load kit on mount
   useEffect(() => {
-    const loadSession = async () => {
+    const loadKit = async () => {
+      if (!token) {
+        setKitError('Authentication required. Please sign in.');
+        setIsLoading(false);
+        return;
+      }
+
       setIsLoading(true);
-      setSessionError(null);
-      const res = await getSessionById(sessionId);
+      setKitError(null);
+      const res = await fetchKitById(kitId, token);
       setIsLoading(false);
 
-      if (res.success && res.kit) {
-        setGeneratedKit(res.kit);
-        setQuestionOrder(res.kit.questions.map((q) => q.id));
-        setQuestionConfidence(res.questionConfidence ?? {});
-        setFlashcardConfidence(res.flashcardConfidence ?? {});
+      if (res.success && res.data) {
+        setGeneratedKit(res.data.kit);
+        setQuestionOrder(res.data.questionOrder ?? res.data.kit.questions.map((q) => q.id));
+        setQuestionConfidence(res.data.questionConfidence ?? {});
+        setFlashcardConfidence(res.data.flashcardConfidence ?? {});
       } else {
-        setSessionError(res.error?.message ?? 'Failed to load session. It may have expired or does not exist.');
+        setKitError(res.error?.message ?? 'Failed to load kit. It may not exist or you may not have access.');
       }
     };
 
-    if (sessionId) {
-      loadSession();
+    if (kitId) {
+      loadKit();
     }
-  }, [sessionId]);
+  }, [kitId, token]);
 
   const handleItemEdited = useCallback((itemId: string) => {
     setEditedItemIds((prev) => {
@@ -106,29 +108,32 @@ export default function SessionPage() {
   }, []);
 
   const handleUpdateConfidence = useCallback(async (questionId: string, confidence: 'unknown' | 'not-ready' | 'somewhat-ready' | 'ready') => {
+    if (!token) return;
     setIsUpdatingConfidence(true);
-    const res = await updateSessionQuestionConfidence(sessionId, { questionId, confidence });
+    const res = await updateQuestionConfidence(kitId, { questionId, confidence }, token);
     setIsUpdatingConfidence(false);
     if (res.success) {
       setQuestionConfidence((prev) => ({ ...prev, [questionId]: confidence }));
     }
-  }, [sessionId]);
+  }, [kitId, token]);
 
   const handleReorderQuestions = useCallback(async (newOrder: string[]) => {
     setQuestionOrder(newOrder);
+    if (!token) return;
     setIsReordering(true);
-    const res = await reorderSessionQuestions(sessionId, { questionIds: newOrder });
+    const res = await reorderQuestions(kitId, { questionIds: newOrder }, token);
     setIsReordering(false);
-  }, [sessionId]);
+  }, [kitId, token]);
 
   const handleUpdateFlashcardConfidence = useCallback(async (flashcardId: string, confidence: 'easy' | 'medium' | 'hard') => {
+    if (!token) return;
     setIsUpdatingFlashcardConfidence(true);
-    const res = await updateSessionFlashcardConfidence(sessionId, { flashcardId, confidence });
+    const res = await updateFlashcardConfidence(kitId, { flashcardId, confidence }, token);
     setIsUpdatingFlashcardConfidence(false);
     if (res.success) {
       setFlashcardConfidence((prev) => ({ ...prev, [flashcardId]: confidence }));
     }
-  }, [sessionId]);
+  }, [kitId, token]);
 
   const regenRequestRef = useRef<number>(0);
 
@@ -182,21 +187,16 @@ export default function SessionPage() {
     setSaveError(null);
     setSaveSuccess(false);
 
-    const res = await convertSessionToKit(sessionId, token);
+    const res = await updateKitOnServer(kitId, generatedKit, token);
     setIsSaving(false);
 
-    if (res.success && res.data) {
-      setSavedKitId(res.data.id);
-      setSaveSuccess(kitRevisionRef.current === saveRevision);
+    if (res.success) {
       if (questionOrder.length > 0) {
-        // Reorder the saved kit after conversion
-        await reorderQuestions(res.data.id, { questionIds: questionOrder }, token);
+        await reorderQuestions(kitId, { questionIds: questionOrder }, token);
       }
+      setSaveSuccess(kitRevisionRef.current === saveRevision);
       if (kitRevisionRef.current !== saveRevision) {
         setSaveError('The kit changed while saving. Save again to persist the latest edits.');
-      } else {
-        // Use router.replace to replace history entry, avoiding Back button to deleted session
-        router.replace(`/kit/${res.data.id}`);
       }
     } else {
       setSaveError(res.error?.message ?? 'Failed to save kit.');
@@ -219,7 +219,7 @@ export default function SessionPage() {
           </div>
           <span className="font-bold text-xl tracking-tight text-slate-900">Rehearsa</span>
           <span className="px-2.5 py-0.5 text-xs font-semibold bg-sky-50 text-sky-700 rounded-full border border-sky-200">
-            Session
+            Saved Kit
           </span>
         </button>
 
@@ -280,7 +280,7 @@ export default function SessionPage() {
           className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 disabled:opacity-60 rounded-xl transition-colors ml-auto"
         >
           {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-          <span>{isSaving ? 'Saving…' : 'Save Kit'}</span>
+          <span>{isSaving ? 'Saving…' : 'Update Saved Kit'}</span>
         </button>
       </div>
     );
@@ -293,14 +293,14 @@ export default function SessionPage() {
         <main className="flex-1 flex items-center justify-center">
           <div className="flex items-center gap-2 text-slate-500">
             <Loader2 className="w-5 h-5 animate-spin" />
-            <span className="text-sm">Loading session…</span>
+            <span className="text-sm">Loading kit…</span>
           </div>
         </main>
       </div>
     );
   }
 
-  if (sessionError) {
+  if (kitError) {
     return (
       <div className="min-h-screen flex flex-col bg-slate-50/50">
         <Header />
@@ -308,7 +308,7 @@ export default function SessionPage() {
           <div className="max-w-md w-full px-4">
             <div className="flex items-center gap-2 p-4 text-sm text-rose-700 bg-rose-50 border border-rose-200 rounded-xl">
               <AlertCircle className="w-5 h-5 shrink-0" />
-              <span>{sessionError}</span>
+              <span>{kitError}</span>
             </div>
             <p className="text-center mt-4">
               <button onClick={handleReset} className="text-xs text-slate-400 hover:text-slate-600">

@@ -376,6 +376,7 @@ export async function createSession(kit: Kit): Promise<ApiSessionResponse> {
     const res = await fetch('/api/sessions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({ kit }),
     });
     const data = await res.json();
@@ -388,7 +389,9 @@ export async function createSession(kit: Kit): Promise<ApiSessionResponse> {
 
 export async function getSessionById(sessionId: string): Promise<ApiSessionResponse> {
   try {
-    const res = await fetch(`/api/sessions/${sessionId}`);
+    const res = await fetch(`/api/sessions/${sessionId}`, {
+      credentials: 'include',
+    });
     const data = await res.json();
     if (!res.ok) return { success: false, error: data.error };
     const response: ApiSessionResponse = {
@@ -429,6 +432,7 @@ export async function updateSessionQuestionConfidence(
     const res = await fetch(`/api/sessions/${sessionId}/confidence`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify(payload),
     });
     const data = await res.json();
@@ -447,6 +451,7 @@ export async function reorderSessionQuestions(
     const res = await fetch(`/api/sessions/${sessionId}/reorder`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify(payload),
     });
     const data = await res.json();
@@ -465,6 +470,7 @@ export async function updateSessionFlashcardConfidence(
     const res = await fetch(`/api/sessions/${sessionId}/flashcard-confidence`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify(payload),
     });
     const data = await res.json();

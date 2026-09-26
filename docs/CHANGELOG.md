@@ -4,28 +4,45 @@ All notable changes to the Rehearsa project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [feat] - M19 Session URL / Refresh Persistence and Company URL Normalisation — 2026-09-26
+## [fix] - M19 Session URL / Refresh Persistence and Company URL Normalisation — 2026-09-26
+
+### Fixed
+- **Session Ownership Security (Issue 1)**: Implemented session ownership using high-entropy session tokens bound to HttpOnly, Secure cookies. Sessions remain anonymous (no userId) but require the cookie token for access. This prevents URL-only access while preserving same-browser refresh/new-tab behaviour.
+  - Added `sessionToken` field (String, required, indexed) to `SessionDocumentSchema`.
+  - All session access functions now accept `sessionToken` parameter. `getSessionById()` verifies `{ sessionId, sessionToken }` via `findOneAndUpdate()`.
+  - Cookie middleware (`cookie-parser`) added to Express app. All session routes read token from `req.cookies[SESSION_TOKEN_COOKIE]`.
+  - Cookie set on session creation with `httpOnly: true`, `secure: process.env.NODE_ENV === 'production'`, `sameSite: 'lax'`, `maxAge: 7 days`.
+  - Frontend API calls use `credentials: 'include'` to send cookies. Session token is never exposed to client JavaScript.
+  - Invalid token returns 401 UNAUTHORIZED. Invalid session ID or token mismatch returns 404 NOT_FOUND. No information leakage about whether another session exists.
+- **Save Navigation Behaviour (Issue 2)**: Fixed Back button returning to deleted session after save. Use `router.replace()` instead of `router.push()` after session-to-kit conversion. Replaces history entry, preventing Back button from returning to deleted session.
+- **Save-State Lifecycle (Issue 3)**: Fixed "Kit saved" state leaking into other screens. `handleViewChange()` resets `saveSuccess` when leaving kit-viewer, preventing stale "Kit saved" state from leaking into other screens (My Kits).
+- **Saved Kit Canonical Route (Issue 4)**: Created `/kit/[id]` dynamic route for canonical saved-kit URLs. Authenticated, ownership-enforced, distinct from session route.
 
 ### Added
 - **Session URL Architecture** (`apps/api/src/modules/sessions/`):
-  - `SessionDocument` model with UUID v4 session IDs, anonymous (no userId), 7-day TTL via `lastAccessedAt` index.
-  - Session service (`session.service.ts`): `createSession()`, `getSessionById()`, `convertSessionToKit()`, plus confidence/order tracking methods.
-  - API routes (`apps/api/src/routes/sessions.routes.ts`): `POST /api/sessions` (public), `GET /api/sessions/:id` (public), `POST /api/sessions/:id/save` (auth required), plus PUT endpoints for confidence/reorder/flashcard-confidence.
+  - `SessionDocument` model with UUID v4 session IDs, UUID v4 session tokens, anonymous (no userId), 7-day TTL via `lastAccessedAt` index.
+  - Session service (`session.service.ts`): `createSession()`, `getSessionById(sessionId, sessionToken)`, `convertSessionToKit()`, plus confidence/order tracking methods. All session access functions require session token verification.
+  - API routes (`apps/api/src/routes/sessions.routes.ts`): `POST /api/sessions` (public, sets HttpOnly cookie), `GET /api/sessions/:id` (requires session token cookie), `POST /api/sessions/:id/save` (auth required), plus PUT endpoints for confidence/reorder/flashcard-confidence (require session token).
 - **Frontend Session URL Support**:
-  - Updated `apps/web/src/app/page.tsx`: On kit generation, creates session via `createSession()` and navigates to `/session/[id]`.
+  - Updated `apps/web/src/app/page.tsx`: On kit generation, creates session via `createSession()` and navigates to `/session/[id]`. All API calls use `credentials: 'include'` to send cookies.
   - Added dynamic route `apps/web/src/app/session/[id]/page.tsx`: Loads session and displays kit with full KitViewer capabilities.
-  - Session conversion to kit requires authentication, associating the kit with the authenticated user.
+  - Added dynamic route `apps/web/src/app/kit/[id]/page.tsx`: Loads saved kit with full KitViewer capabilities.
+  - Session conversion to kit requires authentication, associating the kit with the authenticated user. Uses `router.replace()` to navigate to `/kit/[kitId]`.
 - **Company URL Normalisation** (`packages/shared/src/utils/urlNormalizer.ts`):
   - `normalizeCompanyUrl()` accepts scheme-less inputs (`google.com`, `www.google.com`) and prepends `https://`.
   - Preserves explicit `http://` and `https://` schemes unchanged.
   - Preserves other schemes (e.g., `ftp://`, `file://`) for downstream rejection.
   - Integrated into `POST /api/interview-prep/generate` and batch evaluator.
+- **Dependencies**:
+  - Added `cookie-parser` dependency to API workspace.
+  - Added `@types/cookie-parser` dev dependency for TypeScript support.
 - **Unit Tests**:
-  - 22 session service tests (`apps/api/src/modules/sessions/tests/session.service.test.ts`).
+  - 27 session service tests (`apps/api/src/modules/sessions/tests/session.service.test.ts`) covering token verification, UNAUTHORIZED for missing token, NOT_FOUND for wrong token, and all existing session operations.
   - 14 URL normalizer tests (`packages/shared/src/tests/urlNormalizer.test.ts`).
 - **Decision records (docs/DECISIONS.md)**:
   - ADR-024: Session URL and Refresh Persistence (Accepted).
   - ADR-025: Company URL Normalisation (Accepted).
+  - ADR-026: Session Ownership Security Model (Accepted).
 
 ### Changed
 - **API Integration**:
@@ -40,9 +57,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Verification
 - `npm run lint`: Exit code 0
-- `npm run build`: Exit code 0 (all workspaces compile cleanly, Next.js build successful with `/session/[id]` route)
-- `npm test`: Exit code 0, **342/342 tests passing** (22 test files, including 22 session tests + 14 URL normalizer tests)
-- `npm run evaluate`: Exit code 0, 8 cases (5 valid, 3 invalid), 355ms
+- `npm run build`: Exit code 0 (all workspaces compile cleanly, Next.js build successful with `/session/[id]` and `/kit/[id]` routes)
+- `npm test`: Exit code 0, **347/347 tests passing** (22 test files, including 27 session tests + 14 URL normalizer tests)
+- `npm run evaluate`: Exit code 0, 8 cases (5 valid, 3 invalid), 549ms
 
 ---
 

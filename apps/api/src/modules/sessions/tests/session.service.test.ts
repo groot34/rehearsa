@@ -96,6 +96,18 @@ describe('Session Service', () => {
     },
   });
 
+  // Helper to create session and return both sessionId and sessionToken
+  const createSessionWithToken = async (kit: Kit) => {
+    const result = await createSession(kit);
+    if (!result.success || !result.data) {
+      throw new Error('Failed to create session');
+    }
+    return {
+      sessionId: result.data.sessionId,
+      sessionToken: result.data.sessionToken,
+    };
+  };
+
   describe('createSession', () => {
     it('creates a session with a high-entropy session ID', async () => {
       const kit = createMockKit();
@@ -125,13 +137,12 @@ describe('Session Service', () => {
   describe('getSessionById', () => {
     it('fetches a session by ID and updates lastAccessedAt', async () => {
       const kit = createMockKit();
-      const createResult = await createSession(kit);
-      const sessionId = createResult.data?.sessionId;
+      const { sessionId, sessionToken } = await createSessionWithToken(kit);
 
       // Wait a bit to ensure timestamp difference
       await new Promise((resolve) => setTimeout(resolve, 10));
 
-      const getResult = await getSessionById(sessionId!);
+      const getResult = await getSessionById(sessionId, sessionToken);
 
       expect(getResult.success).toBe(true);
       expect(getResult.data?.sessionId).toBe(sessionId);
@@ -144,14 +155,24 @@ describe('Session Service', () => {
     });
 
     it('returns NOT_FOUND for non-existent session', async () => {
-      const result = await getSessionById('non-existent-session-id');
+      const result = await getSessionById('non-existent-session-id', 'valid-token');
       expect(result.success).toBe(false);
       expect(result.code).toBe('NOT_FOUND');
       expect(result.statusCode).toBe(404);
     });
 
+    it('returns UNAUTHORIZED for missing session token', async () => {
+      const kit = createMockKit();
+      const { sessionId } = await createSessionWithToken(kit);
+
+      const result = await getSessionById(sessionId, undefined);
+      expect(result.success).toBe(false);
+      expect(result.code).toBe('UNAUTHORIZED');
+      expect(result.statusCode).toBe(401);
+    });
+
     it('returns NOT_FOUND for invalid session ID', async () => {
-      const result = await getSessionById('');
+      const result = await getSessionById('', 'valid-token');
       expect(result.success).toBe(false);
       expect(result.code).toBe('NOT_FOUND');
       expect(result.statusCode).toBe(404);
@@ -159,36 +180,43 @@ describe('Session Service', () => {
 
     it('returns questionConfidence when set', async () => {
       const kit = createMockKit();
-      const createResult = await createSession(kit);
-      const sessionId = createResult.data?.sessionId;
+      const { sessionId, sessionToken } = await createSessionWithToken(kit);
 
-      await updateSessionQuestionConfidence(sessionId!, 'q1', 'ready');
+      await updateSessionQuestionConfidence(sessionId, sessionToken, 'q1', 'ready');
 
-      const getResult = await getSessionById(sessionId!);
+      const getResult = await getSessionById(sessionId, sessionToken);
       expect(getResult.success).toBe(true);
       expect(getResult.data?.questionConfidence).toEqual({ q1: 'ready' });
     });
 
+    it('returns NOT_FOUND when session token does not match', async () => {
+      const kit = createMockKit();
+      const { sessionId } = await createSessionWithToken(kit);
+
+      const getResult = await getSessionById(sessionId, 'wrong-token');
+      expect(getResult.success).toBe(false);
+      expect(getResult.code).toBe('NOT_FOUND');
+      expect(getResult.statusCode).toBe(404);
+    });
+
     it('returns questionOrder when set', async () => {
       const kit = createMockKit();
-      const createResult = await createSession(kit);
-      const sessionId = createResult.data?.sessionId;
+      const { sessionId, sessionToken } = await createSessionWithToken(kit);
 
-      await reorderSessionQuestions(sessionId!, ['q1']);
+      await reorderSessionQuestions(sessionId, sessionToken, ['q1']);
 
-      const getResult = await getSessionById(sessionId!);
+      const getResult = await getSessionById(sessionId, sessionToken);
       expect(getResult.success).toBe(true);
       expect(getResult.data?.questionOrder).toEqual(['q1']);
     });
 
     it('returns flashcardConfidence when set', async () => {
       const kit = createMockKit();
-      const createResult = await createSession(kit);
-      const sessionId = createResult.data?.sessionId;
+      const { sessionId, sessionToken } = await createSessionWithToken(kit);
 
-      await updateSessionFlashcardConfidence(sessionId!, 'f1', 'easy');
+      await updateSessionFlashcardConfidence(sessionId, sessionToken, 'f1', 'easy');
 
-      const getResult = await getSessionById(sessionId!);
+      const getResult = await getSessionById(sessionId, sessionToken);
       expect(getResult.success).toBe(true);
       expect(getResult.data?.flashcardConfidence).toEqual({ f1: 'easy' });
     });
@@ -197,17 +225,16 @@ describe('Session Service', () => {
   describe('convertSessionToKit', () => {
     it('converts a session to a user-owned kit and deletes the session', async () => {
       const kit = createMockKit();
-      const createResult = await createSession(kit);
-      const sessionId = createResult.data?.sessionId;
+      const { sessionId, sessionToken } = await createSessionWithToken(kit);
 
-      const convertResult = await convertSessionToKit(sessionId!, testUserId);
+      const convertResult = await convertSessionToKit(sessionId, testUserId);
 
       expect(convertResult.success).toBe(true);
       expect(convertResult.data?.id).toBeDefined();
       expect(convertResult.data?.kit).toEqual(kit);
 
       // Verify session was deleted
-      const getResult = await getSessionById(sessionId!);
+      const getResult = await getSessionById(sessionId, sessionToken);
       expect(getResult.success).toBe(false);
       expect(getResult.code).toBe('NOT_FOUND');
     });
@@ -230,10 +257,9 @@ describe('Session Service', () => {
   describe('updateSessionQuestionConfidence', () => {
     it('updates question confidence for a session', async () => {
       const kit = createMockKit();
-      const createResult = await createSession(kit);
-      const sessionId = createResult.data?.sessionId;
+      const { sessionId, sessionToken } = await createSessionWithToken(kit);
 
-      const result = await updateSessionQuestionConfidence(sessionId!, 'q1', 'ready');
+      const result = await updateSessionQuestionConfidence(sessionId, sessionToken, 'q1', 'ready');
 
       expect(result.success).toBe(true);
       expect(result.data?.updated).toBe(true);
@@ -244,18 +270,27 @@ describe('Session Service', () => {
 
     it('rejects invalid confidence value', async () => {
       const kit = createMockKit();
-      const createResult = await createSession(kit);
-      const sessionId = createResult.data?.sessionId;
+      const { sessionId, sessionToken } = await createSessionWithToken(kit);
 
-      const result = await updateSessionQuestionConfidence(sessionId!, 'q1', 'invalid' as any);
+      const result = await updateSessionQuestionConfidence(sessionId, sessionToken, 'q1', 'invalid' as any);
 
       expect(result.success).toBe(false);
       expect(result.code).toBe('INVALID_CONFIDENCE');
       expect(result.statusCode).toBe(400);
     });
 
+    it('returns UNAUTHORIZED for missing session token', async () => {
+      const kit = createMockKit();
+      const { sessionId } = await createSessionWithToken(kit);
+
+      const result = await updateSessionQuestionConfidence(sessionId, undefined, 'q1', 'ready');
+      expect(result.success).toBe(false);
+      expect(result.code).toBe('UNAUTHORIZED');
+      expect(result.statusCode).toBe(401);
+    });
+
     it('returns NOT_FOUND for non-existent session', async () => {
-      const result = await updateSessionQuestionConfidence('non-existent-session-id', 'q1', 'ready');
+      const result = await updateSessionQuestionConfidence('non-existent-session-id', 'valid-token', 'q1', 'ready');
       expect(result.success).toBe(false);
       expect(result.code).toBe('NOT_FOUND');
       expect(result.statusCode).toBe(404);
@@ -265,10 +300,9 @@ describe('Session Service', () => {
   describe('reorderSessionQuestions', () => {
     it('reorders questions in a session', async () => {
       const kit = createMockKit();
-      const createResult = await createSession(kit);
-      const sessionId = createResult.data?.sessionId;
+      const { sessionId, sessionToken } = await createSessionWithToken(kit);
 
-      const result = await reorderSessionQuestions(sessionId!, ['q1']);
+      const result = await reorderSessionQuestions(sessionId, sessionToken, ['q1']);
 
       expect(result.success).toBe(true);
       expect(result.data?.updated).toBe(true);
@@ -279,10 +313,9 @@ describe('Session Service', () => {
 
     it('rejects empty reorder array', async () => {
       const kit = createMockKit();
-      const createResult = await createSession(kit);
-      const sessionId = createResult.data?.sessionId;
+      const { sessionId, sessionToken } = await createSessionWithToken(kit);
 
-      const result = await reorderSessionQuestions(sessionId!, []);
+      const result = await reorderSessionQuestions(sessionId, sessionToken, []);
 
       expect(result.success).toBe(false);
       expect(result.code).toBe('INVALID_ORDER');
@@ -291,18 +324,27 @@ describe('Session Service', () => {
 
     it('rejects duplicate IDs in reorder array', async () => {
       const kit = createMockKit();
-      const createResult = await createSession(kit);
-      const sessionId = createResult.data?.sessionId;
+      const { sessionId, sessionToken } = await createSessionWithToken(kit);
 
-      const result = await reorderSessionQuestions(sessionId!, ['q1', 'q1']);
+      const result = await reorderSessionQuestions(sessionId, sessionToken, ['q1', 'q1']);
 
       expect(result.success).toBe(false);
       expect(result.code).toBe('INVALID_ORDER');
       expect(result.statusCode).toBe(400);
     });
 
+    it('returns UNAUTHORIZED for missing session token', async () => {
+      const kit = createMockKit();
+      const { sessionId } = await createSessionWithToken(kit);
+
+      const result = await reorderSessionQuestions(sessionId, undefined, ['q1']);
+      expect(result.success).toBe(false);
+      expect(result.code).toBe('UNAUTHORIZED');
+      expect(result.statusCode).toBe(401);
+    });
+
     it('returns NOT_FOUND for non-existent session', async () => {
-      const result = await reorderSessionQuestions('non-existent-session-id', ['q1']);
+      const result = await reorderSessionQuestions('non-existent-session-id', 'valid-token', ['q1']);
       expect(result.success).toBe(false);
       expect(result.code).toBe('NOT_FOUND');
       expect(result.statusCode).toBe(404);
@@ -312,10 +354,9 @@ describe('Session Service', () => {
   describe('updateSessionFlashcardConfidence', () => {
     it('updates flashcard confidence for a session', async () => {
       const kit = createMockKit();
-      const createResult = await createSession(kit);
-      const sessionId = createResult.data?.sessionId;
+      const { sessionId, sessionToken } = await createSessionWithToken(kit);
 
-      const result = await updateSessionFlashcardConfidence(sessionId!, 'f1', 'easy');
+      const result = await updateSessionFlashcardConfidence(sessionId, sessionToken, 'f1', 'easy');
 
       expect(result.success).toBe(true);
       expect(result.data?.updated).toBe(true);
@@ -326,22 +367,30 @@ describe('Session Service', () => {
 
     it('rejects invalid confidence value', async () => {
       const kit = createMockKit();
-      const createResult = await createSession(kit);
-      const sessionId = createResult.data?.sessionId;
+      const { sessionId, sessionToken } = await createSessionWithToken(kit);
 
-      const result = await updateSessionFlashcardConfidence(sessionId!, 'f1', 'invalid' as any);
+      const result = await updateSessionFlashcardConfidence(sessionId, sessionToken, 'f1', 'invalid' as any);
 
       expect(result.success).toBe(false);
       expect(result.code).toBe('INVALID_CONFIDENCE');
       expect(result.statusCode).toBe(400);
     });
 
+    it('returns UNAUTHORIZED for missing session token', async () => {
+      const kit = createMockKit();
+      const { sessionId } = await createSessionWithToken(kit);
+
+      const result = await updateSessionFlashcardConfidence(sessionId, undefined, 'f1', 'easy');
+      expect(result.success).toBe(false);
+      expect(result.code).toBe('UNAUTHORIZED');
+      expect(result.statusCode).toBe(401);
+    });
+
     it('returns NOT_FOUND for non-existent flashcard ID', async () => {
       const kit = createMockKit();
-      const createResult = await createSession(kit);
-      const sessionId = createResult.data?.sessionId;
+      const { sessionId, sessionToken } = await createSessionWithToken(kit);
 
-      const result = await updateSessionFlashcardConfidence(sessionId!, 'non-existent-flashcard', 'easy');
+      const result = await updateSessionFlashcardConfidence(sessionId, sessionToken, 'non-existent-flashcard', 'easy');
 
       expect(result.success).toBe(false);
       expect(result.code).toBe('NOT_FOUND');
@@ -349,7 +398,7 @@ describe('Session Service', () => {
     });
 
     it('returns NOT_FOUND for non-existent session', async () => {
-      const result = await updateSessionFlashcardConfidence('non-existent-session-id', 'f1', 'easy');
+      const result = await updateSessionFlashcardConfidence('non-existent-session-id', 'valid-token', 'f1', 'easy');
       expect(result.success).toBe(false);
       expect(result.code).toBe('NOT_FOUND');
       expect(result.statusCode).toBe(404);

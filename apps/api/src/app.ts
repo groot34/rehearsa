@@ -1,5 +1,6 @@
 import express, { Express, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import { healthRoutes } from './routes/health.routes';
 import { interviewPrepRoutes } from './routes/interviewPrep.routes';
 import { authRoutes } from './routes/auth.routes';
@@ -28,6 +29,7 @@ export const createApp = (): Express => {
 
   // Middleware
   app.use(cors({ origin: config.corsOrigin, credentials: true }));
+  app.use(cookieParser());
   app.use(express.json({ limit: '2mb' }));
   app.use(express.urlencoded({ extended: true }));
 

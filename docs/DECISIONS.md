@@ -33,6 +33,7 @@ This document records the architectural and engineering decisions made for the R
 | [ADR-023](#adr-023-research-context-size-bounding-for-company-brief-prompt) | Research-Context Size Bounding for Company-Brief Prompt | Accepted | 2026-09-25 |
 | [ADR-024](#adr-024-session-url-and-refresh-persistence) | Session URL and Refresh Persistence | Accepted | 2026-09-26 |
 | [ADR-025](#adr-025-company-url-normalisation) | Company URL Normalisation | Accepted | 2026-09-26 |
+| [ADR-026](#adr-026-session-ownership-security-model) | Session Ownership Security Model | Accepted | 2026-09-26 |
 
 ---
 
@@ -942,3 +943,74 @@ This is an accepted trade-off for a client-rendered SPA without a BFF. An `httpO
   - SSRF guard remains the authoritative security gate; normalisation just makes input unambiguous.
 * **Trade-offs**:
   - Normalisation occurs before validation, so invalid schemes are preserved for downstream rejection — this is intentional to provide correct error messages.
+
+---
+
+### ADR-026: Session Ownership Security Model
+
+* **Status**: Accepted — 2026-09-26
+* **Context**:
+  Session URL persistence (M19) initially used anonymous UUID sessions addressable by URL alone. This created a security vulnerability: copying the session URL (`/session/<uuid>`) into an unrelated browser context (incognito, different device, different user) would expose the generated company's interview preparation. The UUID was acting as a bearer URL. Four production issues were identified requiring security hardening.
+
+* **Alternatives Considered**:
+  - Client-side localStorage/sessionStorage secret: Rejected — JavaScript-accessible, can be scraped or exfiltrated.
+  - JWT in URL query parameter: Rejected — URLs are logged, shared, and bookmarked; credentials in URLs are a security anti-pattern.
+  - Bind sessions to authenticated user: Rejected — would require auth before generation, breaking the batch evaluator contract and anonymous onboarding.
+  - Server-side IP-based ownership: Rejected — unreliable behind NATs, proxies, and shared networks; changes on mobile networks.
+
+* **Decision**:
+  Implement session ownership using high-entropy session tokens bound to HttpOnly, Secure cookies. Sessions remain anonymous (no userId) but require the cookie token for access. This prevents URL-only access while preserving same-browser refresh/new-tab behaviour.
+
+* **Reasoning**:
+  - HttpOnly cookies are not accessible to JavaScript, preventing XSS exfiltration.
+  - Secure flag ensures cookies only sent over HTTPS in production.
+  - SameSite=lax allows same-browser navigation while protecting against CSRF.
+  - Cookie ownership works across tabs and windows in the same browser context.
+  - Incognito or different browser contexts have separate cookie jars, preventing unauthorized access.
+  - 7-day TTL matches existing session lifecycle.
+  - Anonymous UUID remains opaque and non-sequential.
+
+* **Security Model**:
+  - **Session creation**: `POST /api/sessions` generates UUID v4 session ID and UUID v4 session token. Session token set as HttpOnly cookie (`rehearsa_session_token`). Response returns only session ID.
+  - **Session access**: `GET /api/sessions/:id` requires session token from cookie. Server verifies `{ sessionId, sessionToken }` pair. Mismatch or missing token returns 404 NOT_FOUND (no session disclosure).
+  - **Session mutations**: PUT endpoints for confidence/reorder/flashcard-confidence require session token verification.
+  - **Session conversion**: `POST /api/sessions/:id/save` requires JWT authentication (user) but not session token. After conversion, session deleted.
+  - **Error responses**: Invalid token returns 401 UNAUTHORIZED. Invalid session ID or token mismatch returns 404 NOT_FOUND. No information leakage about whether another session exists.
+
+* **Implementation Details**:
+  - **Session model**: Added `sessionToken` field (String, required, indexed) to `SessionDocumentSchema`.
+  - **Session service**: All session access functions now accept `sessionToken` parameter. `getSessionById()` verifies `{ sessionId, sessionToken }` via `findOneAndUpdate()`. Update functions verify token before mutations.
+  - **Session routes**: Cookie middleware (`cookie-parser`) added to Express app. All session routes read token from `req.cookies[SESSION_TOKEN_COOKIE]`. Cookie set on session creation with `httpOnly: true`, `secure: process.env.NODE_ENV === 'production'`, `sameSite: 'lax'`, `maxAge: 7 days`.
+  - **Frontend API**: All session API calls use `credentials: 'include'` to send cookies. Session token is never exposed to client JavaScript.
+  - **Frontend routes**: `/session/[id]/page.tsx` and `/kit/[id]/page.tsx` handle ownership verification errors gracefully.
+
+* **Behaviour Guarantees**:
+  - Same-browser refresh: Works (cookie persists).
+  - Same-browser new tab: Works (cookie shared across tabs).
+  - Incognito context: Cannot access session (separate cookie jar).
+  - Different browser: Cannot access session (separate cookie jar).
+  - URL-only copy: Cannot access session (no cookie).
+  - Different authenticated user: Cannot access session (cookie is browser-bound, not user-bound).
+  - Invalid/missing token: Returns 404 NOT_FOUND (no session disclosure).
+
+* **Additional Fixes**:
+  - **Save navigation**: Use `router.replace()` instead of `router.push()` after session-to-kit conversion. Replaces history entry, preventing Back button from returning to deleted session.
+  - **Saved-kit route**: Created `/kit/[id]` dynamic route for canonical saved-kit URLs. Authenticated, ownership-enforced, distinct from session route.
+  - **Save-state lifecycle**: `handleViewChange()` resets `saveSuccess` when leaving kit-viewer, preventing stale "Kit saved" state from leaking into other screens (My Kits).
+
+* **Tests added**:
+  27 unit tests in `apps/api/src/modules/sessions/tests/session.service.test.ts`:
+  - Session creation returns session token.
+  - Session fetch requires session token.
+  - Session fetch returns UNAUTHORIZED for missing token.
+  - Session fetch returns NOT_FOUND for wrong token.
+  - Session mutations require token verification.
+  - Session mutations return UNAUTHORIZED for missing token.
+  - Session mutations return NOT_FOUND for wrong token.
+  - Conversion deletes session (verified with token).
+  - All existing tests updated to pass sessionToken.
+
+* **Configuration**:
+  - Added `cookie-parser` dependency to API workspace.
+  - Added `@types/cookie-parser` dev dependency for TypeScript support.
+  - Cookie configuration: `SESSION_TOKEN_COOKIE = 'rehearsa_session_token'`.

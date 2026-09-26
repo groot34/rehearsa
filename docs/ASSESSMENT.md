@@ -110,12 +110,16 @@ On 2026-09-25, production was manually verified for frontend availability, kit g
 
 || Requirement | Scope | Status | Notes |
 ||---|---|---|---|
-|| Generation session URL with opaque identifier | Mandatory | Verified | `SessionDocument` model with UUID v4 session IDs. `POST /api/sessions` creates session, returns session ID. Frontend navigates to `/session/[id]`. |
-|| Session persistence across page refresh | Mandatory | Verified | `GET /api/sessions/:id` (public) loads session from MongoDB, restoring kit, confidence, and order state. 7-day TTL via `lastAccessedAt` index. 22 unit tests passing. |
-|| Session conversion to saved kit | Mandatory | Verified | `POST /api/sessions/:id/save` (auth required) converts session to user-owned KitDocument, associates with authenticated user, deletes session, redirects to My Kits. |
-|| Session confidence/order tracking | Mandatory | Verified | `PUT /api/sessions/:id/question-confidence`, `PUT /api/sessions/:id/reorder`, `PUT /api/sessions/:id/flashcard-confidence` endpoints. Session state isolated from saved kits. |
-|| Distinguish active session vs saved kit | Mandatory | Verified | Sessions are anonymous (no userId), addressable by opaque UUID. Saved kits are user-owned (userId required). Conversion endpoint enforces auth. |
+|| Generation session URL with opaque identifier | Mandatory | Verified | `SessionDocument` model with UUID v4 session IDs and UUID v4 session tokens. `POST /api/sessions` creates session, sets HttpOnly cookie, returns session ID. Frontend navigates to `/session/[id]`. |
+|| Session persistence across page refresh | Mandatory | Verified | `GET /api/sessions/:id` (requires session token cookie) loads session from MongoDB, restoring kit, confidence, and order state. 7-day TTL via `lastAccessedAt` index. 27 unit tests passing. |
+|| Session conversion to saved kit | Mandatory | Verified | `POST /api/sessions/:id/save` (auth required) converts session to user-owned KitDocument, associates with authenticated user, deletes session, redirects to `/kit/[kitId]` using `router.replace()` to prevent Back button from returning to deleted session. |
+|| Session confidence/order tracking | Mandatory | Verified | `PUT /api/sessions/:id/question-confidence`, `PUT /api/sessions/:id/reorder`, `PUT /api/sessions/:id/flashcard-confidence` endpoints require session token verification. Session state isolated from saved kits. |
+|| Distinguish active session vs saved kit | Mandatory | Verified | Sessions are anonymous (no userId), addressable by opaque UUID + session token cookie. Saved kits are user-owned (userId required). Conversion endpoint enforces auth. |
 || Existing saved-kit routes unchanged | Mandatory | Verified | All existing `/api/kits` routes remain intact. Session routes are separate (`/api/sessions`). |
+|| Session ownership security (prevent URL-only access) | Security | Verified | Session token set as HttpOnly, Secure cookie (`rehearsa_session_token`). URL alone insufficient; cookie required. 27 unit tests verify token verification, UNAUTHORIZED for missing token, NOT_FOUND for wrong token. Same-browser refresh/new-tab works; incognito/different browser/URL-only copy cannot access session. |
+|| Saved kit canonical route | Mandatory | Verified | `/kit/[id]` dynamic route created for user-owned kits. Authenticated, ownership-enforced, distinct from session route. |
+|| Save navigation behaviour (Back button fix) | UX | Verified | Session-to-kit conversion uses `router.replace()` instead of `router.push()`, preventing Back button from returning to deleted session. |
+|| Save-state lifecycle (prevent stale state leak) | UX | Verified | `handleViewChange()` resets `saveSuccess` when leaving kit-viewer, preventing stale "Kit saved" state from leaking into other screens (My Kits). |
 
 ---
 

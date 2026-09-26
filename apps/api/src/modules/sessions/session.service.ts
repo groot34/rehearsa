@@ -52,23 +52,37 @@ export interface SessionFetchData {
   flashcardConfidence?: Record<string, 'easy' | 'medium' | 'hard'>;
 }
 
+/**
+ * Shape returned for session creation, including the session token for cookie binding.
+ */
+export interface SessionCreateData {
+  sessionId: string;
+  sessionToken: string;
+  kit: Kit;
+  createdAt: string;
+  lastAccessedAt: string;
+}
+
 // ---------------------------------------------------------------------------
 // Create a new session
 // ---------------------------------------------------------------------------
 
 /**
  * Creates a new generation session with a high-entropy opaque session ID.
+ * Generates a session token for ownership verification (bound to HttpOnly cookie).
  * Sessions are anonymous (no userId) and have a 7-day TTL.
  */
 export async function createSession(
   kit: Kit
-): Promise<SessionServiceResult<{ sessionId: string; kit: Kit; createdAt: string; lastAccessedAt: string }>> {
+): Promise<SessionServiceResult<SessionCreateData>> {
   try {
     const sessionId = randomUUID();
+    const sessionToken = randomUUID();
     const now = new Date();
 
     const doc = await SessionDocumentModel.create({
       sessionId,
+      sessionToken,
       kit,
       lastAccessedAt: now,
     });
@@ -77,6 +91,7 @@ export async function createSession(
       success: true,
       data: {
         sessionId: doc.sessionId,
+        sessionToken: doc.sessionToken,
         kit: doc.kit,
         createdAt: doc.createdAt.toISOString(),
         lastAccessedAt: doc.lastAccessedAt.toISOString(),
@@ -101,12 +116,13 @@ export async function createSession(
 // ---------------------------------------------------------------------------
 
 /**
- * Fetches a session by its opaque session ID.
+ * Fetches a session by its opaque session ID and verifies ownership via session token.
  * Updates lastAccessedAt for TTL tracking.
- * Returns NOT_FOUND for missing sessions (no ownership disclosure needed since sessions are anonymous).
+ * Returns NOT_FOUND for missing sessions or invalid tokens (no ownership disclosure).
  */
 export async function getSessionById(
-  sessionId: string
+  sessionId: string,
+  sessionToken?: string
 ): Promise<SessionServiceResult<SessionFetchData>> {
   if (!sessionId || typeof sessionId !== 'string') {
     return {
@@ -117,8 +133,18 @@ export async function getSessionById(
     };
   }
 
+  // Verify session token if provided (required for security)
+  if (!sessionToken || typeof sessionToken !== 'string') {
+    return {
+      success: false,
+      code: 'UNAUTHORIZED',
+      message: 'Session token required.',
+      statusCode: 401,
+    };
+  }
+
   const doc = await SessionDocumentModel.findOneAndUpdate(
-    { sessionId },
+    { sessionId, sessionToken },
     { $set: { lastAccessedAt: new Date() } },
     { new: true }
   );
@@ -231,9 +257,11 @@ export async function convertSessionToKit(
 /**
  * Updates the confidence level for a specific question within a session.
  * Confidence is stored outside the Appendix A kit payload to preserve schema compliance.
+ * Requires session token for ownership verification.
  */
 export async function updateSessionQuestionConfidence(
   sessionId: string,
+  sessionToken: string,
   questionId: string,
   confidence: QuestionConfidence
 ): Promise<SessionServiceResult<{ updated: true }>> {
@@ -243,6 +271,16 @@ export async function updateSessionQuestionConfidence(
       code: 'NOT_FOUND',
       message: 'Session not found.',
       statusCode: 404,
+    };
+  }
+
+  // Verify session token
+  if (!sessionToken || typeof sessionToken !== 'string') {
+    return {
+      success: false,
+      code: 'UNAUTHORIZED',
+      message: 'Session token required.',
+      statusCode: 401,
     };
   }
 
@@ -256,9 +294,9 @@ export async function updateSessionQuestionConfidence(
     };
   }
 
-  // Update confidence and lastAccessedAt
+  // Update confidence and lastAccessedAt with token verification
   const result = await SessionDocumentModel.updateOne(
-    { sessionId },
+    { sessionId, sessionToken },
     {
       $set: {
         [`questionConfidence.${questionId}`]: confidence,
@@ -286,9 +324,11 @@ export async function updateSessionQuestionConfidence(
 /**
  * Reorders questions within a session by setting an explicit ordered array of question IDs.
  * Order is stored outside the Appendix A kit payload to preserve schema compliance.
+ * Requires session token for ownership verification.
  */
 export async function reorderSessionQuestions(
   sessionId: string,
+  sessionToken: string,
   questionIds: string[]
 ): Promise<SessionServiceResult<{ updated: true }>> {
   if (!sessionId || typeof sessionId !== 'string') {
@@ -297,6 +337,16 @@ export async function reorderSessionQuestions(
       code: 'NOT_FOUND',
       message: 'Session not found.',
       statusCode: 404,
+    };
+  }
+
+  // Verify session token
+  if (!sessionToken || typeof sessionToken !== 'string') {
+    return {
+      success: false,
+      code: 'UNAUTHORIZED',
+      message: 'Session token required.',
+      statusCode: 401,
     };
   }
 
@@ -321,9 +371,9 @@ export async function reorderSessionQuestions(
     };
   }
 
-  // Update order and lastAccessedAt
+  // Update order and lastAccessedAt with token verification
   const result = await SessionDocumentModel.updateOne(
-    { sessionId },
+    { sessionId, sessionToken },
     {
       $set: {
         questionOrder: questionIds,
@@ -351,9 +401,11 @@ export async function reorderSessionQuestions(
 /**
  * Updates the confidence tier for a specific flashcard within a session.
  * Confidence is stored outside the Appendix A kit payload to preserve schema compliance.
+ * Requires session token for ownership verification.
  */
 export async function updateSessionFlashcardConfidence(
   sessionId: string,
+  sessionToken: string,
   flashcardId: string,
   confidence: FlashcardConfidence
 ): Promise<SessionServiceResult<{ updated: true }>> {
@@ -363,6 +415,16 @@ export async function updateSessionFlashcardConfidence(
       code: 'NOT_FOUND',
       message: 'Session not found.',
       statusCode: 404,
+    };
+  }
+
+  // Verify session token
+  if (!sessionToken || typeof sessionToken !== 'string') {
+    return {
+      success: false,
+      code: 'UNAUTHORIZED',
+      message: 'Session token required.',
+      statusCode: 401,
     };
   }
 
@@ -377,7 +439,7 @@ export async function updateSessionFlashcardConfidence(
   }
 
   // Verify the session exists and validate flashcardId
-  const doc = await SessionDocumentModel.findOne({ sessionId });
+  const doc = await SessionDocumentModel.findOne({ sessionId, sessionToken });
 
   if (!doc) {
     return {
@@ -401,7 +463,7 @@ export async function updateSessionFlashcardConfidence(
 
   // Atomic update
   await SessionDocumentModel.updateOne(
-    { sessionId },
+    { sessionId, sessionToken },
     {
       $set: {
         [`flashcardConfidence.${flashcardId}`]: confidence,

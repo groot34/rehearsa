@@ -8,6 +8,8 @@ import { Kit } from '@rehearsa/shared';
 export interface ISessionDocument extends Document {
   /** High-entropy opaque session identifier (UUID v4 format) */
   sessionId: string;
+  /** High-entropy session token for ownership verification (bound to HttpOnly cookie) */
+  sessionToken: string;
   /** The complete Appendix A kit payload. */
   kit: Kit;
   /** Question confidence tracking (optional). Stored outside kit payload to preserve Appendix A compliance. */
@@ -32,6 +34,15 @@ const SessionDocumentSchema = new Schema<ISessionDocument>(
       type: String,
       required: true,
       unique: true,
+      index: true,
+    },
+    /**
+     * High-entropy session token for ownership verification.
+     * Bound to HttpOnly cookie to prevent URL-only access.
+     */
+    sessionToken: {
+      type: String,
+      required: true,
       index: true,
     },
     /**

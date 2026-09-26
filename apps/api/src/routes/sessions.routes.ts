@@ -13,6 +13,9 @@ import { SaveKitInputSchema, UpdateKitInputSchema } from '@rehearsa/shared';
 
 const router = Router();
 
+// Session token cookie name
+const SESSION_TOKEN_COOKIE = 'rehearsa_session_token';
+
 // Confidence validation schema
 const QuestionConfidenceSchema = z.enum(['unknown', 'not-ready', 'somewhat-ready', 'ready']);
 const UpdateConfidenceInputSchema = z.object({
@@ -49,6 +52,7 @@ function asyncHandler(
 
 /**
  * Creates a new anonymous generation session with a high-entropy session ID.
+ * Generates a session token and sets it as an HttpOnly cookie for ownership verification.
  * Sessions are public (no auth required) to support the batch evaluator contract.
  * Session-to-kit conversion requires authentication.
  */
@@ -72,7 +76,17 @@ router.post('/', asyncHandler(async (req: Request, res: Response) => {
     });
     return;
   }
-  res.status(201).json({ success: true, ...result.data });
+
+  // Set HttpOnly cookie with session token
+  res.cookie(SESSION_TOKEN_COOKIE, result.data.sessionToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    path: '/',
+  });
+
+  res.status(201).json({ success: true, sessionId: result.data.sessionId });
 }));
 
 // ---------------------------------------------------------------------------
@@ -81,11 +95,12 @@ router.post('/', asyncHandler(async (req: Request, res: Response) => {
 
 /**
  * Fetches a session by its opaque session ID.
+ * Requires session token from HttpOnly cookie for ownership verification.
  * Updates lastAccessedAt for TTL tracking.
- * Public endpoint to support session restoration without authentication.
  */
 router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
-  const result = await getSessionById(req.params.id);
+  const sessionToken = req.cookies[SESSION_TOKEN_COOKIE];
+  const result = await getSessionById(req.params.id, sessionToken);
   if (!result.success) {
     res.status(result.statusCode).json({
       error: { code: result.code, message: result.message },
@@ -121,9 +136,10 @@ router.post('/:id/save', requireAuth, asyncHandler(async (req: Request, res: Res
 
 /**
  * Updates the confidence level for a specific question within a session.
- * Public endpoint to support practice mode without authentication.
+ * Requires session token from HttpOnly cookie for ownership verification.
  */
 router.put('/:id/confidence', asyncHandler(async (req: Request, res: Response) => {
+  const sessionToken = req.cookies[SESSION_TOKEN_COOKIE];
   const parseResult = UpdateConfidenceInputSchema.safeParse(req.body);
   if (!parseResult.success) {
     const details = parseResult.error.issues.map((i) => ({
@@ -138,6 +154,7 @@ router.put('/:id/confidence', asyncHandler(async (req: Request, res: Response) =
 
   const result = await updateSessionQuestionConfidence(
     req.params.id,
+    sessionToken,
     parseResult.data.questionId,
     parseResult.data.confidence
   );
@@ -156,9 +173,10 @@ router.put('/:id/confidence', asyncHandler(async (req: Request, res: Response) =
 
 /**
  * Reorders questions within a session by setting an explicit ordered array of question IDs.
- * Public endpoint to support reordering without authentication.
+ * Requires session token from HttpOnly cookie for ownership verification.
  */
 router.put('/:id/reorder', asyncHandler(async (req: Request, res: Response) => {
+  const sessionToken = req.cookies[SESSION_TOKEN_COOKIE];
   const parseResult = ReorderQuestionsInputSchema.safeParse(req.body);
   if (!parseResult.success) {
     const details = parseResult.error.issues.map((i) => ({
@@ -171,7 +189,7 @@ router.put('/:id/reorder', asyncHandler(async (req: Request, res: Response) => {
     return;
   }
 
-  const result = await reorderSessionQuestions(req.params.id, parseResult.data.questionIds);
+  const result = await reorderSessionQuestions(req.params.id, sessionToken, parseResult.data.questionIds);
   if (!result.success) {
     res.status(result.statusCode).json({
       error: { code: result.code, message: result.message },
@@ -187,9 +205,10 @@ router.put('/:id/reorder', asyncHandler(async (req: Request, res: Response) => {
 
 /**
  * Updates the confidence tier for a specific flashcard within a session.
- * Public endpoint to support practice mode without authentication.
+ * Requires session token from HttpOnly cookie for ownership verification.
  */
 router.put('/:id/flashcard-confidence', asyncHandler(async (req: Request, res: Response) => {
+  const sessionToken = req.cookies[SESSION_TOKEN_COOKIE];
   const parseResult = UpdateFlashcardConfidenceInputSchema.safeParse(req.body);
   if (!parseResult.success) {
     const details = parseResult.error.issues.map((i) => ({
@@ -204,6 +223,7 @@ router.put('/:id/flashcard-confidence', asyncHandler(async (req: Request, res: R
 
   const result = await updateSessionFlashcardConfidence(
     req.params.id,
+    sessionToken,
     parseResult.data.flashcardId,
     parseResult.data.confidence
   );

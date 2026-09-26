@@ -97,25 +97,47 @@ Rehearsa is structured as a TypeScript monorepo providing:
   - `llm/`: Replaceable LLM adapter interface (`ILlmProvider`) with implementations for free-tier providers (Google Gemini / Groq) and strict JSON schema output enforcement.
 
 ### 2.4. Session URL & Refresh Persistence `[CURRENT / ACTIVE]`
-* **Purpose**: Enable URL-based session recovery for unsaved generated kits.
+* **Purpose**: Enable URL-based session recovery for unsaved generated kits with secure ownership.
 * **Implementation**:
-  - **Session Model**: MongoDB `SessionDocument` with high-entropy UUID v4 session IDs, anonymous (no userId), 7-day TTL via `lastAccessedAt` index.
-  - **Session Service**: `createSession()`, `getSessionById()`, `convertSessionToKit()`, plus confidence/order tracking methods.
-  - **API Routes**: `POST /api/sessions` (public), `GET /api/sessions/:id` (public), `POST /api/sessions/:id/save` (auth required), plus PUT endpoints for confidence/reorder/flashcard-confidence.
-  - **Frontend**: On kit generation, creates session via `createSession()` and navigates to `/session/[id]`. Dynamic route `/session/[id]/page.tsx` loads session and displays kit.
-  - **Conversion**: User saves session → converts to user-owned KitDocument → session deleted → redirects to My Kits.
-* **Security Model**: Sessions are anonymous and addressable by opaque UUID. No ownership check required for session fetch. Conversion to kit requires authentication, associating the kit with the authenticated user.
+  - **Session Model**: MongoDB `SessionDocument` with high-entropy UUID v4 session IDs, UUID v4 session tokens, anonymous (no userId), 7-day TTL via `lastAccessedAt` index.
+  - **Session Service**: `createSession()`, `getSessionById(sessionId, sessionToken)`, `convertSessionToKit()`, plus confidence/order tracking methods. All session access functions require session token verification.
+  - **API Routes**: `POST /api/sessions` (public, sets HttpOnly cookie), `GET /api/sessions/:id` (requires session token cookie), `POST /api/sessions/:id/save` (auth required), plus PUT endpoints for confidence/reorder/flashcard-confidence (require session token).
+  - **Frontend**: On kit generation, creates session via `createSession()` and navigates to `/session/[id]`. Dynamic route `/session/[id]/page.tsx` loads session and displays kit. All API calls use `credentials: 'include'` to send cookies.
+  - **Conversion**: User saves session → converts to user-owned KitDocument → session deleted → redirects to `/kit/[kitId]` using `router.replace()` to prevent Back button from returning to deleted session.
+* **Security Model**: Sessions are anonymous but require session token verification via HttpOnly, Secure cookies. Session token is set on creation (`rehearsa_session_token`) and verified on all session access. URL alone is insufficient; cookie is required. Conversion to kit requires authentication, associating the kit with the authenticated user.
 * **URL Format**: `/session/<uuid-v4>` (e.g., `/session/550e8400-e29b-41d4-a716-446655440000`)
-* **Refresh Behaviour**: Refreshing `/session/[id]` loads the session from MongoDB, restoring kit, confidence, and order state. No new generation triggered.
+* **Refresh Behaviour**: Refreshing `/session/[id]` loads the session from MongoDB using session token from cookie, restoring kit, confidence, and order state. No new generation triggered.
+* **Ownership Guarantees**:
+  - Same-browser refresh: Works (cookie persists).
+  - Same-browser new tab: Works (cookie shared across tabs).
+  - Incognito context: Cannot access session (separate cookie jar).
+  - Different browser: Cannot access session (separate cookie jar).
+  - URL-only copy: Cannot access session (no cookie).
+  - Different authenticated user: Cannot access session (cookie is browser-bound, not user-bound).
+  - Invalid/missing token: Returns 404 NOT_FOUND (no session disclosure).
 
-### 2.5. Batch Evaluator CLI (`scripts/evaluator.ts`) `[CURRENT / ACTIVE]`
-### 2.6. Company URL Normalisation `[CURRENT / ACTIVE]`
+### 2.5. Saved Kit Route `[CURRENT / ACTIVE]`
+* **Purpose**: Provide canonical URLs for user-owned persisted kits, distinct from active generation sessions.
+* **Implementation**:
+  - **Route**: `/kit/[id]` dynamic route in Next.js.
+  - **Frontend**: `/kit/[id]/page.tsx` loads KitDocument via authenticated API call (`GET /api/kits/:id`), enforces ownership, displays kit with editing/reordering/confidence tracking.
+  - **API**: Existing Kit CRUD routes (`GET /api/kits/:id`, `PUT /api/kits/:id`) with JWT authentication and user isolation (`{ _id: kitId, userId: req.user.id }`).
+  - **Navigation**: Session-to-kit conversion uses `router.replace('/kit/[id]')` to replace history entry, preventing Back button from returning to deleted session.
+* **URL Format**: `/kit/<uuid-v4>` (e.g., `/kit/550e8400-e29b-41d4-a716-446655440000`)
+* **Refresh Behaviour**: Refreshing `/kit/[id]` loads the kit from MongoDB, restoring all edits, confidence, and order state.
+* **Ownership Guarantees**:
+  - Authenticated user can access own kits.
+  - Another user cannot access another user's kit (404 NOT_FOUND).
+  - Invalid/non-existent kit returns 404 NOT_FOUND.
+  - All mutations (edit, reorder, confidence) require JWT authentication and ownership verification.
+
+### 2.7. Company URL Normalisation `[CURRENT / ACTIVE]`
 * **Purpose**: Accept scheme-less company URLs (e.g., `google.com`, `www.google.com`) and normalise to HTTPS.
 * **Implementation**: `normalizeCompanyUrl()` in `packages/shared/src/utils/urlNormalizer.ts` prepends `https://` to scheme-less inputs, preserves explicit `http://` and `https://`, preserves other schemes for downstream rejection.
 * **SSRF Safety**: Normalisation is pre-validation; the normalised URL must still pass through Zod URL validation and SSRF guard before any network request.
 * **Test Coverage**: 14 tests covering scheme-less inputs, www domains, explicit schemes, edge cases, and SSRF guard expectations.
 
-### 2.7. Batch Evaluator CLI (`scripts/evaluator.ts`) `[CURRENT / ACTIVE]`
+### 2.8. Batch Evaluator CLI (`scripts/evaluator.ts`) `[CURRENT / ACTIVE]`
 * Implements `npm run evaluate -- --input <cases.json> --output <kits.json>`.
 * Invokes the same pipeline logic as the backend without HTTP server overhead.
 * Produces the exact Appendix B JSON envelope.

@@ -16,33 +16,35 @@
 ## 2. Latest Known Repository State
 
 * **Branch**: `main`
-* **HEAD Commit**: Uncommitted M19 changes (session URL + URL normalisation)
-* **Working Tree**: Modified files ready for commit (10 modified, 4 untracked)
+* **HEAD Commit**: e497f12 — `fix(session): secure session access and saved kit navigation`
+* **Working Tree**: Clean
 
 ### M19 Session URL / Refresh Persistence and Company URL Normalisation — implemented 2026-09-26
 
 Implementation summary:
 - **Session URL Architecture**:
-  - Created `SessionDocument` model (`apps/api/src/modules/sessions/session.model.ts`) with UUID v4 session IDs, anonymous (no userId), 7-day TTL via `lastAccessedAt` index.
-  - Implemented session service (`apps/api/src/modules/sessions/session.service.ts`): `createSession()`, `getSessionById()`, `convertSessionToKit()`, plus confidence/order tracking methods.
-  - Added API routes (`apps/api/src/routes/sessions.routes.ts`): `POST /api/sessions` (public), `GET /api/sessions/:id` (public), `POST /api/sessions/:id/save` (auth required), plus PUT endpoints for confidence/reorder/flashcard-confidence.
-  - Updated frontend (`apps/web/src/app/page.tsx`): On kit generation, creates session via `createSession()` and navigates to `/session/[id]`.
+  - Created `SessionDocument` model (`apps/api/src/modules/sessions/session.model.ts`) with UUID v4 session IDs, UUID v4 session tokens, anonymous (no userId), 7-day TTL via `lastAccessedAt` index.
+  - Implemented session service (`apps/api/src/modules/sessions/session.service.ts`): `createSession()`, `getSessionById(sessionId, sessionToken)`, `convertSessionToKit()`, plus confidence/order tracking methods. All session access functions require session token verification.
+  - Added API routes (`apps/api/src/routes/sessions.routes.ts`): `POST /api/sessions` (public, sets HttpOnly cookie), `GET /api/sessions/:id` (requires session token cookie), `POST /api/sessions/:id/save` (auth required), plus PUT endpoints for confidence/reorder/flashcard-confidence (require session token).
+  - Updated frontend (`apps/web/src/app/page.tsx`): On kit generation, creates session via `createSession()` and navigates to `/session/[id]`. All API calls use `credentials: 'include'` to send cookies.
   - Added dynamic route (`apps/web/src/app/session/[id]/page.tsx`): Loads session and displays kit with full KitViewer capabilities.
-  - Session conversion to kit requires authentication, associating the kit with the authenticated user.
-  - 22 unit tests for session service passing (`apps/api/src/modules/sessions/tests/session.service.test.ts`).
+  - Session conversion to kit requires authentication, associating the kit with the authenticated user. Uses `router.replace()` to navigate to `/kit/[kitId]`, preventing Back button from returning to deleted session.
+  - Created `/kit/[id]` dynamic route for canonical saved-kit URLs. Authenticated, ownership-enforced, distinct from session route.
+  - Fixed save-state lifecycle: `handleViewChange()` resets `saveSuccess` when leaving kit-viewer, preventing stale "Kit saved" state from leaking into other screens.
+  - 27 unit tests for session service passing (`apps/api/src/modules/sessions/tests/session.service.test.ts`).
 - **Company URL Normalisation**:
   - Implemented `normalizeCompanyUrl()` in `packages/shared/src/utils/urlNormalizer.ts` to accept scheme-less inputs (`google.com`, `www.google.com`) and prepend `https://`.
   - Preserves explicit `http://` and `https://` schemes unchanged.
   - Preserves other schemes (e.g., `ftp://`, `file://`) for downstream rejection.
   - Integrated into `POST /api/interview-prep/generate` and batch evaluator.
   - 14 unit tests for URL normalisation passing (`packages/shared/src/tests/urlNormalizer.test.ts`).
-- **Files changed**: `apps/api/src/modules/sessions/` (new), `apps/api/src/routes/sessions.routes.ts` (new), `apps/web/src/app/session/[id]/page.tsx` (new), `apps/web/src/app/page.tsx`, `apps/web/src/lib/api.ts`, `packages/shared/src/utils/urlNormalizer.ts` (new), `packages/shared/src/index.ts`, `scripts/evaluator.ts`, `apps/api/src/app.ts`, `apps/api/src/routes/interviewPrep.routes.ts`, plus documentation updates.
+- **Files changed**: `apps/api/src/modules/sessions/` (new), `apps/api/src/routes/sessions.routes.ts` (new), `apps/web/src/app/session/[id]/page.tsx` (new), `apps/web/src/app/kit/[id]/page.tsx` (new), `apps/web/src/app/page.tsx`, `apps/web/src/lib/api.ts`, `packages/shared/src/utils/urlNormalizer.ts` (new), `packages/shared/src/index.ts`, `scripts/evaluator.ts`, `apps/api/src/app.ts`, `apps/api/src/routes/interviewPrep.routes.ts`, plus documentation updates.
 - **Verification (2026-09-26)**:
   - `npm run lint`: Exit code 0
-  - `npm run build`: Exit code 0 (all workspaces compile cleanly, Next.js build successful with `/session/[id]` route)
-  - `npm test`: Exit code 0, **342/342 tests passing** (22 test files, including 22 session tests + 14 URL normalizer tests)
-  - `npm run evaluate`: Exit code 0, 8 cases (5 valid, 3 invalid), 355ms
-- **Documentation**: ADR-024 (Session URL and Refresh Persistence) and ADR-025 (Company URL Normalisation) recorded in `docs/DECISIONS.md`. ASSESSMENT.md updated with session URL requirements. PROGRESS.md updated with verification status.
+  - `npm run build`: Exit code 0 (all workspaces compile cleanly, Next.js build successful with `/session/[id]` and `/kit/[id]` routes)
+  - `npm test`: Exit code 0, **347/347 tests passing** (22 test files, including 27 session tests + 14 URL normalizer tests)
+  - `npm run evaluate`: Exit code 0, 8 cases (5 valid, 3 invalid), 549ms
+- **Documentation**: ADR-024 (Session URL and Refresh Persistence), ADR-025 (Company URL Normalisation), and ADR-026 (Session Ownership Security Model) recorded in `docs/DECISIONS.md`. ASSESSMENT.md updated with session URL requirements. PROGRESS.md updated with verification status.
 
 ### M18 Production LLM Reliability Hardening — implemented 2026-09-25
 
@@ -205,7 +207,7 @@ git log -n 5 --oneline --decorate
 
 ## 6. Remaining Gaps / Next Steps
 
-The following items are genuinely outstanding as of 2026-09-25:
+The following items are genuinely outstanding as of 2026-09-26:
 
 1. ~~**Question reordering production verification**~~: **Resolved** — Question reordering UI controls (`ArrowUp`/`ArrowDown`) exposed in commit `a1dda57` and manually verified in production on 2026-09-25 (controls visible, distinct from expand/collapse chevrons, question moved, new order persisted via Update Saved Kit, order intact after refresh and kit reopening, boundary limits enforced).
 
@@ -217,8 +219,19 @@ The following items are genuinely outstanding as of 2026-09-25:
 
 5. ~~**Render deployment crash (trust proxy)**~~: **Resolved in M17** — `app.set('trust proxy', 1)` added to `apps/api/src/app.ts`. All responses are now JSON; rate limiting uses real client IP.
 
-6. **Live Tavily production verification**: `INTERVIEW_SEARCH_PROVIDER=tavily` + `TAVILY_API_KEY` must be configured in Render environment variables to activate Tavily in production. Live end-to-end verification (kit generation with real Tavily search results) has not happened yet. Mock provider is currently configured in `render.yaml`.
-7. **M18 live verification**: After deploying M18, verify the fix against a company that previously produced 25 s timeouts (e.g. large crawled research + full 10 Tavily results). `GEMINI_TIMEOUT_MS=60000` is already set in `render.yaml`; no additional env changes needed.
+6. ~~**Session ownership security (prevent URL-only access)**~~: **Resolved in M19** — Session token set as HttpOnly, Secure cookie (`rehearsa_session_token`). URL alone insufficient; cookie required. 27 unit tests verify token verification, UNAUTHORIZED for missing token, NOT_FOUND for wrong token. Same-browser refresh/new-tab works; incognito/different browser/URL-only copy cannot access session.
+
+7. ~~**Saved kit canonical route**~~: **Resolved in M19** — `/kit/[id]` dynamic route created for user-owned kits. Authenticated, ownership-enforced, distinct from session route.
+
+8. ~~**Save navigation behaviour (Back button fix)**~~: **Resolved in M19** — Session-to-kit conversion uses `router.replace()` instead of `router.push()`, preventing Back button from returning to deleted session.
+
+9. ~~**Save-state lifecycle (prevent stale state leak)**~~: **Resolved in M19** — `handleViewChange()` resets `saveSuccess` when leaving kit-viewer, preventing stale "Kit saved" state from leaking into other screens (My Kits).
+
+10. **Live Tavily production verification**: `INTERVIEW_SEARCH_PROVIDER=tavily` + `TAVILY_API_KEY` must be configured in Render environment variables to activate Tavily in production. Live end-to-end verification (kit generation with real Tavily search results) has not happened yet. Mock provider is currently configured in `render.yaml`.
+
+11. **M18 live verification**: After deploying M18, verify the fix against a company that previously produced 25 s timeouts (e.g. large crawled research + full 10 Tavily results). `GEMINI_TIMEOUT_MS=60000` is already set in `render.yaml`; no additional env changes needed.
+
+12. **Final Assessment Audit (FS-AI-INTERVIEW-01)**: All mandatory requirements have been implemented and verified. The next step is to run the final assessment audit to confirm all requirements are met.
 
 ---
 
@@ -226,11 +239,12 @@ The following items are genuinely outstanding as of 2026-09-25:
 
 ### A. Session URL Implementation
 - **Route format**: `/session/<uuid-v4>` (e.g., `/session/550e8400-e29b-41d4-a716-446655440000`)
-- **Source of truth**: MongoDB `SessionDocument` with high-entropy UUID v4 session IDs
+- **Source of truth**: MongoDB `SessionDocument` with high-entropy UUID v4 session IDs and UUID v4 session tokens
 - **Persistence mechanism**: Anonymous session storage (no userId), 7-day TTL via `lastAccessedAt` index
-- **Refresh behaviour**: Refreshing `/session/[id]` loads session from MongoDB, restoring kit, confidence, and order state. No new generation triggered.
-- **Saved-kit interaction**: `POST /api/sessions/:id/save` (auth required) converts session to user-owned KitDocument, associates with authenticated user, deletes session, redirects to My Kits.
-- **Security model**: Sessions are anonymous and addressable by opaque UUID. No ownership check required for session fetch. Conversion to kit requires authentication.
+- **Refresh behaviour**: Refreshing `/session/[id]` loads session from MongoDB using session token from cookie, restoring kit, confidence, and order state. No new generation triggered.
+- **Saved-kit interaction**: `POST /api/sessions/:id/save` (auth required) converts session to user-owned KitDocument, associates with authenticated user, deletes session, redirects to `/kit/[kitId]` using `router.replace()` to prevent Back button from returning to deleted session.
+- **Security model**: Sessions are anonymous but require session token verification via HttpOnly, Secure cookies. URL alone is insufficient; cookie is required. Same-browser refresh/new-tab works; incognito/different browser/URL-only copy cannot access session. Invalid/missing token returns 404 NOT_FOUND (no session disclosure).
+- **Saved kit route**: `/kit/<uuid-v4>` dynamic route created for user-owned kits. Authenticated, ownership-enforced, distinct from session route. Refreshing `/kit/[id]` loads the kit from MongoDB, restoring all edits, confidence, and order state.
 
 ### B. Company URL Normalisation
 - **Accepted formats**: `google.com`, `www.google.com`, `https://google.com`, `http://google.com`

@@ -46,6 +46,15 @@ export default function HomePage() {
   // Navigation
   const [view, setView] = useState<View>('home');
 
+  // Reset save success when leaving kit-viewer
+  const handleViewChange = useCallback((newView: View) => {
+    if (view === 'kit-viewer' && newView !== 'kit-viewer') {
+      setSaveSuccess(false);
+      setSaveError(null);
+    }
+    setView(newView);
+  }, [view]);
+
   // Kit generation state
   const [isGenerating, setIsGenerating] = useState(false);
   const [genError, setGenError] = useState<{ code: string; message: string } | null>(null);
@@ -157,7 +166,7 @@ export default function HomePage() {
         // Fallback: display kit directly if session creation fails
         setGeneratedKit(result.kit);
         setQuestionOrder(result.kit.questions.map((q) => q.id));
-        setView('kit-viewer');
+        handleViewChange('kit-viewer');
       }
     } else {
       setGenError(result.error || { code: 'GENERATION_FAILED', message: 'Failed to generate kit.' });
@@ -269,31 +278,8 @@ export default function HomePage() {
   // ---------------------------------------------------------------------------
 
   const handleOpenKit = async (kitId: string) => {
-    if (!token) return;
-    setIsOpeningKit(true);
-    setOpenKitError(null);
-    const res = await fetchKitById(kitId, token);
-    setIsOpeningKit(false);
-    if (res.success && res.data) {
-      setGeneratedKit(res.data.kit);
-      setSavedKitId(res.data.id);
-      setSaveSuccess(true);
-      setSaveError(null);
-      setEditedItemIds(new Set());
-      // Restore persisted M10 state from the API response.
-      // Fall back to question IDs array order when questionOrder is absent/empty.
-      setQuestionConfidence(res.data.questionConfidence ?? {});
-      setQuestionOrder(
-        res.data.questionOrder && res.data.questionOrder.length > 0
-          ? syncQuestionOrder(res.data.questionOrder, res.data.kit.questions)
-          : res.data.kit.questions.map((q) => q.id)
-      );
-      setFlashcardConfidence(res.data.flashcardConfidence ?? {});
-      regenRequestRef.current = 0;
-      setView('kit-viewer');
-    } else {
-      setOpenKitError(res.error?.message ?? 'Failed to open kit. Please try again.');
-    }
+    // Navigate to the dedicated kit route
+    router.push(`/kit/${kitId}`);
   };
 
   // ---------------------------------------------------------------------------
@@ -313,7 +299,7 @@ export default function HomePage() {
     setQuestionOrder([]);
     setFlashcardConfidence({});
     regenRequestRef.current = 0;
-    setView('home');
+    handleViewChange('home');
   };
 
 
@@ -345,7 +331,7 @@ export default function HomePage() {
                 {user.email}
               </span>
               <button
-                onClick={() => setView('my-kits')}
+                onClick={() => handleViewChange('my-kits')}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
               >
                 <BookMarked className="w-3.5 h-3.5" />
@@ -361,7 +347,7 @@ export default function HomePage() {
             </>
           ) : (
             <button
-              onClick={() => setView('auth')}
+              onClick={() => handleViewChange('auth')}
               className="px-3.5 py-1.5 text-xs font-semibold text-sky-700 bg-sky-50 border border-sky-200 rounded-lg hover:bg-sky-100 transition-colors"
             >
               Sign In / Register
@@ -421,9 +407,9 @@ export default function HomePage() {
               <h2 className="text-2xl font-bold text-slate-900">Welcome to Rehearsa</h2>
               <p className="text-sm text-slate-500 mt-1">Sign in to save and manage your interview kits.</p>
             </div>
-            <AuthForms onSuccess={() => setView('home')} />
+            <AuthForms onSuccess={() => handleViewChange('home')} />
             <p className="text-center mt-4">
-              <button onClick={() => setView('home')} className="text-xs text-slate-400 hover:text-slate-600">
+              <button onClick={() => handleViewChange('home')} className="text-xs text-slate-400 hover:text-slate-600">
                 ← Back
               </button>
             </p>
@@ -435,7 +421,7 @@ export default function HomePage() {
           <div>
             <div className="max-w-3xl mx-auto px-4 pt-6">
               <button
-                onClick={() => setView('home')}
+                onClick={() => handleViewChange('home')}
                 className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700 transition-colors"
               >
                 <ChevronLeft className="w-3.5 h-3.5" />
