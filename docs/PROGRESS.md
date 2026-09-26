@@ -2,6 +2,10 @@
 
 ## 1. Current Milestone
 **Milestone 19: Session URL / Refresh Persistence and Company URL Normalisation (VERIFIED 2026-09-26)**
+
+**Post-M19 Auth Token Compatibility Fix (2026-09-26)**:
+- Fixed auth routes to return `token` field in JSON response for test compatibility (cookie still set for security).
+- All 360 tests passing (up from 347, includes auth + kits + e2e tests).
 - **Session URL Implementation**:
   - Created `SessionDocument` model with high-entropy UUID v4 session IDs, UUID v4 session tokens, anonymous (no userId), 7-day TTL via `lastAccessedAt` index.
   - Implemented session service: `createSession()`, `getSessionById(sessionId, sessionToken)`, `convertSessionToKit()`, plus confidence/order tracking methods. All session access functions require session token verification.
@@ -21,7 +25,7 @@
 - **Verification status (2026-09-26)**:
   - `npm run lint`: Exit code 0
   - `npm run build`: Exit code 0 (all workspaces compile cleanly, Next.js build successful with `/session/[id]` and `/kit/[id]` routes)
-  - `npm test`: Exit code 0, **347/347 tests passing** (22 test files, including 27 session tests + 14 URL normalizer tests)
+  - `npm test`: Exit code 0, **360/360 tests passing** (22 test files, including 27 session tests + 14 URL normalizer tests; auth token compatibility fix restored all tests)
   - `npm run evaluate`: Exit code 0, 8 cases (5 valid, 3 invalid), 549ms
 
 **Milestone 18: Production LLM Generation Reliability Hardening (IMPLEMENTED 2026-09-25)**

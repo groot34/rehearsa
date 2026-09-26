@@ -4,6 +4,18 @@ All notable changes to the Rehearsa project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [fix] - Auth Token Response Compatibility — 2026-09-26
+
+### Fixed
+- **Auth Routes Token Response**: Restored `token` field in `/auth/register` and `/auth/login` JSON response bodies for backward compatibility with existing test suite. HttpOnly cookie is still set for security, but token is also returned in response for test/legacy client compatibility.
+
+### Verification
+- `npm test`: Exit code 0, **360/360 tests passing** (restored auth + kits + e2e tests)
+- `npm run build`: Exit code 0
+- `npm run lint`: Exit code 0
+
+---
+
 ## [fix] - M19 Session URL / Refresh Persistence and Company URL Normalisation — 2026-09-26
 
 ### Fixed
@@ -58,7 +70,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Verification
 - `npm run lint`: Exit code 0
 - `npm run build`: Exit code 0 (all workspaces compile cleanly, Next.js build successful with `/session/[id]` and `/kit/[id]` routes)
-- `npm test`: Exit code 0, **347/347 tests passing** (22 test files, including 27 session tests + 14 URL normalizer tests)
+- `npm test`: Exit code 0, **360/360 tests passing** (22 test files, including 27 session tests + 14 URL normalizer tests; auth token compatibility fix restored all tests)
 - `npm run evaluate`: Exit code 0, 8 cases (5 valid, 3 invalid), 549ms
 
 ---

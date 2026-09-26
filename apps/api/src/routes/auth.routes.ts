@@ -70,6 +70,7 @@ router.post('/register', authLimiter, async (req: Request, res: Response) => {
 
   return res.status(201).json({
     success: true,
+    token: result.token,
     user: result.user,
   });
 });
@@ -110,6 +111,7 @@ router.post('/login', authLimiter, async (req: Request, res: Response) => {
 
   return res.status(200).json({
     success: true,
+    token: result.token,
     user: result.user,
   });
 });

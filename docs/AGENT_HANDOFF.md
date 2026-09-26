@@ -8,7 +8,8 @@
 
 * **Project**: Rehearsa — Full-Stack AI-Powered Interview Preparation Platform
 * **Assessment ID**: `FS-AI-INTERVIEW-01` (Trao Assessment)
-* **Active Milestone**: `M19: Session URL / Refresh Persistence and Company URL Normalisation` (VERIFIED 2026-09-26)
+* **Active Milestone**: None — M19 Session URL / Refresh Persistence and Company URL Normalisation verified (2026-09-26)
+* **Post-M19 Fix**: Auth token response compatibility for test suite (2026-09-26)
 * **Next Milestone**: None — Final assessment audit complete, all FS-AI-INTERVIEW-01 requirements verified
 
 ---
@@ -112,7 +113,7 @@ Implementation summary:
 ## 3. Completed Verification Evidence
 
 ### Automated Tests (mongodb-memory-server — no real DB required)
-- `npm test` → Exit Code `0`. **347/347 tests passing** across 22 test files (27 session tests + 14 URL normalizer tests added in M19).
+- `npm test` → Exit Code `0`. **360/360 tests passing** across 22 test files (27 session tests + 14 URL normalizer tests added in M19; auth token compatibility fix restored test count).
 - `npm run build` → Exit Code `0`. All three workspaces compile cleanly.
 - `npm run lint` → Exit Code `0`. All workspaces lint cleanly.
 - `npm run evaluate -- --input scratch/synthetic-benchmark-cases.json --output scratch/synthetic-benchmark-output.json` → Exit Code `0`. 8 cases: 5 valid kits, 3 isolated invalid, 550ms. Mock provider used, no external API calls.

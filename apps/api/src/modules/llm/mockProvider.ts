@@ -33,6 +33,9 @@ export class MockLlmProvider implements ILlmProvider {
           { id: 'r2', text: 'Experience with React, Next.js, and modern CSS frameworks', kind: 'technical', priority: 'must' },
           { id: 'r3', text: 'Database architecture and query performance tuning', kind: 'technical', priority: 'must' },
           { id: 'r4', text: 'Strong ownership and cross-functional leadership', kind: 'behavioural', priority: 'nice' },
+          { id: 'r5', text: 'System design and architectural patterns', kind: 'technical', priority: 'must' },
+          { id: 'r6', text: 'Cloud infrastructure and deployment experience', kind: 'technical', priority: 'must' },
+          { id: 'r7', text: 'Team collaboration and communication skills', kind: 'behavioural', priority: 'nice' },
         ],
       };
     }
@@ -59,35 +62,55 @@ export class MockLlmProvider implements ILlmProvider {
         ],
       };
     }
+    // 3.5. Pass 3 Additional Questions for Minimum Target
+    else if (promptLower.includes('additional') || promptLower.includes('pass 3') || promptLower.includes('minimum target')) {
+      const additionalMatch = promptLower.match(/(\d+)\s*additional/);
+      const additionalCount = additionalMatch ? parseInt(additionalMatch[1], 10) : 5;
+      
+      const questions = [];
+      for (let i = 0; i < additionalCount; i++) {
+        const reqId = `r${(i % 4) + 1}`;
+        const category = ['technical', 'behavioural', 'system-design', 'company-fit'][i % 4];
+        
+        questions.push({
+          id: `q_p3_${i + 1}`,
+          requirement_ids: [reqId],
+          category: category as any,
+          prompt: `Additional question ${i + 1} for ${category} covering deeper aspects of requirement ${reqId}`,
+          answer_outline: `Detailed answer outline for additional question ${i + 1}`,
+          difficulty: ((i % 3) + 1) as 1 | 2 | 3,
+        });
+      }
+
+      mockData = { questions };
+    }
     // 4. Default Pass 1 Question & Flashcard Generation
     else {
+      // Parse target question count from prompt if present
+      let targetQuestionCount = 3;
+      const targetMatch = promptLower.match(/(\d+)\s*(?:questions|minimum|target)/);
+      if (targetMatch) {
+        targetQuestionCount = Math.max(parseInt(targetMatch[1], 10), 1);
+      }
+
+      // Generate question array based on target count
+      const questions = [];
+      for (let i = 0; i < targetQuestionCount; i++) {
+        const reqId = `r${(i % 7) + 1}`;
+        const category = ['technical', 'behavioural', 'system-design', 'company-fit'][i % 4];
+        
+        questions.push({
+          id: `q${i + 1}`,
+          requirement_ids: [reqId],
+          category: category as any,
+          prompt: `Question ${i + 1} for ${category} covering requirement ${reqId}`,
+          answer_outline: `Answer outline for question ${i + 1}`,
+          difficulty: ((i % 3) + 1) as 1 | 2 | 3,
+        });
+      }
+
       mockData = {
-        questions: [
-          {
-            id: 'q1',
-            requirement_ids: ['r1'],
-            category: 'technical',
-            prompt: 'How do you handle asynchronous error propagation in Node.js event loops and streams?',
-            answer_outline: 'Discuss stream pipelines, unhandled rejection handlers, and backpressure management.',
-            difficulty: 2,
-          },
-          {
-            id: 'q2',
-            requirement_ids: ['r2'],
-            category: 'system-design',
-            prompt: 'How would you design a server-rendered Next.js application with efficient caching?',
-            answer_outline: 'Cover Server Components, ISR, fetch cache tags, and CDN edge caching strategies.',
-            difficulty: 3,
-          },
-          {
-            id: 'q3',
-            requirement_ids: ['r3'],
-            category: 'technical',
-            prompt: 'Explain database indexing strategies for high-volume read vs write operations.',
-            answer_outline: 'Compare B-Tree vs Hash indexes, composite index column order, and write-amplification tradeoffs.',
-            difficulty: 2,
-          },
-        ],
+        questions,
         flashcards: [
           {
             id: 'f1',

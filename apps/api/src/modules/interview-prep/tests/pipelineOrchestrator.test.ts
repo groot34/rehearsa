@@ -87,4 +87,58 @@ describe('executeGenerationPipeline', () => {
       expect(result.error?.code).toBeDefined();
     }
   });
+
+  it('generates enough questions for 25-day schedule', async () => {
+    const result = await executeGenerationPipeline({
+      jobDescription:
+        'We are seeking a Senior Full Stack Engineer proficient in TypeScript, React, Node.js, PostgreSQL, system design, cloud infrastructure, and team leadership to build scalable products.',
+      companyUrl: 'https://example.com',
+      daysAvailable: 25,
+      provider: mockProvider,
+      allowLoopbackInDev: true,
+    });
+
+    if (result.success) {
+      const kit = result.kit!;
+      
+      // Should have at least 25 questions to populate all days
+      expect(kit.questions.length).toBeGreaterThanOrEqual(25);
+      
+      // Schedule should have exactly 25 days
+      expect(kit.schedule.days_available).toBe(25);
+      expect(kit.schedule.days.length).toBe(25);
+      
+      // Every day should have at least 1 question
+      kit.schedule.days.forEach((day) => {
+        expect(day.question_ids.length).toBeGreaterThanOrEqual(1);
+      });
+    }
+  });
+
+  it('generates enough questions for 7-day schedule', async () => {
+    const result = await executeGenerationPipeline({
+      jobDescription:
+        'We are seeking a Full Stack Engineer proficient in TypeScript, React, and Node.js.',
+      companyUrl: 'https://example.com',
+      daysAvailable: 7,
+      provider: mockProvider,
+      allowLoopbackInDev: true,
+    });
+
+    if (result.success) {
+      const kit = result.kit!;
+      
+      // Should have at least 7 questions
+      expect(kit.questions.length).toBeGreaterThanOrEqual(7);
+      
+      // Schedule should have exactly 7 days
+      expect(kit.schedule.days_available).toBe(7);
+      expect(kit.schedule.days.length).toBe(7);
+      
+      // Every day should have at least 1 question
+      kit.schedule.days.forEach((day) => {
+        expect(day.question_ids.length).toBeGreaterThanOrEqual(1);
+      });
+    }
+  });
 });

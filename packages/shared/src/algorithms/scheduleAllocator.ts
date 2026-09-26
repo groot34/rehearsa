@@ -1,9 +1,40 @@
-import { Question, Schedule, ScheduleDay } from '../schemas/kit.schema';
+import { Question, Schedule, ScheduleDay, RoleRequirement } from '../schemas/kit.schema';
 
 export interface ScheduleAllocationOptions {
   days_available: number;
   questions: Question[];
   role_title?: string;
+}
+
+/**
+ * Calculates target question count based on days_available and available requirements.
+ * Ensures enough questions to populate all days while avoiding excessive generation.
+ */
+export function calculateTargetQuestionCount(days_available: number, requirements: RoleRequirement[]): number {
+  // Minimum: at least one question per day
+  const minimum = days_available;
+  
+  // Base multiplier based on requirement count (more requirements = more potential depth)
+  const reqCount = requirements.length;
+  let multiplier = 1.0; // Default: exactly minimum for small requirements
+  
+  if (reqCount >= 10) {
+    multiplier = 1.5; // Rich requirements: 50% more questions
+  } else if (reqCount >= 5) {
+    multiplier = 1.3; // Moderate requirements: 30% more questions
+  } else if (reqCount >= 3) {
+    multiplier = 1.2; // Some requirements: 20% more questions
+  }
+  
+  // Calculate target
+  let target = Math.ceil(days_available * multiplier);
+  
+  // Cap maximum to avoid absurd question counts (e.g., 180 questions for 60 days)
+  const maximum = Math.min(days_available * 3, 120);
+  target = Math.min(target, maximum);
+  
+  // Ensure minimum is met
+  return Math.max(target, minimum);
 }
 
 // Category to focus title map for deterministic focus labeling
@@ -21,46 +52,6 @@ const DEFAULT_MINUTES_PER_DIFFICULTY: Record<number, number> = {
 };
 
 /**
- * Builds a deterministic array of phase-based focus labels for empty schedule days.
- * Labels are based on the actual categories present in the question set.
- */
-function buildPhaseFocusLabels(categories: Set<string>, days_available: number): string[] {
-  const labels: string[] = [];
-  
-  // Phase 1: Category-specific review (based on actual categories present)
-  const categoryArray = Array.from(categories).sort();
-  for (const cat of categoryArray) {
-    if (CATEGORY_FOCUS_MAP[cat]) {
-      labels.push(`${CATEGORY_FOCUS_MAP[cat]} Review`);
-    }
-  }
-  
-  // Phase 2: Mock interview practice
-  if (days_available >= 7) {
-    labels.push('Technical Mock Interview');
-    labels.push('Behavioural Mock Interview');
-    labels.push('Mixed Mock Interview');
-  }
-  
-  // Phase 3: Weak area and flashcard revision
-  if (days_available >= 14) {
-    labels.push('Weak Area & Flashcard Revision');
-  }
-  
-  // Phase 4: Final revision
-  if (days_available >= 21) {
-    labels.push('Final Revision & Interview Readiness');
-  }
-  
-  // Fallback if no categories or very short schedule
-  if (labels.length === 0) {
-    labels.push('General Interview Preparation');
-  }
-  
-  return labels;
-}
-
-/**
  * Deterministically allocates interview questions into a study schedule.
  * 
  * Rules:
@@ -70,7 +61,7 @@ function buildPhaseFocusLabels(categories: Set<string>, days_available: number):
  * 4. Questions are grouped into contiguous category blocks across days so daily focus labels are meaningful.
  * 5. Daily study minutes are calculated as positive integers based on difficulty or minimum threshold.
  * 6. Daily focus labels are derived deterministically from the predominant question category of that day.
- * 7. Handles 0 questions safely without crashing.
+ * 7. Requires at least `days_available` questions to ensure every day has study material.
  */
 export function allocateSchedule(options: ScheduleAllocationOptions): Schedule {
   const { days_available, questions = [], role_title } = options;
@@ -89,28 +80,14 @@ export function allocateSchedule(options: ScheduleAllocationOptions): Schedule {
     }
   }
 
-  const days: ScheduleDay[] = [];
-
-  if (validQuestions.length === 0) {
-    // Zero questions edge case: generate empty scheduled days with phase-based focus labels
-    const emptyCategories = new Set<string>();
-    const phaseLabels = buildPhaseFocusLabels(emptyCategories, days_available);
-    
-    for (let dayNum = 1; dayNum <= days_available; dayNum++) {
-      const focusIndex = (dayNum - 1) % phaseLabels.length;
-      days.push({
-        day: dayNum,
-        focus: phaseLabels[focusIndex],
-        question_ids: [],
-        minutes: 45,
-      });
-    }
-
-    return {
-      days_available,
-      days,
-    };
+  // Validate minimum question count
+  if (validQuestions.length < days_available) {
+    throw new Error(
+      `Insufficient questions for ${days_available} days. Got ${validQuestions.length} questions, need at least ${days_available}. The generation pipeline should ensure minimum question count.`
+    );
   }
+
+  const days: ScheduleDay[] = [];
 
   // Sort questions deterministically by category then difficulty then ID
   const sortedQuestions = [...validQuestions].sort((a, b) => {
@@ -123,33 +100,22 @@ export function allocateSchedule(options: ScheduleAllocationOptions): Schedule {
     return a.id.localeCompare(b.id);
   });
 
-  // Bucketing questions into days_available bins using contiguous block allocation
+  // Bucketing questions into days_available bins ensuring every day gets at least 1 question
   const dayQuestionBins: Question[][] = Array.from({ length: days_available }, () => []);
 
-  if (sortedQuestions.length >= days_available) {
-    // Contiguous block allocation: keeps same-category questions together on the same or adjacent days
-    sortedQuestions.forEach((q, idx) => {
-      const binIdx = Math.floor((idx * days_available) / sortedQuestions.length);
-      const clampedBinIdx = Math.min(binIdx, days_available - 1);
-      dayQuestionBins[clampedBinIdx].push(q);
-    });
-  } else {
-    // Fewer questions than days: spread questions evenly across all days
-    sortedQuestions.forEach((q, idx) => {
-      const binIdx = Math.floor((idx * days_available) / sortedQuestions.length);
-      const clampedBinIdx = Math.min(binIdx, days_available - 1);
-      dayQuestionBins[clampedBinIdx].push(q);
-    });
+  // First pass: ensure every day gets at least 1 question
+  for (let dayIdx = 0; dayIdx < days_available; dayIdx++) {
+    if (dayIdx < sortedQuestions.length) {
+      dayQuestionBins[dayIdx].push(sortedQuestions[dayIdx]);
+    }
   }
 
-  // Extract unique categories from all questions for phase label generation
-  const presentCategories = new Set<string>();
-  for (const q of validQuestions) {
-    presentCategories.add(q.category);
-  }
-  
-  // Build phase-based focus labels for empty days
-  const phaseLabels = buildPhaseFocusLabels(presentCategories, days_available);
+  // Second pass: distribute remaining questions evenly
+  const remainingQuestions = sortedQuestions.slice(days_available);
+  remainingQuestions.forEach((q, idx) => {
+    const binIdx = idx % days_available;
+    dayQuestionBins[binIdx].push(q);
+  });
 
   // Construct each ScheduleDay
   for (let dayNum = 1; dayNum <= days_available; dayNum++) {
@@ -161,11 +127,6 @@ export function allocateSchedule(options: ScheduleAllocationOptions): Schedule {
       const diffTime = DEFAULT_MINUTES_PER_DIFFICULTY[q.difficulty] || 20;
       return sum + diffTime;
     }, 0);
-
-    // Ensure a minimum daily study block (30 min) when 0 questions on that day
-    if (calculatedMinutes === 0) {
-      calculatedMinutes = 30;
-    }
 
     // Determine day focus based on predominant category in dayQuestions
     const categoryCounts: Record<string, number> = {};
@@ -185,10 +146,6 @@ export function allocateSchedule(options: ScheduleAllocationOptions): Schedule {
     let focusLabel: string;
     if (topCategory && CATEGORY_FOCUS_MAP[topCategory]) {
       focusLabel = CATEGORY_FOCUS_MAP[topCategory];
-    } else if (dayQuestions.length === 0) {
-      // Use phase-based focus label for empty days
-      const phaseIndex = (dayNum - 1) % phaseLabels.length;
-      focusLabel = phaseLabels[phaseIndex];
     } else {
       focusLabel = 'Mixed Question Review & Practice';
     }
