@@ -35,22 +35,27 @@ declare global {
  * lookup if revocation is required.
  */
 export function requireAuth(req: Request, res: Response, next: NextFunction): void {
-  const authHeader = req.headers.authorization;
+  // Try cookie first (HttpOnly cookie auth)
+  const token = req.cookies?.rehearsa_token;
 
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  // Fall back to Authorization header (for test compatibility)
+  const authHeader = req.headers.authorization;
+  const headerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+
+  const finalToken = token || headerToken;
+
+  if (!finalToken) {
     res.status(401).json({
       error: {
         code: 'MISSING_TOKEN',
-        message: 'Authentication required. Provide a Bearer token.',
+        message: 'Authentication required.',
       },
     });
     return;
   }
 
-  const token = authHeader.slice(7); // strip "Bearer "
-
   try {
-    const payload = verifyToken(token);
+    const payload = verifyToken(finalToken);
     req.user = { sub: payload.sub, email: payload.email };
     next();
   } catch (err) {

@@ -14,35 +14,35 @@ interface Props {
 }
 
 export function SavedKitsList({ onOpenKit, onNewKit, newlySavedKitId }: Props) {
-  const { token } = useAuth();
+  const { user } = useAuth();
   const [kits, setKits] = useState<KitSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const loadKits = useCallback(async () => {
-    if (!token) return;
+    if (!user) return;
     setIsLoading(true);
     setError(null);
-    const res = await fetchKitList(token);
+    const res = await fetchKitList();
     setIsLoading(false);
     if (res.success && res.kits) {
       setKits(res.kits);
     } else {
       setError(res.error?.message ?? 'Failed to load your kits.');
     }
-  }, [token]);
+  }, [user]);
 
   useEffect(() => {
     loadKits();
   }, [loadKits, newlySavedKitId]); // re-fetch when a new kit is saved
 
   const handleDelete = async (kit: KitSummary) => {
-    if (!token) return;
+    if (!user) return;
     if (!window.confirm(`Delete the kit for "${kit.role}" at ${kit.company}? This cannot be undone.`)) return;
 
     setDeletingId(kit.id);
-    const res = await deleteKitFromServer(kit.id, token);
+    const res = await deleteKitFromServer(kit.id);
     setDeletingId(null);
 
     if (res.success) {

@@ -41,7 +41,7 @@ type View = 'home' | 'auth' | 'my-kits' | 'kit-viewer';
 
 export default function HomePage() {
   const router = useRouter();
-  const { token, user, isLoading: authLoading, logout } = useAuth();
+  const { user, isLoading: authLoading, logout } = useAuth();
 
   // Navigation
   const [view, setView] = useState<View>('home');
@@ -114,33 +114,33 @@ export default function HomePage() {
   }, []);
 
   const handleUpdateConfidence = useCallback(async (questionId: string, confidence: 'unknown' | 'not-ready' | 'somewhat-ready' | 'ready') => {
-    if (!savedKitId || !token) return;
+    if (!savedKitId) return;
     setIsUpdatingConfidence(true);
-    const res = await updateQuestionConfidence(savedKitId, { questionId, confidence }, token);
+    const res = await updateQuestionConfidence(savedKitId, { questionId, confidence });
     setIsUpdatingConfidence(false);
     if (res.success) {
       setQuestionConfidence((prev) => ({ ...prev, [questionId]: confidence }));
     }
-  }, [savedKitId, token]);
+  }, [savedKitId]);
 
   const handleReorderQuestions = useCallback(async (newOrder: string[]) => {
     setQuestionOrder(newOrder);
-    if (!savedKitId || !token) return;
+    if (!savedKitId) return;
     setIsReordering(true);
-    const res = await reorderQuestions(savedKitId, { questionIds: newOrder }, token);
+    const res = await reorderQuestions(savedKitId, { questionIds: newOrder });
     setIsReordering(false);
-  }, [savedKitId, token]);
+  }, [savedKitId]);
 
   const handleUpdateFlashcardConfidence = useCallback(async (flashcardId: string, confidence: 'easy' | 'medium' | 'hard') => {
-    if (!savedKitId || !token) return;
+    if (!savedKitId) return;
     setIsUpdatingFlashcardConfidence(true);
-    const res = await updateFlashcardConfidence(savedKitId, { flashcardId, confidence }, token);
+    const res = await updateFlashcardConfidence(savedKitId, { flashcardId, confidence });
     setIsUpdatingFlashcardConfidence(false);
     if (res.success) {
       setFlashcardConfidence((prev) => ({ ...prev, [flashcardId]: confidence }));
     }
     // On failure, optimistic UI is not applied — the displayed confidence stays as-is
-  }, [savedKitId, token]);
+  }, [savedKitId]);
 
   // ---------------------------------------------------------------------------
   // Generation
@@ -231,7 +231,7 @@ export default function HomePage() {
   // ---------------------------------------------------------------------------
 
   const handleSaveKit = async () => {
-    if (!generatedKit || !token) return;
+    if (!generatedKit) return;
     const saveRevision = kitRevisionRef.current;
     setIsSaving(true);
     setSaveError(null);
@@ -239,11 +239,11 @@ export default function HomePage() {
 
     if (savedKitId) {
       // Update existing saved kit
-      const res = await updateKitOnServer(savedKitId, generatedKit, token);
+      const res = await updateKitOnServer(savedKitId, generatedKit);
       setIsSaving(false);
       if (res.success) {
         if (questionOrder.length > 0) {
-          await reorderQuestions(savedKitId, { questionIds: questionOrder }, token);
+          await reorderQuestions(savedKitId, { questionIds: questionOrder });
         }
         setSaveSuccess(kitRevisionRef.current === saveRevision);
         setNewlySavedKitId(savedKitId);
@@ -255,12 +255,12 @@ export default function HomePage() {
       }
     } else {
       // Save new kit
-      const res = await saveKitToServer(generatedKit, token);
+      const res = await saveKitToServer(generatedKit);
       setIsSaving(false);
       if (res.success && res.data) {
         setSavedKitId(res.data.id);
         if (questionOrder.length > 0) {
-          await reorderQuestions(res.data.id, { questionIds: questionOrder }, token);
+          await reorderQuestions(res.data.id, { questionIds: questionOrder });
         }
         setSaveSuccess(kitRevisionRef.current === saveRevision);
         setNewlySavedKitId(res.data.id);

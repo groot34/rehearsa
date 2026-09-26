@@ -59,9 +59,17 @@ router.post('/register', authLimiter, async (req: Request, res: Response) => {
     });
   }
 
+  // Set HttpOnly cookie
+  res.cookie('rehearsa_token', result.token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: 60 * 60 * 1000, // 1 hour
+    path: '/',
+  });
+
   return res.status(201).json({
     success: true,
-    token: result.token,
     user: result.user,
   });
 });
@@ -91,9 +99,17 @@ router.post('/login', authLimiter, async (req: Request, res: Response) => {
     });
   }
 
+  // Set HttpOnly cookie
+  res.cookie('rehearsa_token', result.token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: 60 * 60 * 1000, // 1 hour
+    path: '/',
+  });
+
   return res.status(200).json({
     success: true,
-    token: result.token,
     user: result.user,
   });
 });
@@ -122,12 +138,12 @@ router.post('/login', authLimiter, async (req: Request, res: Response) => {
  * future milestone if required.
  */
 router.post('/logout', requireAuth, (_req: Request, res: Response) => {
-  // Client is responsible for discarding the token after receiving this response.
+  // Clear HttpOnly cookie
+  res.clearCookie('rehearsa_token', { path: '/' });
+
   return res.status(200).json({
     success: true,
-    message:
-      'Logged out. Discard your token. Note: this endpoint does not invalidate ' +
-      'the JWT server-side; the token remains cryptographically valid until expiry.',
+    message: 'Logged out.',
   });
 });
 

@@ -92,21 +92,17 @@ export interface AuthUser { id: string; email: string; createdAt: string; }
 
 export interface ApiAuthResponse {
   success: boolean;
-  token?: string;
   user?: AuthUser;
   error?: { code: string; message: string; details?: any };
-}
-
-function authHeaders(token?: string | null): Record<string, string> {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  if (token) headers['Authorization'] = `Bearer ${token}`;
-  return headers;
 }
 
 export async function registerUser(payload: AuthPayload): Promise<ApiAuthResponse> {
   try {
     const res = await fetch('/auth/register', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(payload),
     });
     const data = await res.json();
     if (!res.ok) return { success: false, error: data.error };
@@ -119,7 +115,10 @@ export async function registerUser(payload: AuthPayload): Promise<ApiAuthRespons
 export async function loginUser(payload: AuthPayload): Promise<ApiAuthResponse> {
   try {
     const res = await fetch('/auth/login', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(payload),
     });
     const data = await res.json();
     if (!res.ok) return { success: false, error: data.error };
@@ -129,11 +128,27 @@ export async function loginUser(payload: AuthPayload): Promise<ApiAuthResponse> 
   }
 }
 
-export async function logoutUser(token: string): Promise<void> {
+export async function logoutUser(): Promise<void> {
   try {
-    await fetch('/auth/logout', { method: 'POST', headers: authHeaders(token) });
+    await fetch('/auth/logout', {
+      method: 'POST',
+      credentials: 'include',
+    });
   } catch {
-    // Best-effort logout — client discards token regardless
+    // Best-effort logout — backend cookie cleared regardless
+  }
+}
+
+export async function checkSession(): Promise<{ success: boolean; user?: AuthUser; error?: { code: string; message: string } }> {
+  try {
+    const res = await fetch('/auth/me', {
+      credentials: 'include',
+    });
+    const data = await res.json();
+    if (!res.ok) return { success: false, error: data.error };
+    return { success: true, user: data.user };
+  } catch (err: any) {
+    return { success: false, error: { code: 'NETWORK_ERROR', message: err.message } };
   }
 }
 
@@ -166,10 +181,13 @@ export interface ApiKitListResponse {
   error?: { code: string; message: string };
 }
 
-export async function saveKitToServer(kit: Kit, token: string): Promise<ApiKitResponse> {
+export async function saveKitToServer(kit: Kit): Promise<ApiKitResponse> {
   try {
     const res = await fetch('/api/kits', {
-      method: 'POST', headers: authHeaders(token), body: JSON.stringify({ kit }),
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ kit }),
     });
     const data = await res.json();
     if (!res.ok) return { success: false, error: data.error };
@@ -179,9 +197,11 @@ export async function saveKitToServer(kit: Kit, token: string): Promise<ApiKitRe
   }
 }
 
-export async function fetchKitList(token: string): Promise<ApiKitListResponse> {
+export async function fetchKitList(): Promise<ApiKitListResponse> {
   try {
-    const res = await fetch('/api/kits', { headers: authHeaders(token) });
+    const res = await fetch('/api/kits', {
+      credentials: 'include',
+    });
     const data = await res.json();
     if (!res.ok) return { success: false, error: data.error };
     return { success: true, kits: data.kits };
@@ -190,9 +210,11 @@ export async function fetchKitList(token: string): Promise<ApiKitListResponse> {
   }
 }
 
-export async function fetchKitById(id: string, token: string): Promise<ApiKitResponse> {
+export async function fetchKitById(id: string): Promise<ApiKitResponse> {
   try {
-    const res = await fetch(`/api/kits/${id}`, { headers: authHeaders(token) });
+    const res = await fetch(`/api/kits/${id}`, {
+      credentials: 'include',
+    });
     const data = await res.json();
     if (!res.ok) return { success: false, error: data.error };
     // Forward M10 persistence metadata alongside the Appendix A kit payload.
@@ -213,10 +235,13 @@ export async function fetchKitById(id: string, token: string): Promise<ApiKitRes
   }
 }
 
-export async function updateKitOnServer(id: string, kit: Kit, token: string): Promise<ApiKitResponse> {
+export async function updateKitOnServer(id: string, kit: Kit): Promise<ApiKitResponse> {
   try {
     const res = await fetch(`/api/kits/${id}`, {
-      method: 'PUT', headers: authHeaders(token), body: JSON.stringify({ kit }),
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ kit }),
     });
     const data = await res.json();
     if (!res.ok) return { success: false, error: data.error };
@@ -228,10 +253,12 @@ export async function updateKitOnServer(id: string, kit: Kit, token: string): Pr
 
 export async function deleteKitFromServer(
   id: string,
-  token: string
 ): Promise<{ success: boolean; error?: { code: string; message: string } }> {
   try {
-    const res = await fetch(`/api/kits/${id}`, { method: 'DELETE', headers: authHeaders(token) });
+    const res = await fetch(`/api/kits/${id}`, {
+      method: 'DELETE',
+      credentials: 'include',
+    });
     const data = await res.json();
     if (!res.ok) return { success: false, error: data.error };
     return { success: true };
@@ -259,12 +286,12 @@ export interface ApiConfidenceResponse {
 export async function updateQuestionConfidence(
   kitId: string,
   payload: UpdateConfidencePayload,
-  token: string
 ): Promise<ApiConfidenceResponse> {
   try {
     const res = await fetch(`/api/kits/${kitId}/confidence`, {
       method: 'PUT',
-      headers: authHeaders(token),
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify(payload),
     });
     const data = await res.json();
@@ -291,12 +318,12 @@ export interface ApiReorderResponse {
 export async function reorderQuestions(
   kitId: string,
   payload: ReorderQuestionsPayload,
-  token: string
 ): Promise<ApiReorderResponse> {
   try {
     const res = await fetch(`/api/kits/${kitId}/reorder`, {
       method: 'PUT',
-      headers: authHeaders(token),
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify(payload),
     });
     const data = await res.json();
@@ -326,12 +353,12 @@ export interface ApiFlashcardConfidenceResponse {
 export async function updateFlashcardConfidence(
   kitId: string,
   payload: UpdateFlashcardConfidencePayload,
-  token: string
 ): Promise<ApiFlashcardConfidenceResponse> {
   try {
     const res = await fetch(`/api/kits/${kitId}/flashcard-confidence`, {
       method: 'PUT',
-      headers: authHeaders(token),
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify(payload),
     });
     const data = await res.json();
@@ -410,11 +437,11 @@ export async function getSessionById(sessionId: string): Promise<ApiSessionRespo
   }
 }
 
-export async function convertSessionToKit(sessionId: string, token: string): Promise<ApiKitResponse> {
+export async function convertSessionToKit(sessionId: string): Promise<ApiKitResponse> {
   try {
     const res = await fetch(`/api/sessions/${sessionId}/save`, {
       method: 'POST',
-      headers: authHeaders(token),
+      credentials: 'include',
     });
     const data = await res.json();
     if (!res.ok) return { success: false, error: data.error };

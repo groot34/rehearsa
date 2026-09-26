@@ -31,7 +31,7 @@ import {
 export default function SessionPage() {
   const params = useParams();
   const router = useRouter();
-  const { token, user, isLoading: authLoading, logout } = useAuth();
+  const { user, isLoading: authLoading, logout } = useAuth();
   const sessionId = params.id as string;
 
   // Session state
@@ -176,13 +176,13 @@ export default function SessionPage() {
   }, []);
 
   const handleSaveKit = async () => {
-    if (!generatedKit || !token) return;
+    if (!generatedKit) return;
     const saveRevision = kitRevisionRef.current;
     setIsSaving(true);
     setSaveError(null);
     setSaveSuccess(false);
 
-    const res = await convertSessionToKit(sessionId, token);
+    const res = await convertSessionToKit(sessionId);
     setIsSaving(false);
 
     if (res.success && res.data) {
@@ -190,7 +190,7 @@ export default function SessionPage() {
       setSaveSuccess(kitRevisionRef.current === saveRevision);
       if (questionOrder.length > 0) {
         // Reorder the saved kit after conversion
-        await reorderQuestions(res.data.id, { questionIds: questionOrder }, token);
+        await reorderQuestions(res.data.id, { questionIds: questionOrder });
       }
       if (kitRevisionRef.current !== saveRevision) {
         setSaveError('The kit changed while saving. Save again to persist the latest edits.');

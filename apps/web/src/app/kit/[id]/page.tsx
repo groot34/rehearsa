@@ -28,7 +28,7 @@ import {
 export default function KitPage() {
   const params = useParams();
   const router = useRouter();
-  const { token, user, isLoading: authLoading, logout } = useAuth();
+  const { user, isLoading: authLoading, logout } = useAuth();
   const kitId = params.id as string;
 
   // Kit state
@@ -60,7 +60,7 @@ export default function KitPage() {
   // Load kit on mount
   useEffect(() => {
     const loadKit = async () => {
-      if (!token) {
+      if (!user) {
         setKitError('Authentication required. Please sign in.');
         setIsLoading(false);
         return;
@@ -68,7 +68,7 @@ export default function KitPage() {
 
       setIsLoading(true);
       setKitError(null);
-      const res = await fetchKitById(kitId, token);
+      const res = await fetchKitById(kitId);
       setIsLoading(false);
 
       if (res.success && res.data) {
@@ -84,7 +84,7 @@ export default function KitPage() {
     if (kitId) {
       loadKit();
     }
-  }, [kitId, token]);
+  }, [kitId, user]);
 
   const handleItemEdited = useCallback((itemId: string) => {
     setEditedItemIds((prev) => {
@@ -108,32 +108,32 @@ export default function KitPage() {
   }, []);
 
   const handleUpdateConfidence = useCallback(async (questionId: string, confidence: 'unknown' | 'not-ready' | 'somewhat-ready' | 'ready') => {
-    if (!token) return;
+    if (!user) return;
     setIsUpdatingConfidence(true);
-    const res = await updateQuestionConfidence(kitId, { questionId, confidence }, token);
+    const res = await updateQuestionConfidence(kitId, { questionId, confidence });
     setIsUpdatingConfidence(false);
     if (res.success) {
       setQuestionConfidence((prev) => ({ ...prev, [questionId]: confidence }));
     }
-  }, [kitId, token]);
+  }, [kitId, user]);
 
   const handleReorderQuestions = useCallback(async (newOrder: string[]) => {
     setQuestionOrder(newOrder);
-    if (!token) return;
+    if (!user) return;
     setIsReordering(true);
-    const res = await reorderQuestions(kitId, { questionIds: newOrder }, token);
+    const res = await reorderQuestions(kitId, { questionIds: newOrder });
     setIsReordering(false);
-  }, [kitId, token]);
+  }, [kitId, user]);
 
   const handleUpdateFlashcardConfidence = useCallback(async (flashcardId: string, confidence: 'easy' | 'medium' | 'hard') => {
-    if (!token) return;
+    if (!user) return;
     setIsUpdatingFlashcardConfidence(true);
-    const res = await updateFlashcardConfidence(kitId, { flashcardId, confidence }, token);
+    const res = await updateFlashcardConfidence(kitId, { flashcardId, confidence });
     setIsUpdatingFlashcardConfidence(false);
     if (res.success) {
       setFlashcardConfidence((prev) => ({ ...prev, [flashcardId]: confidence }));
     }
-  }, [kitId, token]);
+  }, [kitId, user]);
 
   const regenRequestRef = useRef<number>(0);
 
@@ -181,18 +181,18 @@ export default function KitPage() {
   }, []);
 
   const handleSaveKit = async () => {
-    if (!generatedKit || !token) return;
+    if (!generatedKit) return;
     const saveRevision = kitRevisionRef.current;
     setIsSaving(true);
     setSaveError(null);
     setSaveSuccess(false);
 
-    const res = await updateKitOnServer(kitId, generatedKit, token);
+    const res = await updateKitOnServer(kitId, generatedKit);
     setIsSaving(false);
 
     if (res.success) {
       if (questionOrder.length > 0) {
-        await reorderQuestions(kitId, { questionIds: questionOrder }, token);
+        await reorderQuestions(kitId, { questionIds: questionOrder });
       }
       setSaveSuccess(kitRevisionRef.current === saveRevision);
       if (kitRevisionRef.current !== saveRevision) {
