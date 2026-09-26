@@ -231,7 +231,7 @@ export default function KitPage() {
                 {user.email}
               </span>
               <button
-                onClick={() => router.push('/')}
+                onClick={() => router.push('/saved')}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
               >
                 <BookMarked className="w-3.5 h-3.5" />

@@ -21,12 +21,10 @@ import { KitGeneratorForm } from '../components/KitGeneratorForm';
 import { GenerationProgressTracker } from '../components/GenerationProgressTracker';
 import { KitViewer } from '../components/KitViewer';
 import { AuthForms } from '../components/AuthForms';
-import { SavedKitsList } from '../components/SavedKitsList';
 import {
   Sparkles,
   LogOut,
   BookMarked,
-  ChevronLeft,
   Save,
   CheckCircle2,
   Loader2,
@@ -37,7 +35,7 @@ import {
 // ---------------------------------------------------------------------------
 // View states
 // ---------------------------------------------------------------------------
-type View = 'home' | 'auth' | 'my-kits' | 'kit-viewer';
+type View = 'home' | 'auth' | 'kit-viewer';
 
 export default function HomePage() {
   const router = useRouter();
@@ -63,17 +61,14 @@ export default function HomePage() {
   // Saved kit state (populated when opening a saved kit)
   const [savedKitId, setSavedKitId] = useState<string | null>(null); // non-null = kit is saved
 
+
+
   // Save / update UI state
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
-  // Newly saved kit ID — triggers list refresh in SavedKitsList
-  const [newlySavedKitId, setNewlySavedKitId] = useState<string | null>(null);
 
-  // Opening a saved kit
-  const [isOpeningKit, setIsOpeningKit] = useState(false);
-  const [openKitError, setOpenKitError] = useState<string | null>(null);
 
   // Edit-preservation tracking (same as before M9)
   const [editedItemIds, setEditedItemIds] = useState<Set<string>>(new Set());
@@ -246,7 +241,6 @@ export default function HomePage() {
           await reorderQuestions(savedKitId, { questionIds: questionOrder });
         }
         setSaveSuccess(kitRevisionRef.current === saveRevision);
-        setNewlySavedKitId(savedKitId);
         if (kitRevisionRef.current !== saveRevision) {
           setSaveError('The kit changed while saving. Save again to persist the latest edits.');
         }
@@ -259,11 +253,18 @@ export default function HomePage() {
       setIsSaving(false);
       if (res.success && res.data) {
         setSavedKitId(res.data.id);
+        // Save confidence data for new kit
+        const confidencePromises = Object.entries(questionConfidence).map(([questionId, confidence]) =>
+          updateQuestionConfidence(res.data!.id, { questionId, confidence })
+        );
+        const flashcardPromises = Object.entries(flashcardConfidence).map(([flashcardId, confidence]) =>
+          updateFlashcardConfidence(res.data!.id, { flashcardId, confidence })
+        );
+        await Promise.all([...confidencePromises, ...flashcardPromises]);
         if (questionOrder.length > 0) {
           await reorderQuestions(res.data.id, { questionIds: questionOrder });
         }
         setSaveSuccess(kitRevisionRef.current === saveRevision);
-        setNewlySavedKitId(res.data.id);
         if (kitRevisionRef.current !== saveRevision) {
           setSaveError('The kit changed while saving. Save again to persist the latest edits.');
         }
@@ -271,15 +272,6 @@ export default function HomePage() {
         setSaveError(res.error?.message ?? 'Failed to save kit.');
       }
     }
-  };
-
-  // ---------------------------------------------------------------------------
-  // Open a saved kit
-  // ---------------------------------------------------------------------------
-
-  const handleOpenKit = async (kitId: string) => {
-    // Navigate to the dedicated kit route
-    router.push(`/kit/${kitId}`);
   };
 
   // ---------------------------------------------------------------------------
@@ -293,7 +285,6 @@ export default function HomePage() {
     setSavedKitId(null);
     setSaveSuccess(false);
     setSaveError(null);
-    setOpenKitError(null);
     setEditedItemIds(new Set());
     setQuestionConfidence({});
     setQuestionOrder([]);
@@ -331,7 +322,7 @@ export default function HomePage() {
                 {user.email}
               </span>
               <button
-                onClick={() => handleViewChange('my-kits')}
+                onClick={() => router.push('/saved')}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
               >
                 <BookMarked className="w-3.5 h-3.5" />
@@ -413,43 +404,6 @@ export default function HomePage() {
                 ← Back
               </button>
             </p>
-          </div>
-        )}
-
-        {/* My kits view */}
-        {view === 'my-kits' && (
-          <div>
-            <div className="max-w-3xl mx-auto px-4 pt-6">
-              <button
-                onClick={() => handleViewChange('home')}
-                className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700 transition-colors"
-              >
-                <ChevronLeft className="w-3.5 h-3.5" />
-                Back
-              </button>
-            </div>
-            {isOpeningKit ? (
-              <div className="flex items-center justify-center py-16 text-slate-500">
-                <Loader2 className="w-5 h-5 animate-spin mr-2" />
-                <span className="text-sm">Opening kit…</span>
-              </div>
-            ) : (
-              <>
-                {openKitError && (
-                  <div className="max-w-3xl mx-auto px-4 mt-4">
-                    <div className="flex items-center gap-2 p-3 text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded-xl">
-                      <AlertCircle className="w-4 h-4 shrink-0" />
-                      <span>{openKitError}</span>
-                    </div>
-                  </div>
-                )}
-                <SavedKitsList
-                  onOpenKit={handleOpenKit}
-                  onNewKit={handleReset}
-                  newlySavedKitId={newlySavedKitId}
-                />
-              </>
-            )}
           </div>
         )}
 

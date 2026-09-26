@@ -12,6 +12,8 @@ import {
   updateSessionFlashcardConfidence,
   RegenerateSection,
   reorderQuestions,
+  updateQuestionConfidence,
+  updateFlashcardConfidence,
 } from '../../../lib/api';
 import { syncQuestionOrder } from '../../../lib/kitEditing';
 import { useAuth } from '../../../lib/auth';
@@ -187,6 +189,14 @@ export default function SessionPage() {
 
     if (res.success && res.data) {
       setSavedKitId(res.data.id);
+      // Save confidence data for new kit
+      const confidencePromises = Object.entries(questionConfidence).map(([questionId, confidence]) =>
+        updateQuestionConfidence(res.data!.id, { questionId, confidence })
+      );
+      const flashcardPromises = Object.entries(flashcardConfidence).map(([flashcardId, confidence]) =>
+        updateFlashcardConfidence(res.data!.id, { flashcardId, confidence })
+      );
+      await Promise.all([...confidencePromises, ...flashcardPromises]);
       setSaveSuccess(kitRevisionRef.current === saveRevision);
       if (questionOrder.length > 0) {
         // Reorder the saved kit after conversion
@@ -231,7 +241,7 @@ export default function SessionPage() {
                 {user.email}
               </span>
               <button
-                onClick={() => router.push('/')}
+                onClick={() => router.push('/saved')}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
               >
                 <BookMarked className="w-3.5 h-3.5" />

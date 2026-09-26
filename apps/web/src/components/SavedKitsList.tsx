@@ -9,11 +9,9 @@ import { FolderOpen, Trash2, Loader2, AlertCircle, BookOpen, Plus } from 'lucide
 interface Props {
   onOpenKit: (kitId: string) => void;
   onNewKit: () => void;
-  /** A kit ID that was just saved — triggers a list refresh */
-  newlySavedKitId?: string | null;
 }
 
-export function SavedKitsList({ onOpenKit, onNewKit, newlySavedKitId }: Props) {
+export function SavedKitsList({ onOpenKit, onNewKit }: Props) {
   const { user } = useAuth();
   const [kits, setKits] = useState<KitSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -35,7 +33,7 @@ export function SavedKitsList({ onOpenKit, onNewKit, newlySavedKitId }: Props) {
 
   useEffect(() => {
     loadKits();
-  }, [loadKits, newlySavedKitId]); // re-fetch when a new kit is saved
+  }, [loadKits]);
 
   const handleDelete = async (kit: KitSummary) => {
     if (!user) return;
