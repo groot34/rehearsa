@@ -10,7 +10,7 @@ interface Props {
 
 export const KitGeneratorForm: React.FC<Props> = ({ onSubmit, isLoading, error }) => {
   const [jobDescription, setJobDescription] = useState<string>('');
-  const [companyUrl, setCompanyUrl] = useState<string>('https://example.com');
+  const [companyUrl, setCompanyUrl] = useState<string>('example.com');
   const [daysAvailable, setDaysAvailable] = useState<number>(7);
   const [clientErrors, setClientErrors] = useState<Record<string, string>>({});
 
@@ -25,7 +25,12 @@ export const KitGeneratorForm: React.FC<Props> = ({ onSubmit, isLoading, error }
       errs.companyUrl = 'Company URL is required.';
     } else {
       try {
-        const parsed = new URL(companyUrl);
+        // Auto-prepend https:// if no protocol
+        let urlToValidate = companyUrl.trim();
+        if (!urlToValidate.match(/^https?:\/\//)) {
+          urlToValidate = `https://${urlToValidate}`;
+        }
+        const parsed = new URL(urlToValidate);
         if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
           errs.companyUrl = 'Company URL must start with http:// or https://';
         }
@@ -47,9 +52,14 @@ export const KitGeneratorForm: React.FC<Props> = ({ onSubmit, isLoading, error }
     if (isLoading) return;
 
     if (validateForm()) {
+      // Normalize URL: prepend https:// if missing
+      let normalizedUrl = companyUrl.trim();
+      if (!normalizedUrl.match(/^https?:\/\//)) {
+        normalizedUrl = `https://${normalizedUrl}`;
+      }
       onSubmit({
         jobDescription: jobDescription.trim(),
-        companyUrl: companyUrl.trim(),
+        companyUrl: normalizedUrl,
         daysAvailable: Number(daysAvailable),
       });
     }
@@ -59,7 +69,7 @@ export const KitGeneratorForm: React.FC<Props> = ({ onSubmit, isLoading, error }
     setJobDescription(
       'We are seeking a Senior Full Stack Engineer proficient in TypeScript, React, Next.js, and Node.js backend architecture to lead system design and optimize high-scale APIs.'
     );
-    setCompanyUrl('https://example.com');
+    setCompanyUrl('example.com');
     setDaysAvailable(14);
     setClientErrors({});
   };
