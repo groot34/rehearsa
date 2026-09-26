@@ -21,6 +21,46 @@ const DEFAULT_MINUTES_PER_DIFFICULTY: Record<number, number> = {
 };
 
 /**
+ * Builds a deterministic array of phase-based focus labels for empty schedule days.
+ * Labels are based on the actual categories present in the question set.
+ */
+function buildPhaseFocusLabels(categories: Set<string>, days_available: number): string[] {
+  const labels: string[] = [];
+  
+  // Phase 1: Category-specific review (based on actual categories present)
+  const categoryArray = Array.from(categories).sort();
+  for (const cat of categoryArray) {
+    if (CATEGORY_FOCUS_MAP[cat]) {
+      labels.push(`${CATEGORY_FOCUS_MAP[cat]} Review`);
+    }
+  }
+  
+  // Phase 2: Mock interview practice
+  if (days_available >= 7) {
+    labels.push('Technical Mock Interview');
+    labels.push('Behavioural Mock Interview');
+    labels.push('Mixed Mock Interview');
+  }
+  
+  // Phase 3: Weak area and flashcard revision
+  if (days_available >= 14) {
+    labels.push('Weak Area & Flashcard Revision');
+  }
+  
+  // Phase 4: Final revision
+  if (days_available >= 21) {
+    labels.push('Final Revision & Interview Readiness');
+  }
+  
+  // Fallback if no categories or very short schedule
+  if (labels.length === 0) {
+    labels.push('General Interview Preparation');
+  }
+  
+  return labels;
+}
+
+/**
  * Deterministically allocates interview questions into a study schedule.
  * 
  * Rules:
@@ -52,11 +92,15 @@ export function allocateSchedule(options: ScheduleAllocationOptions): Schedule {
   const days: ScheduleDay[] = [];
 
   if (validQuestions.length === 0) {
-    // Zero questions edge case: generate empty scheduled days with default study time & focus
+    // Zero questions edge case: generate empty scheduled days with phase-based focus labels
+    const emptyCategories = new Set<string>();
+    const phaseLabels = buildPhaseFocusLabels(emptyCategories, days_available);
+    
     for (let dayNum = 1; dayNum <= days_available; dayNum++) {
+      const focusIndex = (dayNum - 1) % phaseLabels.length;
       days.push({
         day: dayNum,
-        focus: role_title ? `${role_title} — General Preparation` : 'General Interview Preparation',
+        focus: phaseLabels[focusIndex],
         question_ids: [],
         minutes: 45,
       });
@@ -98,6 +142,15 @@ export function allocateSchedule(options: ScheduleAllocationOptions): Schedule {
     });
   }
 
+  // Extract unique categories from all questions for phase label generation
+  const presentCategories = new Set<string>();
+  for (const q of validQuestions) {
+    presentCategories.add(q.category);
+  }
+  
+  // Build phase-based focus labels for empty days
+  const phaseLabels = buildPhaseFocusLabels(presentCategories, days_available);
+
   // Construct each ScheduleDay
   for (let dayNum = 1; dayNum <= days_available; dayNum++) {
     const dayQuestions = dayQuestionBins[dayNum - 1];
@@ -133,7 +186,9 @@ export function allocateSchedule(options: ScheduleAllocationOptions): Schedule {
     if (topCategory && CATEGORY_FOCUS_MAP[topCategory]) {
       focusLabel = CATEGORY_FOCUS_MAP[topCategory];
     } else if (dayQuestions.length === 0) {
-      focusLabel = 'Review, Mock Practice & Concept Revision';
+      // Use phase-based focus label for empty days
+      const phaseIndex = (dayNum - 1) % phaseLabels.length;
+      focusLabel = phaseLabels[phaseIndex];
     } else {
       focusLabel = 'Mixed Question Review & Practice';
     }
