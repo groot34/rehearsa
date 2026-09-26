@@ -9,14 +9,14 @@
 * **Project**: Rehearsa — Full-Stack AI-Powered Interview Preparation Platform
 * **Assessment ID**: `FS-AI-INTERVIEW-01` (Trao Assessment)
 * **Active Milestone**: `M19: Session URL / Refresh Persistence and Company URL Normalisation` (VERIFIED 2026-09-26)
-* **Next Milestone**: Final Assessment Audit (FS-AI-INTERVIEW-01)
+* **Next Milestone**: None — Final assessment audit complete, all FS-AI-INTERVIEW-01 requirements verified
 
 ---
 
 ## 2. Latest Known Repository State
 
 * **Branch**: `main`
-* **HEAD Commit**: e497f12 — `fix(session): secure session access and saved kit navigation`
+* **HEAD Commit**: 3a57b29 — `fix(session): secure session access and saved kit navigation`
 * **Working Tree**: Clean
 
 ### M19 Session URL / Refresh Persistence and Company URL Normalisation — implemented 2026-09-26
@@ -112,10 +112,10 @@ Implementation summary:
 ## 3. Completed Verification Evidence
 
 ### Automated Tests (mongodb-memory-server — no real DB required)
-- `npm test` → Exit Code `0`. **257/257 tests passing** across 20 test files (11 new M11 tests added).
+- `npm test` → Exit Code `0`. **347/347 tests passing** across 22 test files (27 session tests + 14 URL normalizer tests added in M19).
 - `npm run build` → Exit Code `0`. All three workspaces compile cleanly.
 - `npm run lint` → Exit Code `0`. All workspaces lint cleanly.
-- `npm run evaluate -- --input scratch/synthetic-benchmark-cases.json --output scratch/synthetic-benchmark-output.json` → Exit Code `0`. 8 cases: 5 valid kits, 3 isolated invalid, 1519ms. Mock provider used, no external API calls.
+- `npm run evaluate -- --input scratch/synthetic-benchmark-cases.json --output scratch/synthetic-benchmark-output.json` → Exit Code `0`. 8 cases: 5 valid kits, 3 isolated invalid, 550ms. Mock provider used, no external API calls.
 
 ### E2E Journey Audit — completed 2026-09-24
 **File**: `apps/api/src/routes/tests/e2eJourney.test.ts` — 59 tests, 30 labelled steps.

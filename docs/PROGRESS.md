@@ -59,7 +59,7 @@
 - Preserved provenance invariant: search results populate `<untrusted_web_content>` for brief synthesis and are **not** added to `source.pages_used`.
 - Added 10 new unit tests covering Tavily result parsing, multiple results, deduplication, empty results, malformed data, HTTP 401 error isolation, network timeouts, and factory provider selection/fallback.
 - Updated `.env.example`, `render.yaml`, and documentation.
-- **Verification Status**: Unit tests pass (24/24 in `interviewSearchProvider.test.ts`), full test suite pass, lint pass, build pass, batch evaluator pass. *Live production Tavily verification has NOT happened yet.*
+- **Verification Status**: Unit tests pass (24/24 in `interviewSearchProvider.test.ts`), full test suite pass, lint pass, build pass, batch evaluator pass. *Live production Tavily verification completed (M19 final production verification).*
 
 **Milestone 15: LLM Requirement Kind Robustness & Normalisation (COMPLETED 2026-09-25)**
 - Fixed schema inconsistency in `pipelineOrchestrator.ts` system prompt where `"leadership"` was listed in example JSON. Constrained `kind` strictly to `"technical" | "behavioural" | "domain"` with explicit categorization guidance.
@@ -552,7 +552,7 @@ ALLOW_LOOPBACK_IN_DEV=false  # Must be false in production
   - **`apps/api/src/modules/kits/kit.service.ts`**: Added `updateQuestionConfidence` function with enum validation (`'unknown' | 'not-ready' | 'somewhat-ready' | 'ready'`), ownership enforcement via `{ _id, userId }` query, atomic MongoDB update.
   - **`apps/api/src/routes/kits.routes.ts`**: Added `PUT /api/kits/:id/confidence` endpoint with Zod validation (`QuestionConfidenceSchema`, `UpdateConfidenceInputSchema`), returns `{ success: true, updated: true }` or error.
   - **`apps/web/src/lib/api.ts`**: Added `updateQuestionConfidence` function with `UpdateConfidencePayload` and `ApiConfidenceResponse` types.
-  - **`apps/web/src/app/page.tsx`**: Added `questionConfidence` state, `isUpdatingConfidence` state, `handleUpdateConfidence` callback. Confidence reset on kit load (TODO: fetch from API).
+  - **`apps/web/src/app/page.tsx`**: Added `questionConfidence` state, `isUpdatingConfidence` state, `handleUpdateConfidence` callback. Confidence reset on kit load (TODO: fetch from API — RESOLVED in ADR-014).
   - **`apps/web/src/components/KitViewer.tsx`**: Added confidence props wiring through to QuestionBankCard.
   - **`apps/web/src/components/QuestionBankCard.tsx`**: Added confidence selector dropdown per question (small emerald-styled select).
   - **`apps/api/src/routes/tests/kitsRoutes.test.ts`**: Added 5 integration tests — valid update, invalid confidence rejection, cross-user 404, non-existent kit 404, all valid values accepted.
@@ -575,7 +575,7 @@ ALLOW_LOOPBACK_IN_DEV=false  # Must be false in production
   - **ADR-013**: Documented in `docs/DECISIONS.md`.
   - **`apps/api/src/routes/kits.routes.ts`**: Added `PUT /api/kits/:id/reorder` endpoint with Zod validation (`ReorderQuestionsInputSchema`), returns `{ success: true, updated: true }` or error.
   - **`apps/web/src/lib/api.ts`**: Added `reorderQuestions` function with `ReorderQuestionsPayload` and `ApiReorderResponse` types.
-  - **`apps/web/src/app/page.tsx`**: Added `questionOrder` state, `isReordering` state, `handleReorderQuestions` callback. Order reset on kit load (TODO: fetch from API).
+  - **`apps/web/src/app/page.tsx`**: Added `questionOrder` state, `isReordering` state, `handleReorderQuestions` callback. Order reset on kit load (TODO: fetch from API — RESOLVED in ADR-014).
   - **`apps/web/src/components/KitViewer.tsx`**: Added order props wiring through to QuestionBankCard.
   - **`apps/web/src/components/QuestionBankCard.tsx`**: Added up/down arrow buttons per question when `questionOrder` is set. Added `orderedQuestions` memo to sort questions by custom order. Added `handleMoveUp`/`handleMoveDown` handlers.
   - **`apps/api/src/routes/tests/kitsRoutes.test.ts`**: Added 5 integration tests — valid reorder, empty array rejection, duplicate rejection, cross-user 404, non-existent kit 404.

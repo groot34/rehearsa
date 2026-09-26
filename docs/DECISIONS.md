@@ -540,7 +540,7 @@ This is an accepted trade-off for a client-rendered SPA without a BFF. An `httpO
 * **Status**: Accepted
 * **Date**: 2026-09-24
 * **Context**:
-  Milestones 10.1–10.3 added three persistence fields to `KitDocumentModel` outside the Appendix A payload: `questionConfidence` (Map), `questionOrder` (string[]), and `flashcardConfidence` (Map). Dedicated `PUT` endpoints were implemented to update these fields atomically. However, `GET /api/kits/:id` was not updated to return them. The frontend `page.tsx` `handleOpenKit` therefore reset all three maps to empty values on every kit reload, with TODO comments noting the gap. As a result, any confidence ratings or custom question order set by the user were silently lost whenever they navigated away and reopened the kit.
+  Milestones 10.1–10.3 added three persistence fields to `KitDocumentModel` outside the Appendix A payload: `questionConfidence` (Map), `questionOrder` (string[]), and `flashcardConfidence` (Map). Dedicated `PUT` endpoints were implemented to update these fields atomically. However, `GET /api/kits/:id` was not updated to return them. The frontend `page.tsx` `handleOpenKit` therefore reset all three maps to empty values on every kit reload, with TODO comments noting the gap. As a result, any confidence ratings or custom question order set by the user were silently lost whenever they navigated away and reopened the kit. (RESOLVED in ADR-014 — GET endpoint now returns these fields and TODO comments were removed.)
 
 * **Investigation findings**:
   - The gap is a genuine consistency issue, not an intentional trade-off. ADR-011, ADR-012, and ADR-013 each noted the limitation but deferred the fix.

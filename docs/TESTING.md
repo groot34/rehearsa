@@ -62,12 +62,12 @@ Must verify:
 |---|---|---|---|
 | `npm run lint` | Monorepo root | Runs linter across all workspaces | Verified |
 | `npm run build` | Monorepo root | TypeScript compilation across packages & Next.js build | Verified |
-| `npm test` or `npx vitest run` | Monorepo root | Runs Vitest unit & integration test suite | Verified (246/246 passing) |
+| `npm test` or `npx vitest run` | Monorepo root | Runs Vitest unit & integration test suite | Verified (347/347 passing) |
 | `npm run evaluate -- --input <cases.json> --output <kits.json>` | Monorepo root | Runs batch evaluator CLI with Appendix B output | Verified (8 cases, 782ms) |
 
 **Note**: Auth and kit CRUD tests use `mongodb-memory-server` — no real MongoDB connection required.
 
-### Test Suite Breakdown (`Vitest v5.0.1` — 20 test files, 257 tests)
+### Test Suite Breakdown (`Vitest v5.0.1` — 22 test files, 347 tests)
 - `packages/shared/src/tests/coverageChecker.test.ts`: 7 tests — coverage set difference, partial coverage, empty arrays, invalid refs, duplicates, stable ordering.
 - `packages/shared/src/tests/scheduleAllocator.test.ts`: 6 tests — 1-day, multi-day, 0 questions, contiguous block, deterministic reproducibility, error handling.
 - `packages/shared/src/tests/kitValidator.test.ts`: 13 tests — Appendix A valid kit, missing fields, enum errors, difficulty limits, invalid refs, duplicate IDs, coverage consistency.
@@ -87,6 +87,8 @@ Must verify:
 - `apps/web/src/tests/kitGenerator.test.ts`: 2 tests — frontend API client request formatting and error propagation.
 - `apps/web/src/tests/kitEditing.test.ts`: 9 tests — update/add/delete questions and flashcards, referential integrity, schedule cleanup, coverage recalculation.
 - `scripts/tests/evaluator.test.ts`: 2 tests — CLI batch evaluation, Appendix B envelope formatting, per-case failure isolation, error exit codes.
+- `apps/api/src/modules/sessions/tests/session.service.test.ts`: **27 tests (NEW — M19)** — session creation, token verification, UNAUTHORIZED for missing token, NOT_FOUND for wrong token, confidence tracking, order tracking, flashcard confidence, session conversion, deletion.
+- `packages/shared/src/tests/urlNormalizer.test.ts`: **14 tests (NEW — M19)** — scheme-less input handling, www domain handling, explicit scheme preservation, edge cases, SSRF guard expectations.
 - `apps/api/src/routes/tests/e2eJourney.test.ts`: **59 tests (NEW — E2E Journey Audit)** — Full sequential user journey: health check, registration, duplicate-email rejection, second-user registration, login, wrong-password/unknown-email rejection (no enumeration), authenticated session (`/auth/me`), unauthenticated rejection, kit generation (MockLlmProvider), Appendix A structure validation (source/role/questions/flashcards/schedule/coverage/referential integrity), save kit, list kits, open kit by ID, edit+update kit, verify edit persisted, question confidence (all 4 tiers + invalid rejection), question reorder (reverse + empty rejection + duplicate rejection), flashcard confidence (easy/medium/hard + `unknown` rejection + unknown ID rejection), section regeneration (questions), section regeneration (flashcards + preserved_ids), multiple kits, ownership isolation (Bob cannot list/GET/PUT/DELETE Alice's kits), delete kit 2, delete kit 1, access deleted kit returns 404, logout Alice, logout Bob.
 
 Automated auth and kit persistence tests use `mongodb-memory-server`; they do not verify connectivity to a real MongoDB deployment. Live MongoDB verification was completed on 2026-09-24 against a Docker MongoDB instance with real credentials — results are recorded in the Test Execution Log above.
@@ -100,7 +102,7 @@ The deployed application was manually tested. Verified:
 - User B created/logged in separately and unable to see User A's saved kit.
 - **Question reordering UI (M14, commit `a1dda57`)**: Question reorder controls (`ArrowUp`/`ArrowDown`) visible in Questions UI, distinct from accordion expand/collapse chevrons (`ChevronUp`/`ChevronDown`). Question moved successfully, new question order persisted via Update Saved Kit, reordered question order intact after browser refresh and reopening saved kit. Boundary behavior verified (first question cannot move up, last question cannot move down).
 
-Google Custom Search was production-tested but returned HTTP 403 because the API is closed to new customers. Google remains as an optional historical/alternative provider implementation. Tavily Search is now implemented as the intended production provider; live Tavily production verification has not happened yet. No Playwright or browser automation was performed.
+Google Custom Search was production-tested but returned HTTP 403 because the API is closed to new customers. Google remains as an optional historical/alternative provider implementation. Tavily Search is now implemented as the intended production provider; live Tavily production verification completed (M19 final production verification). No Playwright or browser automation was performed.
 
 ---
 

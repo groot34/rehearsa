@@ -214,8 +214,8 @@ npm run evaluate -- --input <cases.json> --output <kits.json>
 
 ## 7. Current Project State & Milestones
 
-* **Current Milestone**: `M16 — Tavily Public Interview Discussion Search Integration`
-* **Repository State**: M14 (question reordering UI exposure) production verified. M15 (prompt constraint and requirement kind normalization) production verified. M16 implemented: added `TavilySearchProvider` for official Tavily Search API, added `TAVILY_API_KEY` configuration, updated factory and environment templates. Tests, build, lint, and evaluator passing.
+* **Current Milestone**: `M19 — Session URL / Refresh Persistence and Company URL Normalisation (VERIFIED 2026-09-26)`
+* **Repository State**: M14–M18 production verified. M19 implemented: session URL architecture with HttpOnly cookie-based ownership security, company URL normalisation, saved kit canonical route `/kit/[id]`, save navigation fixes. 347/347 tests passing, lint/build/evaluator passing.
 
 ---
 
